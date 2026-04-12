@@ -1,0 +1,23 @@
+{
+  "_comment": "Astrologer App – Feature Permissions.",
+  "tab_dashboard": true,
+  "tab_wallet": true,
+  "tab_profile": true,
+  "tab_more": true,
+  "dashboard_quick_stats": true,
+  "dashboard_status_toggles": true,
+  "dashboard_notifications": true,
+  "chat": true,
+  "call": true,
+  "puja": true,
+  "chat_recommend_puja": false,
+  "kundali": true,
+  "kundali_matching": true,
+  "wallet": true,
+  "reviews": true,
+  "reports": true,
+  "followers": true,
+  "appointments": true,
+  "notifications": true,
+  "profile": true
+}
