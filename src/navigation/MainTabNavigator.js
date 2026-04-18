@@ -17,12 +17,14 @@ import NotificationsScreen from '../screens/NotificationsScreen';
 import KundaliScreen      from '../screens/KundaliScreen';
 import KundaliMatchingScreen from '../screens/KundaliMatchingScreen';
 import BottomTabBar       from '../components/BottomTabBar';
+import CallRoomScreen     from '../screens/CallRoomScreen';
 import { colors }         from '../theme/colors';
 import usePermissions     from '../hooks/usePermissions';
 
 const MainTabNavigator = () => {
-  const [activeTab, setActiveTab]         = useState('Dashboard');
+  const [activeTab, setActiveTab]             = useState('Dashboard');
   const [activeSubScreen, setActiveSubScreen] = useState(null);
+  const [activeCall, setActiveCall]           = useState(null); // { callId, isAccepted, data }
   const { can } = usePermissions();
 
   const openSubScreen = (name) => {
@@ -60,6 +62,18 @@ const MainTabNavigator = () => {
   if (activeSubScreen === 'Kundali')        return <KundaliScreen onBack={closeSubScreen} />;
   if (activeSubScreen === 'KundaliMatching')return <KundaliMatchingScreen onBack={closeSubScreen} />;
 
+  // ── Call Room ─────────────────────────────────────────────────────────────
+  if (activeCall) {
+    return (
+      <CallRoomScreen
+        callId={activeCall.callId}
+        isAccepted={activeCall.isAccepted}
+        initialData={activeCall.data}
+        onBack={() => setActiveCall(null)}
+      />
+    );
+  }
+
   const renderScreen = () => {
     switch (activeTab) {
       case 'Wallet':
@@ -69,7 +83,14 @@ const MainTabNavigator = () => {
       case 'More':
         return can('tab_more') ? <MoreScreen onOpenSubScreen={openSubScreen} /> : <DashboardScreen onOpenSubScreen={openSubScreen} />;
       default:
-        return <DashboardScreen onOpenSubScreen={openSubScreen} />;
+        return (
+          <DashboardScreen
+            onOpenSubScreen={openSubScreen}
+            onOpenCallRoom={(callId, isAccepted, data) =>
+              setActiveCall({ callId, isAccepted: !!isAccepted, data: data || null })
+            }
+          />
+        );
     }
   };
 

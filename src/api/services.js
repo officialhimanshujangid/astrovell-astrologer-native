@@ -41,6 +41,7 @@ export const callApi = {
   updateStatus: (data) => API.post('/customer/addCallStatus', data),
   getCallHistory: (data) => API.post('/customer/getCallHistory', data),
   getCallById: (data) => API.post('/customer/getCallById', data),
+  getZegoToken: (data) => API.post('/customer/zegocloud/token', data),
 };
 
 // ── Wallet & Withdraw ─────────────────────────────────────────────────────────
