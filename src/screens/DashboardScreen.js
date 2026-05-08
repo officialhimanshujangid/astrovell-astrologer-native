@@ -22,7 +22,7 @@ import usePermissions from '../hooks/usePermissions';
 
 const BASE_IMG = 'https://astrology-i7c9.onrender.com/';
 
-const DashboardScreen = ({ onOpenSubScreen, onOpenCallRoom }) => {
+const DashboardScreen = ({ onOpenSubScreen }) => {
   const dispatch = useDispatch();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
@@ -161,7 +161,6 @@ const DashboardScreen = ({ onOpenSubScreen, onOpenCallRoom }) => {
 
   const handleAcceptCall = async (req) => {
     try {
-      // Emit via socket first for speed
       if (socketRef.current?.connected) {
         socketRef.current.emit('join-call', { callId: req.id });
         socketRef.current.emit('accept-call', { callId: req.id });
@@ -169,8 +168,7 @@ const DashboardScreen = ({ onOpenSubScreen, onOpenCallRoom }) => {
         await callApi.acceptRequest({ callId: req.id });
       }
       dispatch(removeCallRequest(req.id));
-      // Navigate to CallRoomScreen with isAccepted=true — this skips the race condition
-      onOpenCallRoom?.(req.id, true, req);
+      Alert.alert('✅ Call Accepted', 'Call session started!');
     } catch (_) {
       Alert.alert('Error', 'Failed to accept call');
     }
