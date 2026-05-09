@@ -9,11 +9,10 @@ import { io } from 'socket.io-client';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors } from '../theme/colors';
-import { chatApi, pujaApi } from '../api/services';
-import { SOCKET_BASE } from '../api/apiClient';
+import { Ionicons } from '@expo/vector-icons';
+import { chatApi, pujaApi, kundaliApi, horoscopeApi } from '../api/services';
+import { SOCKET_BASE, BASE_IMG } from '../api/apiClient';
 import usePermissions from '../hooks/usePermissions';
-
-const BASE_IMG = 'https://astrology-i7c9.onrender.com/';
 
 const ChatRoomScreen = ({ route }) => {
   const { chatId } = route.params;
@@ -32,6 +31,16 @@ const ChatRoomScreen = ({ route }) => {
   const [myPujas, setMyPujas]           = useState([]);
   const [recId, setRecId]               = useState(null); // recommending puja id
 
+  // ── Astro Tools State ──────────────────────────────────────────────────────
+  const [showAstroTools, setShowAstroTools] = useState(false);
+  const [activeTool, setActiveTool]         = useState('Kundali'); 
+  const [kundaliSubTab, setKundaliSubTab]   = useState('Basic'); // 'Basic' | 'Planets' | 'Dasha'
+  const [astroLoading, setAstroLoading]     = useState(false);
+  const [kundaliData, setKundaliData]       = useState(null);
+  const [matchResult, setMatchResult]       = useState(null);
+  const [dailyHoro, setDailyHoro]           = useState(null);
+  const [matchForm, setMatchForm]           = useState({ name: '', dob: '', time: '', place: '' });
+
   const socketRef    = useRef(null);
   const timerRef     = useRef(null);
   const typingTimeout = useRef(null);
@@ -42,6 +51,9 @@ const ChatRoomScreen = ({ route }) => {
 
   const formatTime = (d) =>
     d ? new Date(d).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '';
+
+  const formatDashaDate = (d) =>
+    d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
 
   // ── Init ────────────────────────────────────────────────────────────────────
   const initChat = useCallback(async () => {
@@ -248,6 +260,97 @@ const ChatRoomScreen = ({ route }) => {
     setRecId(null);
   };
 
+  // ── Astro Tools Actions ────────────────────────────────────────────────────
+  const fetchQuickKundali = async () => {
+    if (!chatDetail) return;
+    setAstroLoading(true);
+    try {
+      const dob = chatDetail.intakeBirthDate || '1990-01-01';
+      const tob = chatDetail.intakeBirthTime || '12:00:00';
+      const lat = chatDetail.intakeLat || '28.6139';
+      const lon = chatDetail.intakeLon || '77.2090';
+
+      const payload = { dob, tob, lat, lon, tz: 5.5, name: chatDetail.intakeName || 'User' };
+
+      const [basicRes, planetRes, dashaRes, panchangRes] = await Promise.all([
+        kundaliApi.getBasicReport(payload),
+        kundaliApi.getPlanetReport(payload),
+        kundaliApi.getMahadashaList(payload),
+        kundaliApi.getBirthPanchang(payload)
+      ]);
+
+      setKundaliData({ 
+        basic: basicRes.data?.data || basicRes.data, 
+        planets: planetRes.data?.recordList || planetRes.data?.data || [],
+        dasha: dashaRes.data?.recordList || dashaRes.data?.data || [],
+        panchang: panchangRes.data?.data || panchangRes.data,
+        rashi: basicRes.data?.data?.moonSign || 'Aries',
+        nakshatra: basicRes.data?.data?.nakshatra || 'N/A'
+      });
+
+      if (basicRes.data?.data?.moonSign) fetchHoroscope(basicRes.data?.data?.moonSign);
+    } catch (e) {
+      console.warn('[Astro Tools] Kundali Fetch Failed:', e.message);
+    }
+    setAstroLoading(false);
+  };
+
+  const fetchHoroscope = async (signName) => {
+    try {
+      const signsRes = await horoscopeApi.getSigns();
+      const signs = signsRes.data?.recordList || [];
+      
+      // Try to find matching sign
+      const target = signName?.toLowerCase();
+      const matchedSign = signs.find(s => s.signName?.toLowerCase() === target || s.signName_hi?.toLowerCase() === target) 
+                          || signs[0];
+
+      if (matchedSign) {
+        const daily = await horoscopeApi.getDaily({ sign: matchedSign.signName });
+        const prediction = daily.data?.recordList?.[0] || daily.data;
+        setDailyHoro({ ...prediction, signName: matchedSign.signName });
+      }
+    } catch (e) {
+      console.warn('[Astro Tools] Horoscope Fetch Failed:', e.message);
+    }
+  };
+
+  const handleMatch = async () => {
+    if (!matchForm.dob) {
+      Alert.alert('Missing Info', 'Please enter partner DOB');
+      return;
+    }
+    setAstroLoading(true);
+    try {
+      const payload = {
+        m_name: chatDetail.intakeName || chatDetail.userName,
+        m_dob: chatDetail.intakeBirthDate || '1990-01-01',
+        m_tob: chatDetail.intakeBirthTime || '12:00:00',
+        m_lat: chatDetail.intakeLat || '28.6139',
+        m_lon: chatDetail.intakeLon || '77.2090',
+        f_name: matchForm.name || 'Partner',
+        f_dob: matchForm.dob,
+        f_tob: matchForm.time || '12:00:00',
+        f_lat: '28.6139', f_lon: '77.2090',
+        tz: 5.5
+      };
+      const res = await kundaliApi.matchReport(payload);
+      const data = res.data?.data || res.data;
+      setMatchResult(data);
+    } catch (e) {
+      console.warn('[Astro Tools] Matching Failed:', e.message);
+    }
+    setAstroLoading(false);
+  };
+
+  const shareToChat = (text) => {
+    if (!text) return;
+    setNewMsg(text);
+    handleSend();
+    setShowAstroTools(false);
+    Alert.alert('✅ Shared', 'Report shared with customer');
+  };
+
   // ── Render Message ────────────────────────────────────────────────────────
   const renderMsg = ({ item }) => {
     // ── Puja sent card ───────────────────────────────────────────────────────
@@ -328,6 +431,17 @@ const ChatRoomScreen = ({ route }) => {
               </Text>
             </View>
           )}
+          {!isDone && (
+            <TouchableOpacity 
+              style={styles.astroToolBtn} 
+              onPress={() => {
+                setShowAstroTools(true);
+                if (!kundaliData) fetchQuickKundali();
+              }}
+            >
+              <Text style={{ fontSize: 20 }}>🔮</Text>
+            </TouchableOpacity>
+          )}
           {can('chat_recommend_puja') && !isDone && (
             <TouchableOpacity style={styles.pujaBtn} onPress={loadPujas} activeOpacity={0.8}>
               <Text style={styles.pujaBtnText}>🙏</Text>
@@ -377,28 +491,205 @@ const ChatRoomScreen = ({ route }) => {
             }
           />
 
+          {/* ── Astro Workspace (Inline) ──────────────────────────────────── */}
+          {showAstroTools && !isDone && (
+            <View style={styles.astroWorkspaceInline}>
+              <View style={styles.astroWorkspaceContent}>
+                {astroLoading ? (
+                  <View style={styles.astroCenter}>
+                    <ActivityIndicator color={colors.goldDark} />
+                  </View>
+                ) : (
+                  <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false}>
+                    {activeTool === 'Kundali' && (
+                      <View>
+                        <View style={styles.kundaliSubTabs}>
+                          {['Basic', 'Planets', 'Dasha'].map(st => (
+                            <TouchableOpacity 
+                              key={st} 
+                              style={[styles.kundaliSubTab, kundaliSubTab === st && styles.kundaliSubTabActive]}
+                              onPress={() => setKundaliSubTab(st)}
+                            >
+                              <Text style={[styles.kundaliSubTabText, kundaliSubTab === st && styles.kundaliSubTabTextActive]}>{st}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+
+                        <View style={{ padding: 12 }}>
+                          {kundaliSubTab === 'Basic' && (
+                            <View>
+                              <Text style={styles.astroCardTitleMini}>Birth Panchang</Text>
+                              <View style={styles.astroQuickInfo}>
+                                <DetailItem label="Tithi" value={kundaliData?.panchang?.tithi} />
+                                <DetailItem label="Karan" value={kundaliData?.panchang?.karan} />
+                                <DetailItem label="Yog" value={kundaliData?.panchang?.yog} />
+                                <DetailItem label="Nakshatra" value={kundaliData?.nakshatra} />
+                                <DetailItem label="Sunrise" value={kundaliData?.panchang?.sunrise} />
+                                <DetailItem label="Sunset" value={kundaliData?.panchang?.sunset} />
+                              </View>
+                              <TouchableOpacity style={styles.shareReportBtnMini} onPress={() => shareToChat(`Kundali Basic Detail:\nTithi: ${kundaliData?.panchang?.tithi}\nNakshatra: ${kundaliData?.nakshatra}\nRashi: ${kundaliData?.rashi}`)}>
+                                <Text style={styles.shareReportTextMini}>Share Basic Details</Text>
+                              </TouchableOpacity>
+                            </View>
+                          )}
+
+                          {kundaliSubTab === 'Planets' && (
+                            <View>
+                               <Text style={styles.astroCardTitleMini}>Planet Positions</Text>
+                               <View style={styles.planetsTable}>
+                                  {kundaliData?.planets?.slice(0, 10).map((p, idx) => (
+                                    <View key={idx} style={styles.planetRow}>
+                                       <Text style={styles.planetName}>{p.name}</Text>
+                                       <Text style={styles.planetDegree}>{p.fullDegree?.toFixed(2)}°</Text>
+                                       <Text style={styles.planetRashi}>{p.rasi?.substring(0,3)}</Text>
+                                    </View>
+                                  ))}
+                               </View>
+                               <TouchableOpacity style={styles.shareReportBtnMini} onPress={() => shareToChat(`I've checked your planet positions. Your Moon is at ${kundaliData?.planets?.find(p=>p.name==='Moon')?.fullDegree?.toFixed(2)}° in ${kundaliData?.rashi}.`)}>
+                                 <Text style={styles.shareReportTextMini}>Share Planet Summary</Text>
+                               </TouchableOpacity>
+                            </View>
+                          )}
+
+                          {kundaliSubTab === 'Dasha' && (
+                            <View>
+                               <Text style={styles.astroCardTitleMini}>Vimshottari Mahadasha</Text>
+                               <View style={styles.dashaList}>
+                                  {kundaliData?.dasha?.slice(0, 5).map((d, idx) => (
+                                    <View key={idx} style={styles.dashaRow}>
+                                       <Text style={styles.dashaLord}>{d.planet}</Text>
+                                       <Text style={styles.dashaDate}>{formatDashaDate(d.start)} - {formatDashaDate(d.end)}</Text>
+                                    </View>
+                                  ))}
+                               </View>
+                               <TouchableOpacity style={styles.shareReportBtnMini} onPress={() => shareToChat(`Current Dasha Analysis: You are currently in ${kundaliData?.dasha?.[0]?.planet} Mahadasha until ${formatDashaDate(kundaliData?.dasha?.[0]?.end)}.`)}>
+                                 <Text style={styles.shareReportTextMini}>Share Dasha Detail</Text>
+                               </TouchableOpacity>
+                            </View>
+                          )}
+                        </View>
+                      </View>
+                    )}
+
+                    {activeTool === 'Matching' && (
+                      <View style={{ padding: 12 }}>
+                        {!matchResult ? (
+                          <View>
+                            <Text style={styles.toolSubTitle}>Enter Partner Details</Text>
+                            <TextInput 
+                              style={styles.astroInputMini} 
+                              placeholder="Name" 
+                              value={matchForm.name} 
+                              onChangeText={v => setMatchForm(p => ({ ...p, name: v }))} 
+                            />
+                            <TextInput 
+                              style={styles.astroInputMini} 
+                              placeholder="DOB (YYYY-MM-DD)" 
+                              value={matchForm.dob} 
+                              onChangeText={v => setMatchForm(p => ({ ...p, dob: v }))} 
+                            />
+                            <TextInput 
+                              style={styles.astroInputMini} 
+                              placeholder="Time (HH:MM:SS)" 
+                              value={matchForm.time} 
+                              onChangeText={v => setMatchForm(p => ({ ...p, time: v }))} 
+                            />
+                            <TouchableOpacity style={styles.matchSubmitBtnMini} onPress={handleMatch}>
+                               <Text style={styles.matchSubmitTextMini}>Calculate Match Score</Text>
+                            </TouchableOpacity>
+                          </View>
+                        ) : (
+                          <View>
+                             <View style={styles.matchResultHeader}>
+                               <Text style={styles.matchScoreTextMini}>{matchResult.totalPoints || 0} / 36</Text>
+                               <Text style={styles.matchPointsLabel}>Guna Milan Points</Text>
+                             </View>
+                             <Text style={styles.matchConclusionMini}>{matchResult.conclusion || 'Compatibility analysis complete.'}</Text>
+                             <TouchableOpacity 
+                                style={styles.shareReportBtnMini} 
+                                onPress={() => shareToChat(`Kundali Matching Report:\n❤️ Compatibility Score: ${matchResult.totalPoints}/36\n📝 Conclusion: ${matchResult.conclusion}\nThis score reflects your overall Guna Milan compatibility.`)}
+                             >
+                               <Text style={styles.shareReportTextMini}>📤 Share Match Result</Text>
+                             </TouchableOpacity>
+                             <TouchableOpacity onPress={() => setMatchResult(null)} style={{ marginTop: 12 }}>
+                               <Text style={{ color: colors.goldDark, textAlign: 'center', fontSize: 12, fontWeight: '700' }}>Reset & Try Another</Text>
+                             </TouchableOpacity>
+                          </View>
+                        )}
+                      </View>
+                    )}
+
+                    {activeTool === 'Horoscope' && (
+                      <View style={{ padding: 12 }}>
+                         <Text style={styles.astroCardTitleMini}>Daily Horoscope: {dailyHoro?.signName || 'Rashi'}</Text>
+                         {dailyHoro ? (
+                           <>
+                             <Text style={styles.horoTextMini}>{dailyHoro.prediction || dailyHoro.horoscope || 'Prediction loading...'}</Text>
+                             <TouchableOpacity 
+                               style={styles.shareReportBtnMini} 
+                               onPress={() => shareToChat(`Daily Horoscope for ${dailyHoro.signName}:\n🔮 Insight: ${dailyHoro.prediction || dailyHoro.horoscope}\nHave a blessed day!`)}
+                             >
+                               <Text style={styles.shareReportTextMini}>📤 Share Horoscope</Text>
+                             </TouchableOpacity>
+                           </>
+                         ) : (
+                           <Text style={styles.emptyAstroText}>No prediction data available.</Text>
+                         )}
+                      </View>
+                    )}
+                  </ScrollView>
+                )}
+              </View>
+            </View>
+          )}
+
           {/* ── Input ────────────────────────────────────────────────────── */}
           {!isDone && (
-            <View style={[styles.inputRow, { paddingBottom: insets.bottom + 8 }]}>
-              <TextInput
-                style={styles.input}
-                value={newMsg}
-                onChangeText={handleTyping}
-                placeholder="Type a message..."
-                placeholderTextColor={colors.textMuted}
-                multiline
-                maxLength={1000}
-              />
-              <TouchableOpacity
-                style={[styles.sendBtn, (!newMsg.trim() || sending) && { opacity: 0.5 }]}
-                onPress={handleSend}
-                disabled={!newMsg.trim() || sending}
-                activeOpacity={0.8}
-              >
-                {sending
-                  ? <ActivityIndicator color={colors.white} size="small" />
-                  : <Text style={styles.sendBtnText}>➤</Text>}
-              </TouchableOpacity>
+            <View style={styles.inputAreaWrap}>
+              <View style={styles.inputRow}>
+                <TextInput
+                  style={styles.input}
+                  value={newMsg}
+                  onChangeText={handleTyping}
+                  placeholder="Type a message..."
+                  placeholderTextColor={colors.textMuted}
+                  multiline
+                  maxLength={1000}
+                />
+                <TouchableOpacity
+                  style={[styles.sendBtn, (!newMsg.trim() || sending) && { opacity: 0.5 }]}
+                  onPress={handleSend}
+                  disabled={!newMsg.trim() || sending}
+                  activeOpacity={0.8}
+                >
+                  {sending
+                    ? <ActivityIndicator color={colors.white} size="small" />
+                    : <Text style={styles.sendBtnText}>➤</Text>}
+                </TouchableOpacity>
+              </View>
+
+              {/* ── Astro Workspace Bar ──────────────────────────────────── */}
+              {showAstroTools && (
+                <View style={styles.astroToolBar}>
+                  <View style={styles.toolTabsMini}>
+                    {['Kundali', 'Matching', 'Horoscope'].map(t => (
+                      <TouchableOpacity 
+                        key={t} 
+                        style={[styles.toolTabMini, activeTool === t && styles.toolTabActiveMini]}
+                        onPress={() => {
+                          setActiveTool(t);
+                          if (t === 'Horoscope' && !dailyHoro) fetchHoroscope();
+                        }}
+                      >
+                        <Text style={[styles.toolTabTextMini, activeTool === t && styles.toolTabTextActiveMini]}>{t}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  <TouchableOpacity onPress={() => setShowAstroTools(false)} style={styles.closeToolBtn}>
+                    <Ionicons name="close" size={24} color={colors.text} />
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           )}
 
@@ -610,4 +901,116 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: colors.border,
   },
   modalCloseText: { color: colors.text, fontWeight: '700', fontSize: 14 },
+
+  // ── Astro Tools Styles ─────────────────────────────────────────────────────
+  astroToolBtn: {
+    width: 38, height: 38, borderRadius: 19,
+    backgroundColor: colors.goldBg,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: colors.borderGold,
+  },
+  astroModalHeader: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 12, paddingVertical: 10,
+    backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border,
+  },
+  toolTabs: { flex: 1, flexDirection: 'row', gap: 8, paddingLeft: 8 },
+  toolTab: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 },
+  toolTabActive: { backgroundColor: colors.goldBg },
+  toolTabText: { color: colors.textSecondary, fontSize: 13, fontWeight: '700' },
+  toolTabTextActive: { color: colors.goldDark },
+  astroCenter: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 },
+  astroLoadingText: { marginTop: 12, color: colors.textSecondary, fontSize: 14 },
+  astroDataCard: { backgroundColor: colors.white, borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: colors.border },
+  astroCardTitle: { color: colors.text, fontSize: 15, fontWeight: '800', marginBottom: 12 },
+  chartPlaceholder: { height: 120, backgroundColor: colors.surface, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 16, borderStyle: 'dashed', borderWidth: 1, borderColor: colors.border },
+  shareReportBtn: { backgroundColor: colors.gold, borderRadius: 12, paddingVertical: 10, alignItems: 'center', marginTop: 8 },
+  shareReportText: { color: colors.text, fontSize: 13, fontWeight: '800' },
+  astroDetailRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border },
+  astroDetailLabel: { color: colors.textSecondary, fontSize: 13 },
+  astroDetailValue: { color: colors.text, fontSize: 13, fontWeight: '700' },
+  astroInput: { backgroundColor: colors.surface, borderRadius: 10, padding: 12, marginBottom: 10, color: colors.text, fontSize: 14, borderWidth: 1, borderColor: colors.border },
+  matchSubmitBtn: { backgroundColor: colors.text, borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginTop: 4 },
+  matchSubmitText: { color: colors.white, fontWeight: '800' },
+  matchScoreText: { fontSize: 24, fontWeight: '900', color: colors.goldDark, textAlign: 'center', marginVertical: 10 },
+  matchConclusion: { color: colors.textSecondary, textAlign: 'center', fontSize: 13, fontStyle: 'italic', marginBottom: 16 },
+  horoText: { color: colors.text, fontSize: 14, lineHeight: 22, marginBottom: 16 },
+
+  // ── Integrated Workspace Styles ──────────────────────────────────────────
+  inputAreaWrap: {
+    backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border,
+  },
+  inputRow: {
+    flexDirection: 'row', alignItems: 'flex-end', gap: 8,
+    paddingHorizontal: 12, paddingVertical: 10,
+  },
+  astroWorkspaceInline: {
+    backgroundColor: colors.primary,
+    borderTopWidth: 1, borderTopColor: colors.border,
+    height: 320, // Increased height for full detail
+  },
+  astroWorkspaceContent: { flex: 1 },
+  kundaliSubTabs: {
+    flexDirection: 'row', backgroundColor: colors.surface,
+    paddingHorizontal: 12, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border,
+  },
+  kundaliSubTab: { paddingHorizontal: 16, paddingVertical: 6, borderRadius: 8, marginRight: 8 },
+  kundaliSubTabActive: { backgroundColor: colors.gold + '20' },
+  kundaliSubTabText: { color: colors.textSecondary, fontSize: 11, fontWeight: '700' },
+  kundaliSubTabTextActive: { color: colors.goldDark },
+
+  planetsTable: { backgroundColor: colors.white, borderRadius: 12, padding: 8, marginBottom: 10, borderWidth: 1, borderColor: colors.border },
+  planetRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: colors.border + '50' },
+  planetName: { flex: 1, color: colors.text, fontSize: 12, fontWeight: '700' },
+  planetDegree: { flex: 1, color: colors.textSecondary, fontSize: 11, textAlign: 'center' },
+  planetRashi: { flex: 0.5, color: colors.goldDark, fontSize: 11, fontWeight: '800', textAlign: 'right' },
+
+  dashaList: { backgroundColor: colors.white, borderRadius: 12, padding: 8, marginBottom: 10, borderWidth: 1, borderColor: colors.border },
+  dashaRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border + '50' },
+  dashaLord: { color: colors.text, fontSize: 12, fontWeight: '700' },
+  dashaDate: { color: colors.textSecondary, fontSize: 11 },
+  astroToolBar: {
+    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8,
+    borderTopWidth: 1, borderTopColor: colors.border,
+  },
+  toolTabsMini: { flex: 1, flexDirection: 'row', gap: 6 },
+  toolTabMini: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12 },
+  toolTabActiveMini: { backgroundColor: colors.goldBg },
+  toolTabTextMini: { color: colors.textSecondary, fontSize: 13, fontWeight: '700' },
+  toolTabTextActiveMini: { color: colors.goldDark },
+  closeToolBtn: { padding: 4 },
+  
+  astroCardTitleMini: { color: colors.text, fontSize: 13, fontWeight: '800', marginBottom: 8 },
+  chartPlaceholderMini: { height: 70, backgroundColor: colors.surface, borderRadius: 8, alignItems: 'center', justifyContent: 'center', marginBottom: 8, borderStyle: 'dashed', borderWidth: 1, borderColor: colors.border },
+  quickStatsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  quickStatBox: { flex: 1, alignItems: 'center' },
+  quickStatLabel: { color: colors.textMuted, fontSize: 10 },
+  quickStatValue: { color: colors.text, fontSize: 11, fontWeight: '700' },
+  shareReportBtnMini: { backgroundColor: colors.gold, borderRadius: 8, paddingVertical: 8, alignItems: 'center' },
+  shareReportTextMini: { color: colors.text, fontSize: 11, fontWeight: '800' },
+  astroInputMini: { backgroundColor: colors.white, borderRadius: 8, padding: 8, marginBottom: 6, color: colors.text, fontSize: 12, borderWidth: 1, borderColor: colors.border },
+  matchSubmitBtnMini: { backgroundColor: colors.text, borderRadius: 8, paddingVertical: 10, alignItems: 'center' },
+  matchSubmitTextMini: { color: colors.white, fontSize: 12, fontWeight: '800' },
+  matchScoreTextMini: { fontSize: 20, fontWeight: '900', color: colors.goldDark, textAlign: 'center', marginVertical: 4 },
+  matchConclusionMini: { color: colors.textSecondary, textAlign: 'center', fontSize: 11, fontStyle: 'italic', marginBottom: 8 },
+  horoTextMini: { color: colors.text, fontSize: 12, lineHeight: 18, marginBottom: 10 },
+  astroQuickInfo: { backgroundColor: colors.white, borderRadius: 12, padding: 8, marginBottom: 10, borderWidth: 1, borderColor: colors.borderGold + '40' },
+  toolSubTitle: { color: colors.textSecondary, fontSize: 11, fontWeight: '700', textTransform: 'uppercase', marginBottom: 8, marginLeft: 4 },
+  matchResultHeader: { alignItems: 'center', marginBottom: 8 },
+  matchPointsLabel: { color: colors.textMuted, fontSize: 10, fontWeight: '600', textTransform: 'uppercase' },
+  emptyAstroText: { color: colors.textMuted, fontSize: 12, textAlign: 'center', marginVertical: 20 },
 });
+
+const QuickStat = ({ label, value }) => (
+  <View style={styles.quickStatBox}>
+    <Text style={styles.quickStatLabel}>{label}</Text>
+    <Text style={styles.quickStatValue}>{value || '-'}</Text>
+  </View>
+);
+
+const DetailItem = ({ label, value }) => (
+  <View style={styles.astroDetailRow}>
+    <Text style={styles.astroDetailLabel}>{label}</Text>
+    <Text style={styles.astroDetailValue}>{value || 'N/A'}</Text>
+  </View>
+);
