@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { useSelector } from 'react-redux';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { pujaApi } from '../api/services';
 import { colors } from '../theme/colors';
 import ScreenHeader from '../components/ScreenHeader';
@@ -19,6 +20,7 @@ const PujaScreen = ({ onBack }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [saving,     setSaving]     = useState(false);
+  const [selectedPuja, setSelectedPuja] = useState(null);
   const [form, setForm] = useState({
     puja_title: '', puja_price: '', puja_place: '', short_description: '', long_description: '',
   });
@@ -61,6 +63,7 @@ const PujaScreen = ({ onBack }) => {
           try {
             await pujaApi.delete({ id });
             setPujas(prev => prev.filter(p => p.id !== id));
+            setSelectedPuja(null);
           } catch (_) { Alert.alert('Error', 'Failed to delete'); }
         },
       },
@@ -81,12 +84,17 @@ const PujaScreen = ({ onBack }) => {
     const isApproved = item.isAdminApproved === 'Approved';
 
     return (
-      <View style={styles.pujaCard}>
+      <TouchableOpacity 
+        style={styles.pujaCard} 
+        activeOpacity={0.9}
+        onPress={() => setSelectedPuja(item)}
+      >
         {img ? (
           <Image source={{ uri: img }} style={styles.pujaImage} />
         ) : (
           <View style={styles.pujaImagePlaceholder}>
-            <Text style={{ fontSize: 30 }}>🪔</Text>
+            <Text style={{ fontSize: 32 }}>🪔</Text>
+            <Text style={styles.noImgText}>No Image Available</Text>
           </View>
         )}
         <View style={styles.pujaInfo}>
@@ -94,19 +102,21 @@ const PujaScreen = ({ onBack }) => {
             <Text style={styles.pujaTitle} numberOfLines={2}>{item.puja_title}</Text>
             <Text style={styles.pujaPrice}>₹{parseFloat(item.puja_price || 0).toFixed(0)}</Text>
           </View>
-          {item.puja_place ? <Text style={styles.pujaPlace}>📍 {item.puja_place}</Text> : null}
+          {item.puja_place ? (
+            <View style={styles.locationRow}>
+              <Text style={styles.pujaPlace}>📍 {item.puja_place}</Text>
+            </View>
+          ) : null}
           <View style={styles.pujaFooter}>
-            <View style={[styles.approvalBadge, { backgroundColor: isApproved ? colors.success + '20' : colors.warning + '20' }]}>
-              <Text style={[styles.approvalText, { color: isApproved ? colors.success : colors.warning }]}>
-                {isApproved ? '✅ Approved' : '⏳ Pending'}
+            <View style={[styles.approvalBadge, { backgroundColor: isApproved ? colors.successBg : colors.goldBg }]}>
+              <Text style={[styles.approvalText, { color: isApproved ? colors.success : colors.goldDark }]}>
+                {isApproved ? 'Approved' : 'Pending Approval'}
               </Text>
             </View>
-            <TouchableOpacity onPress={() => handleDelete(item.id)} style={styles.delBtn}>
-              <Text style={styles.delBtnText}>🗑️</Text>
-            </TouchableOpacity>
+            <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
           </View>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -119,14 +129,14 @@ const PujaScreen = ({ onBack }) => {
         rightAction={{ icon: '➕', onPress: () => setShowCreate(true) }}
       />
       {loading ? (
-        <ActivityIndicator color={colors.secondary} style={{ margin: 40 }} />
+        <ActivityIndicator color={colors.goldDark} style={{ margin: 40 }} />
       ) : (
         <FlatList
           data={pujas}
           keyExtractor={(item, i) => String(item.id ?? i)}
           renderItem={renderItem}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.secondary} />}
-          contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.gold} />}
+          contentContainerStyle={{ padding: 16, paddingBottom: 60 }}
           ListEmptyComponent={
             <View style={styles.empty}>
               <Text style={styles.emptyIcon}>🪔</Text>
@@ -139,17 +149,91 @@ const PujaScreen = ({ onBack }) => {
         />
       )}
 
+      {/* Details Modal */}
+      <Modal visible={!!selectedPuja} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            {selectedPuja && (
+              <>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Puja Details</Text>
+                  <TouchableOpacity onPress={() => setSelectedPuja(null)}>
+                    <Ionicons name="close-circle" size={28} color={colors.textLight} />
+                  </TouchableOpacity>
+                </View>
+                
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  {getPujaImage(selectedPuja) ? (
+                    <Image source={{ uri: getPujaImage(selectedPuja) }} style={styles.detailImage} />
+                  ) : (
+                    <View style={styles.detailImagePlaceholder}>
+                      <Text style={{ fontSize: 50 }}>🪔</Text>
+                    </View>
+                  )}
+                  
+                  <View style={styles.detailContent}>
+                    <View style={styles.detailHeader}>
+                      <Text style={styles.detailTitle}>{selectedPuja.puja_title}</Text>
+                      <Text style={styles.detailPrice}>₹{parseFloat(selectedPuja.puja_price || 0).toFixed(0)}</Text>
+                    </View>
+                    
+                    <View style={styles.detailMetaRow}>
+                      <View style={styles.metaItem}>
+                        <Ionicons name="location-outline" size={16} color={colors.goldDark} />
+                        <Text style={styles.metaText}>{selectedPuja.puja_place || 'Not Specified'}</Text>
+                      </View>
+                      <View style={[styles.approvalBadge, { backgroundColor: selectedPuja.isAdminApproved === 'Approved' ? colors.successBg : colors.goldBg }]}>
+                        <Text style={[styles.approvalText, { color: selectedPuja.isAdminApproved === 'Approved' ? colors.success : colors.goldDark }]}>
+                          {selectedPuja.isAdminApproved || 'Pending'}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <Text style={styles.detailDescTitle}>Short Description</Text>
+                    <Text style={styles.detailDescText}>{selectedPuja.short_description || 'No short description provided.'}</Text>
+                    
+                    <Text style={styles.detailDescTitle}>Full Description</Text>
+                    <Text style={styles.detailDescText}>{selectedPuja.long_description || 'No full description provided.'}</Text>
+                  </View>
+
+                  <View style={styles.detailActions}>
+                    <TouchableOpacity 
+                      style={styles.detailDeleteBtn} 
+                      onPress={() => handleDelete(selectedPuja.id)}
+                    >
+                      <Ionicons name="trash-outline" size={20} color={colors.error} />
+                      <Text style={styles.detailDeleteText}>Delete Puja</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={styles.detailCloseBtn} 
+                      onPress={() => setSelectedPuja(null)}
+                    >
+                      <Text style={styles.detailCloseText}>Close</Text>
+                    </TouchableOpacity>
+                  </View>
+                </ScrollView>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+
       {/* Create Modal */}
       <Modal visible={showCreate} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>Create Puja</Text>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Create New Puja</Text>
+              <TouchableOpacity onPress={() => setShowCreate(false)}>
+                <Ionicons name="close-circle" size={28} color={colors.textLight} />
+              </TouchableOpacity>
+            </View>
             <ScrollView showsVerticalScrollIndicator={false}>
               {[
-                { key: 'puja_title', label: 'Puja Title *', placeholder: 'e.g., Ganesh Puja' },
-                { key: 'puja_price', label: 'Price (₹) *', placeholder: '1100', keyboard: 'numeric' },
-                { key: 'puja_place', label: 'Place/Location', placeholder: 'Online / Delhi' },
-                { key: 'short_description', label: 'Short Description', placeholder: 'Brief description...' },
+                { key: 'puja_title', label: 'Puja Title *', placeholder: 'e.g., Mahamrityunjaya Mantra' },
+                { key: 'puja_price', label: 'Price (₹) *', placeholder: '2100', keyboard: 'numeric' },
+                { key: 'puja_place', label: 'Place/Location', placeholder: 'Online / Haridwar' },
+                { key: 'short_description', label: 'Short Description', placeholder: 'A brief summary...' },
               ].map(f => (
                 <View key={f.key} style={styles.field}>
                   <Text style={styles.fieldLabel}>{f.label}</Text>
@@ -158,19 +242,19 @@ const PujaScreen = ({ onBack }) => {
                     value={form[f.key]}
                     onChangeText={v => update(f.key, v)}
                     placeholder={f.placeholder}
-                    placeholderTextColor={colors.textMuted}
+                    placeholderTextColor={colors.textLight}
                     keyboardType={f.keyboard || 'default'}
                   />
                 </View>
               ))}
               <View style={styles.field}>
-                <Text style={styles.fieldLabel}>Full Description</Text>
+                <Text style={styles.fieldLabel}>Detailed Description</Text>
                 <TextInput
-                  style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
+                  style={[styles.input, { height: 100, textAlignVertical: 'top' }]}
                   value={form.long_description}
                   onChangeText={v => update('long_description', v)}
-                  placeholder="Detailed description..."
-                  placeholderTextColor={colors.textMuted}
+                  placeholder="Tell customers about the benefits and process of this puja..."
+                  placeholderTextColor={colors.textLight}
                   multiline
                 />
               </View>
@@ -178,10 +262,7 @@ const PujaScreen = ({ onBack }) => {
                 style={[styles.saveBtn, saving && { opacity: 0.6 }]}
                 onPress={handleCreate} disabled={saving}
               >
-                {saving ? <ActivityIndicator color={colors.primary} /> : <Text style={styles.saveBtnText}>Create Puja</Text>}
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowCreate(false)}>
-                <Text style={styles.cancelBtnText}>Cancel</Text>
+                {saving ? <ActivityIndicator color={colors.text} /> : <Text style={styles.saveBtnText}>Submit Puja Request</Text>}
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -196,52 +277,76 @@ export default PujaScreen;
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.primary },
   pujaCard: {
-    backgroundColor: colors.card, borderRadius: 18, overflow: 'hidden',
-    marginBottom: 12, borderWidth: 1, borderColor: colors.border,
+    backgroundColor: colors.surface, borderRadius: 20, overflow: 'hidden',
+    marginBottom: 16, borderWidth: 1, borderColor: colors.border,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05, shadowRadius: 10, elevation: 3,
   },
-  pujaImage:            { width: '100%', height: 140, resizeMode: 'cover' },
-  pujaImagePlaceholder: { height: 80, backgroundColor: colors.secondary + '15', alignItems: 'center', justifyContent: 'center' },
-  pujaInfo: { padding: 14 },
-  pujaHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 },
-  pujaTitle: { flex: 1, color: colors.text, fontSize: 15, fontWeight: '800', marginRight: 8 },
-  pujaPrice: { color: colors.accent, fontSize: 16, fontWeight: '900' },
-  pujaPlace: { color: colors.textMuted, fontSize: 12, marginBottom: 8 },
-  pujaFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  approvalBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
-  approvalText:  { fontSize: 11, fontWeight: '700' },
-  delBtn: { padding: 6 },
-  delBtnText: { fontSize: 18 },
-  empty: { alignItems: 'center', paddingTop: 80 },
-  emptyIcon: { fontSize: 40, marginBottom: 12 },
-  emptyText: { color: colors.textMuted, fontSize: 14, marginBottom: 16 },
+  pujaImage:            { width: '100%', height: 160, resizeMode: 'cover' },
+  pujaImagePlaceholder: { height: 120, backgroundColor: colors.goldBg, alignItems: 'center', justifyContent: 'center', gap: 8 },
+  noImgText:            { color: colors.goldDark, fontSize: 12, fontWeight: '600' },
+  pujaInfo: { padding: 16 },
+  pujaHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
+  pujaTitle: { flex: 1, color: colors.text, fontSize: 17, fontWeight: '800', marginRight: 8 },
+  pujaPrice: { color: colors.goldDark, fontSize: 18, fontWeight: '900' },
+  locationRow: { marginBottom: 12 },
+  pujaPlace: { color: colors.textSecondary, fontSize: 13, fontWeight: '500' },
+  pujaFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 },
+  approvalBadge: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
+  approvalText:  { fontSize: 11, fontWeight: '800', textTransform: 'uppercase' },
+  
+  empty: { alignItems: 'center', paddingTop: 80, paddingHorizontal: 40 },
+  emptyIcon: { fontSize: 48, marginBottom: 16 },
+  emptyText: { color: colors.textMuted, fontSize: 15, marginBottom: 24, textAlign: 'center' },
   createBtn: {
-    backgroundColor: colors.secondary, borderRadius: 12,
-    paddingHorizontal: 24, paddingVertical: 12,
+    backgroundColor: colors.gold, borderRadius: 14,
+    paddingHorizontal: 28, paddingVertical: 14,
+    shadowColor: colors.gold, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3, shadowRadius: 6, elevation: 5,
   },
-  createBtnText: { color: colors.white, fontWeight: '800', fontSize: 14 },
-  modalOverlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'flex-end' },
+  createBtnText: { color: colors.text, fontWeight: '800', fontSize: 15 },
+  
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalBox: {
-    backgroundColor: colors.card,
-    borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    padding: 24, maxHeight: '85%',
-    borderTopWidth: 1, borderColor: colors.border,
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 30, borderTopRightRadius: 30,
+    padding: 24, maxHeight: '90%',
+    shadowColor: '#000', shadowOffset: { width: 0, height: -10 },
+    shadowOpacity: 0.1, shadowRadius: 20, elevation: 10,
   },
-  modalTitle: { color: colors.text, fontSize: 20, fontWeight: '800', marginBottom: 16 },
-  field: { marginBottom: 14 },
-  fieldLabel: { color: colors.textSub, fontSize: 12, fontWeight: '600', marginBottom: 6, letterSpacing: 0.5 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  modalTitle: { color: colors.text, fontSize: 22, fontWeight: '900' },
+  
+  // Detail Modal Specifics
+  detailImage: { width: '100%', height: 200, borderRadius: 20, marginBottom: 16, resizeMode: 'cover' },
+  detailImagePlaceholder: { width: '100%', height: 180, borderRadius: 20, backgroundColor: colors.goldBg, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  detailContent: { paddingHorizontal: 4 },
+  detailHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
+  detailTitle: { flex: 1, color: colors.text, fontSize: 20, fontWeight: '900', marginRight: 10 },
+  detailPrice: { color: colors.goldDark, fontSize: 22, fontWeight: '900' },
+  detailMetaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
+  metaItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  metaText: { color: colors.textSecondary, fontSize: 14, fontWeight: '600' },
+  detailDescTitle: { color: colors.text, fontSize: 15, fontWeight: '800', marginTop: 16, marginBottom: 8 },
+  detailDescText: { color: colors.textSecondary, fontSize: 14, lineHeight: 22 },
+  detailActions: { flexDirection: 'row', gap: 12, marginTop: 30, marginBottom: 10 },
+  detailDeleteBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 14, backgroundColor: colors.errorBg, borderWidth: 1, borderColor: 'rgba(255,59,48,0.2)' },
+  detailDeleteText: { color: colors.error, fontWeight: '800', fontSize: 14 },
+  detailCloseBtn: { flex: 1, paddingVertical: 14, borderRadius: 14, backgroundColor: colors.gold, alignItems: 'center', justifyContent: 'center' },
+  detailCloseText: { color: colors.text, fontWeight: '800', fontSize: 14 },
+
+  field: { marginBottom: 16 },
+  fieldLabel: { color: colors.textSecondary, fontSize: 12, fontWeight: '700', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 },
   input: {
-    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
-    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
-    color: colors.text, fontSize: 14,
+    backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border,
+    borderRadius: 14, paddingHorizontal: 16, paddingVertical: 12,
+    color: colors.text, fontSize: 15,
   },
   saveBtn: {
-    backgroundColor: colors.secondary, borderRadius: 14,
-    paddingVertical: 14, alignItems: 'center', marginTop: 8, marginBottom: 10,
+    backgroundColor: colors.gold, borderRadius: 16,
+    paddingVertical: 16, alignItems: 'center', marginTop: 12, marginBottom: 12,
+    shadowColor: colors.gold, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3, shadowRadius: 8, elevation: 6,
   },
-  saveBtnText: { color: colors.white, fontWeight: '800', fontSize: 15 },
-  cancelBtn: {
-    borderWidth: 1, borderColor: colors.border,
-    borderRadius: 14, paddingVertical: 12, alignItems: 'center',
-  },
-  cancelBtnText: { color: colors.textMuted, fontWeight: '600', fontSize: 14 },
+  saveBtnText: { color: colors.text, fontWeight: '900', fontSize: 16 },
 });

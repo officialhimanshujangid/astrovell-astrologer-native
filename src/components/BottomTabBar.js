@@ -1,14 +1,15 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import usePermissions from '../hooks/usePermissions';
 
 const ALL_TABS = [
-  { name: 'Dashboard', icon: '🏠', label: 'Dashboard', permKey: 'tab_dashboard' },
-  { name: 'Wallet',    icon: '💰', label: 'Wallet',    permKey: 'tab_wallet'    },
-  { name: 'Profile',  icon: '👤', label: 'Profile',   permKey: 'tab_profile'   },
-  { name: 'More',     icon: '☰',  label: 'More',      permKey: 'tab_more'      },
+  { name: 'Dashboard', icon: 'home', iconOutline: 'home-outline', label: 'Home', permKey: 'tab_dashboard' },
+  { name: 'Wallet',    icon: 'wallet', iconOutline: 'wallet-outline', label: 'Wallet', permKey: 'tab_wallet' },
+  { name: 'Profile',   icon: 'person', iconOutline: 'person-outline', label: 'Profile', permKey: 'tab_profile' },
+  { name: 'More',      icon: 'grid', iconOutline: 'grid-outline', label: 'Menu', permKey: 'tab_more' },
 ];
 
 const BottomTabBar = ({ activeTab, onTabPress }) => {
@@ -18,7 +19,7 @@ const BottomTabBar = ({ activeTab, onTabPress }) => {
   const TABS = ALL_TABS.filter(t => can(t.permKey));
 
   return (
-    <View style={[styles.container, { paddingBottom: insets.bottom > 0 ? insets.bottom : 12 }]}>
+    <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, 12), paddingTop: 10 }]}>
       {TABS.map((tab) => {
         const isActive = activeTab === tab.name;
         return (
@@ -26,12 +27,19 @@ const BottomTabBar = ({ activeTab, onTabPress }) => {
             key={tab.name}
             style={styles.tab}
             onPress={() => onTabPress(tab.name)}
-            activeOpacity={0.7}
+            activeOpacity={0.8}
           >
-            <View style={[styles.iconWrap, isActive && styles.iconWrapActive]}>
-              <Text style={[styles.icon, isActive && styles.iconActive]}>{tab.icon}</Text>
+            <View style={styles.iconContainer}>
+              <Ionicons 
+                name={isActive ? tab.icon : tab.iconOutline} 
+                size={24} 
+                color={isActive ? colors.goldDark : colors.textMuted} 
+              />
+              {isActive && <View style={styles.activeDot} />}
             </View>
-            <Text style={[styles.label, isActive && styles.labelActive]}>{tab.label}</Text>
+            <Text style={[styles.label, isActive && styles.labelActive]}>
+              {tab.label}
+            </Text>
           </TouchableOpacity>
         );
       })}
@@ -43,41 +51,45 @@ export default BottomTabBar;
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection:   'row',
+    flexDirection: 'row',
     backgroundColor: colors.surface,
-    borderTopWidth:  1,
-    borderTopColor:  colors.border,
-    paddingTop:      8,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 20,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
   tab: {
     flex: 1,
     alignItems: 'center',
-    gap: 3,
+    justifyContent: 'center',
   },
-  iconWrap: {
-    width: 40,
-    height: 32,
+  iconContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 16,
+    height: 30,
+    marginBottom: 2,
   },
-  iconWrapActive: {
-    backgroundColor: colors.secondary + '30',
-  },
-  icon: {
-    fontSize: 20,
-    opacity: 0.5,
-  },
-  iconActive: {
-    opacity: 1,
+  activeDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.goldDark,
+    position: 'absolute',
+    bottom: -6,
   },
   label: {
-    fontSize: 10,
+    fontSize: 11,
     color: colors.textMuted,
-    fontWeight: '500',
+    fontWeight: '600',
+    marginTop: 2,
   },
   labelActive: {
-    color: colors.secondary,
-    fontWeight: '700',
+    color: colors.goldDark,
+    fontWeight: '800',
   },
 });

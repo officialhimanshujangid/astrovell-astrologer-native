@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
-import Svg, { Line, Rect, Polygon } from 'react-native-svg';
+import Svg, { Line, Rect } from 'react-native-svg';
 
 const { width } = Dimensions.get('window');
 // Leave some padding
@@ -23,8 +23,8 @@ const HouseRegions = [
 
 const KundaliChart = ({ planetDetails, chartTheme = 'gold' }) => {
   const S = CHART_SIZE;
-  const strokeColor = chartTheme === 'gold' ? '#D4AF37' : '#FFFFFF';
-  const bgColor = chartTheme === 'gold' ? 'rgba(212, 175, 55, 0.05)' : 'rgba(255,255,255,0.05)';
+  const strokeColor = chartTheme === 'gold' ? '#D4AF37' : '#FFCC00';
+  const bgColor = chartTheme === 'gold' ? 'rgba(212, 175, 55, 0.06)' : 'rgba(255,204,0,0.06)';
   
   // Group planets by house
   const houseData = {};
@@ -54,7 +54,7 @@ const KundaliChart = ({ planetDetails, chartTheme = 'gold' }) => {
   if (!ascendantRasi) {
     // Try to find the ascendant object
     const pArr = Array.isArray(planetDetails) ? planetDetails : Object.values(planetDetails || {});
-    const asc = pArr.find(p => p && p.name === 'As' || p.full_name === 'Ascendant');
+    const asc = pArr.find(p => p && (p.name === 'As' || p.full_name === 'Ascendant'));
     if (asc) ascendantRasi = asc.rasi_no;
   }
 
@@ -133,12 +133,14 @@ const styles = StyleSheet.create({
   container: {
     alignSelf: 'center',
     marginVertical: 20,
-    backgroundColor: '#0a0a0a', // very dark to make pop
+    backgroundColor: '#0D0D1A', // deep midnight navy — premium chart background
+    borderRadius: 12,
+    overflow: 'hidden',
     shadowColor: '#D4AF37',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 10,
   },
   rasiText: {
     fontSize: 10,

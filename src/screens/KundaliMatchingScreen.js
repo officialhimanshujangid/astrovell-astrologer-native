@@ -1,400 +1,1414 @@
 import React, { useState, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
-  StyleSheet, StatusBar, ActivityIndicator, Alert
+  StyleSheet, StatusBar, ActivityIndicator, Alert, Dimensions,
+  Platform, KeyboardAvoidingView, Modal
 } from 'react-native';
-import { useDispatch, useSelector } from 'react-redux';
+import { useSelector } from 'react-redux';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import axios from 'axios';
 import apiClient from '../api/apiClient';
+import { kundaliApi } from '../api/services';
 import { colors } from '../theme/colors';
+import { LinearGradient } from 'expo-linear-gradient';
+import { WebView } from 'react-native-webview';
+import Svg, { Circle } from 'react-native-svg';
+
+const { width } = Dimensions.get('window');
+
+const LANGUAGES = [
+  { code: 'en', label: 'English' },
+  { code: 'hi', label: 'Hindi' },
+  { code: 'mr', label: 'Marathi' },
+  { code: 'bn', label: 'Bengali' },
+  { code: 'gu', label: 'Gujarati' },
+  { code: 'ta', label: 'Tamil' },
+  { code: 'te', label: 'Telugu' },
+  { code: 'kn', label: 'Kannada' },
+  { code: 'ml', label: 'Malayalam' },
+  { code: 'or', label: 'Odia' }
+];
+
+const KOOTA_META = {
+  varna: { label: 'Varna', max: 1, hint: 'Spiritual / ego compatibility' },
+  vasya: { label: 'Vasya', max: 2, hint: 'Mutual attraction & control' },
+  tara: { label: 'Tara', max: 3, hint: 'Birth-star auspiciousness' },
+  yoni: { label: 'Yoni', max: 4, hint: 'Sexual & physical compatibility' },
+  graha_maitri: { label: 'Graha Maitri', max: 5, hint: 'Mental compatibility' },
+  grahamaitri: { label: 'Graha Maitri', max: 5, hint: 'Mental compatibility' },
+  gana: { label: 'Gana', max: 6, hint: 'Temperament harmony' },
+  bhakoot: { label: 'Bhakoot', max: 7, hint: 'Wealth, family welfare' },
+  nadi: { label: 'Nadi', max: 8, hint: 'Health & progeny' },
+  // Dashakoot (South Indian) specific
+  dina: { label: 'Dina', max: 3, hint: 'Day-to-day harmony' },
+  mahendra: { label: 'Mahendra', max: 0, hint: 'Wealth & longevity' },
+  stree_deergha: { label: 'Stree Deergha', max: 0, hint: 'Longevity of wife' },
+  rajju: { label: 'Rajju', max: 0, hint: 'Mangalya / longevity of husband' },
+  vedha: { label: 'Vedha', max: 0, hint: 'Avoidance of obstacles' },
+};
+
+const KOOTA_ORDER = [
+  'varna', 'vasya', 'tara', 'dina', 'yoni', 'grahamaitri', 'graha_maitri', 
+  'gana', 'bhakoot', 'nadi', 'mahendra', 'stree_deergha', 'rajju', 'vedha'
+];
+
+const num = (v, fb = 0) => {
+  const n = parseFloat(v);
+  return Number.isFinite(n) ? n : fb;
+};
+const pickStr = (...vals) => {
+  for (const v of vals) if (v !== undefined && v !== null && v !== '') return String(v);
+  return null;
+};
+const extractManglik = (rpt) => {
+  if (!rpt || typeof rpt !== 'object') return null;
+  const isManglik =
+    rpt.manglik_by_mars === true || rpt.manglik_by_saturn === true || rpt.manglik_by_rahuketu === true ||
+    rpt.is_present === true || rpt.is_present === 'true' ||
+    rpt.manglik_present_rule?.is_present === true ||
+    rpt.manglik === true || rpt.is_manglik === true ||
+    (typeof rpt.score === 'number' && rpt.score > 0);
+  const status = pickStr(rpt.manglik_status, rpt.status, rpt.bot_response);
+  const presentRules = rpt.factors || rpt.manglik_present_rule?.based_on_rules || rpt.manglik_present_rule?.rules || [];
+  const cancelRules = rpt.manglik_cancel_rule?.based_on_rules || rpt.manglik_cancel_rule?.rules || [];
+  const percentage = rpt.score ?? rpt.percentage_manglik_present ?? rpt.manglik_percent;
+  return { isManglik, status, presentRules, cancelRules, percentage };
+};
+const extractChart = (cd) => {
+  if (cd === null || cd === undefined) return null;
+  if (typeof cd === 'string') return cd;
+  if (typeof cd === 'object') {
+    const fields = ['svg', 'svgString', 'svg_string', 'base64Image', 'base64', 'b64',
+      'image_url', 'imageUrl', 'chart_url', 'chartUrl',
+      'chart_image', 'chartImage', 'chart', 'image', 'url', 'src',
+      'data', 'response'];
+    for (const f of fields) if (cd[f]) return cd[f];
+    const keys = Object.keys(cd);
+    if (keys.length === 1 && typeof cd[keys[0]] === 'string') return cd[keys[0]];
+  }
+  return null;
+};
+const cleanSvg = (str) => {
+  if (typeof str !== 'string') return null;
+  const idx = str.indexOf('<svg');
+  if (idx < 0) return null;
+  return str.substring(idx).replace(/<svg([^>]*)>/, (m, attrs) => {
+    const hasViewBox = /viewBox\s*=/i.test(attrs);
+    const wMatch = attrs.match(/\bwidth\s*=\s*["']?(\d+(?:\.\d+)?)["']?/i);
+    const hMatch = attrs.match(/\bheight\s*=\s*["']?(\d+(?:\.\d+)?)["']?/i);
+    let newAttrs = attrs
+      .replace(/\bwidth\s*=\s*["']?\d+(?:\.\d+)?["']?/i, '')
+      .replace(/\bheight\s*=\s*["']?\d+(?:\.\d+)?["']?/i, '');
+    if (!hasViewBox && wMatch && hMatch) newAttrs = ` viewBox="0 0 ${wMatch[1]} ${hMatch[1]}"` + newAttrs;
+    return `<svg width="100%" height="auto" preserveAspectRatio="xMidYMid meet"${newAttrs}>`;
+  });
+};
+const isRetro = (p) => p?.retro === 1 || p?.retro === '1' || p?.retro === true || p?.isRetro === true || p?.isRetro === 'true';
+const buildDegreeMap = (report) => {
+  if (!report) return {};
+  const raw = Array.isArray(report) ? report : Object.values(report);
+  const map = {};
+  raw.forEach(p => {
+    if (!p || typeof p !== 'object') return;
+    const code = p.name || p.short_name;
+    if (!code) return;
+    const deg = p.local_degree || p.normDegree || p.fullDegree || p.degree;
+    if (deg === undefined || deg === null || deg === '') return;
+    const n = parseFloat(deg);
+    if (!Number.isFinite(n)) return;
+    const abs = Math.abs(n);
+    const d = Math.floor(abs);
+    const m = Math.floor((abs - d) * 60);
+    map[code] = `${d}°${String(m).padStart(2, '0')}'${isRetro(p) ? 'R' : ''}`;
+  });
+  return map;
+};
+const injectDegreesIntoSvg = (svgStr, degreeMap) => {
+  if (!svgStr || typeof svgStr !== 'string') return svgStr;
+  if (!degreeMap || !Object.keys(degreeMap).length) return svgStr;
+  return svgStr.replace(
+    /<text\s+([^>]*?)>\s*([A-Za-z]{2,4})\s*<\/text>/g,
+    (match, attrs, content) => {
+      const planet = content.trim();
+      if (!degreeMap[planet]) return match;
+      const xMatch = attrs.match(/\bx\s*=\s*["']?([-\d.]+)["']?/);
+      const yMatch = attrs.match(/\by\s*=\s*["']?([-\d.]+)["']?/);
+      if (!xMatch || !yMatch) return match;
+      const x = parseFloat(xMatch[1]);
+      const y = parseFloat(yMatch[1]);
+      const degEl = `<text x="${x}" y="${y + 16}" style="font-family:'roboto','Lucida Sans',sans-serif;font-size:13px;fill:#7c3aed;font-weight:600;">${degreeMap[planet]}</text>`;
+      return match + degEl;
+    }
+  );
+};
 
 const KundaliMatchingScreen = ({ onBack }) => {
-  const { token, globalLang = 'en' } = useSelector(s => s.auth);
-  const lang = globalLang;
-  
-  const boyDebounce = useRef(null);
-  const girlDebounce = useRef(null);
-  const [boyLoading, setBoyLoading] = useState(false);
-  const [girlLoading, setGirlLoading] = useState(false);
-  
-  const [showPicker, setShowPicker] = useState({ visible: false, mode: 'date', targetObj: null, targetKey: '' });
+  const { token } = useSelector(s => s.auth);
+  const [boy, setBoy] = useState({ name: '', birthDate: '', birthTime: '', birthPlace: '', latitude: '', longitude: '' });
+  const [girl, setGirl] = useState({ name: '', birthDate: '', birthTime: '', birthPlace: '', latitude: '', longitude: '' });
+  const [matchType, setMatchType] = useState('North');
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [lang, setLang] = useState('en');
+  const [showLangModal, setShowLangModal] = useState(false);
+
+  const [chartStyle, setChartStyle] = useState('north');
+  const [chartsLoading, setChartsLoading] = useState(false);
+  const [boyCharts, setBoyCharts] = useState({});
+  const [girlCharts, setGirlCharts] = useState({});
+  const [boyKundaliId, setBoyKundaliId] = useState(null);
+  const [girlKundaliId, setGirlKundaliId] = useState(null);
+
+  const [placeLoading, setPlaceLoading] = useState({ boy: false, girl: false });
+  const [suggestions, setSuggestions] = useState({ boy: [], girl: [] });
+  const [showSuggestions, setShowSuggestions] = useState({ boy: false, girl: false });
+  const debounceRef = useRef({ boy: null, girl: null });
+
+  const [showPicker, setShowPicker] = useState({ visible: false, mode: 'date', target: null, key: '' });
+
+  const handleChange = (target, key, val) => {
+    if (target === 'boy') setBoy(prev => ({ ...prev, [key]: val }));
+    else setGirl(prev => ({ ...prev, [key]: val }));
+  };
 
   const onChangePicker = (event, selectedDate) => {
-    const { mode, targetObj, targetKey } = showPicker;
     setShowPicker({ ...showPicker, visible: false });
-    
     if (event.type === 'set' && selectedDate) {
-      let val = '';
-      if (mode === 'date') {
-         val = selectedDate.toISOString().split('T')[0];
+      if (showPicker.mode === 'date') {
+        const year = selectedDate.getFullYear();
+        const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+        const date = String(selectedDate.getDate()).padStart(2, '0');
+        handleChange(showPicker.target, showPicker.key, `${year}-${month}-${date}`);
       } else {
-         const hs = selectedDate.getHours().toString().padStart(2, '0');
-         const ms = selectedDate.getMinutes().toString().padStart(2, '0');
-         val = `${hs}:${ms}`;
+        const hs = selectedDate.getHours().toString().padStart(2, '0');
+        const ms = selectedDate.getMinutes().toString().padStart(2, '0');
+        handleChange(showPicker.target, showPicker.key, `${hs}:${ms}`);
       }
-      
-      if (targetObj === 'boy') setBoy(prev => ({ ...prev, [targetKey]: val }));
-      else if (targetObj === 'girl') setGirl(prev => ({ ...prev, [targetKey]: val }));
     }
   };
 
-  const geocodePlace = (place, setter, data, debounceRef, loadSetter) => {
-    setter({ ...data, placeOfBirth: place, latitude: '', longitude: '' });
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (place.length < 3) return;
-    
-    debounceRef.current = setTimeout(async () => {
-      loadSetter(true);
+  const handlePlaceChange = (target, place) => {
+    handleChange(target, 'birthPlace', place);
+    handleChange(target, 'latitude', '');
+    handleChange(target, 'longitude', '');
+
+    if (debounceRef.current[target]) clearTimeout(debounceRef.current[target]);
+    if (place.length < 2) {
+      setSuggestions(prev => ({ ...prev, [target]: [] }));
+      setShowSuggestions(prev => ({ ...prev, [target]: false }));
+      return;
+    }
+
+    debounceRef.current[target] = setTimeout(async () => {
+      setPlaceLoading(prev => ({ ...prev, [target]: true }));
       try {
-        const res = await axios.get(
-          `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(place)}`,
-          { headers: { 'User-Agent': 'AstroJagatApp/1.0' } }
-        );
-        if (res.data && res.data.length > 0) {
-          setter(prev => ({ ...prev, latitude: res.data[0].lat, longitude: res.data[0].lon }));
+        const res = await apiClient.post('/customer/place-autocomplete', { query: place });
+        const list = res.data?.suggestions || [];
+        setSuggestions(prev => ({ ...prev, [target]: list }));
+        setShowSuggestions(prev => ({ ...prev, [target]: list.length > 0 }));
+      } catch (err) {
+        setSuggestions(prev => ({ ...prev, [target]: [] }));
+      }
+      setPlaceLoading(prev => ({ ...prev, [target]: false }));
+    }, 400);
+  };
+
+  const selectPlace = async (target, suggestion) => {
+    const data = {
+      birthPlace: suggestion.name,
+      latitude: suggestion.lat ? String(suggestion.lat) : '',
+      longitude: suggestion.lon ? String(suggestion.lon) : '',
+    };
+    if (target === 'boy') setBoy(prev => ({ ...prev, ...data }));
+    else setGirl(prev => ({ ...prev, ...data }));
+
+    setSuggestions(prev => ({ ...prev, [target]: [] }));
+    setShowSuggestions(prev => ({ ...prev, [target]: false }));
+
+    if (!suggestion.lat) {
+      try {
+        const res = await apiClient.post('/customer/geocode', { place: suggestion.name });
+        if (res.data?.latitude) {
+          handleChange(target, 'latitude', String(res.data.latitude));
+          handleChange(target, 'longitude', String(res.data.longitude));
         }
-      } catch (err) {}
-      loadSetter(false);
-    }, 1000);
+      } catch (e) { }
+    }
+  };
+
+  const fetchOneChart = async (kundaliId, div, style, langCode) => {
+    try {
+      const res = await kundaliApi.getChartReport({ kundaliId, div, style, lang: langCode || lang });
+      const cd = res.data?.data || res.data;
+      return extractChart(cd?.chartDetails);
+    } catch { return null; }
+  };
+
+  const fetchAllCharts = async (bId, gId, style, langCode) => {
+    if (!bId || !gId) return;
+    setChartsLoading(true);
+    const [bD1, bD9, gD1, gD9] = await Promise.all([
+      fetchOneChart(bId, 'D1', style, langCode),
+      fetchOneChart(bId, 'D9', style, langCode),
+      fetchOneChart(gId, 'D1', style, langCode),
+      fetchOneChart(gId, 'D9', style, langCode),
+    ]);
+    setBoyCharts({ D1: bD1, D9: bD9 });
+    setGirlCharts({ D1: gD1, D9: gD9 });
+    setChartsLoading(false);
+  };
+
+  const onChangeChartStyle = (s) => {
+    setChartStyle(s);
+    if (boyKundaliId && girlKundaliId) fetchAllCharts(boyKundaliId, girlKundaliId, s, lang);
   };
 
   const handleSubmit = async () => {
-    if (!boy.name || !boy.dateOfBirth || !boy.timeOfBirth || !boy.placeOfBirth ||
-        !girl.name || !girl.dateOfBirth || !girl.timeOfBirth || !girl.placeOfBirth) {
-      Alert.alert('Incomplete', 'Please fill all fields for both Boy and Girl');
+    if (!boy.name || !boy.birthDate || !boy.birthTime || !boy.birthPlace ||
+      !girl.name || !girl.birthDate || !girl.birthTime || !girl.birthPlace) {
+      Alert.alert('Missing Fields', 'Please fill all fields for both Boy and Girl.');
       return;
     }
     if (!boy.latitude || !girl.latitude) {
-      Alert.alert('Location Error', 'Location not found for one or both. Please try more specific place names.');
+      Alert.alert('Location Error', 'Please select locations from suggestions.');
       return;
     }
 
     setLoading(true);
-    setResult(null);
-
     try {
-      const headers = { Authorization: `Bearer ${token}` };
-      
-      // 1. Create Kundali records for both simultaneously
       const [boyRes, girlRes] = await Promise.all([
-        apiClient.post('/customer/kundali/add', {
-          kundali: [{ name: boy.name, gender: 'Male', birthDate: boy.dateOfBirth, birthTime: boy.timeOfBirth, birthPlace: boy.placeOfBirth, latitude: boy.latitude, longitude: boy.longitude, maritalStatus: 'Single', pdf_type: 'basic' }]
-        }, { headers }),
-        apiClient.post('/customer/kundali/add', {
-          kundali: [{ name: girl.name, gender: 'Female', birthDate: girl.dateOfBirth, birthTime: girl.timeOfBirth, birthPlace: girl.placeOfBirth, latitude: girl.latitude, longitude: girl.longitude, maritalStatus: 'Single', pdf_type: 'basic' }]
-        }, { headers })
+        apiClient.post('/customer/kundali/add', { kundali: [{ ...boy, gender: 'Male', pdf_type: 'basic' }] }),
+        apiClient.post('/customer/kundali/add', { kundali: [{ ...girl, gender: 'Female', pdf_type: 'basic' }] }),
       ]);
 
-      const bData = boyRes.data?.data || boyRes.data;
-      const gData = girlRes.data?.data || girlRes.data;
-      const boyId = bData?.recordList?.[0]?.id || bData?.recordList?.id;
-      const girlId = gData?.recordList?.[0]?.id || gData?.recordList?.id;
+      const bId = boyRes.data?.data?.recordList?.[0]?.id || boyRes.data?.recordList?.[0]?.id;
+      const gId = girlRes.data?.data?.recordList?.[0]?.id || girlRes.data?.recordList?.[0]?.id;
 
-      if (!boyId || !girlId) {
-        throw new Error('Failed to create kundali profiles.');
-      }
+      if (!bId || !gId) throw new Error('Failed to create kundali profiles.');
 
-      // 2. Get the compatibility match report
+      setBoyKundaliId(bId);
+      setGirlKundaliId(gId);
+      fetchAllCharts(bId, gId, chartStyle, lang);
+
       const matchRes = await apiClient.post('/customer/KundaliMatching/report', {
-        maleKundaliId: boyId, 
-        femaleKundaliId: girlId, 
-        match_type: 'North',
+        maleKundaliId: bId,
+        femaleKundaliId: gId,
+        match_type: matchType,
         lang: lang
-      }, { headers });
-      const d = matchRes.data?.data || matchRes.data;
-      setResult(d);
+      });
 
+      setResult(matchRes.data?.data || matchRes.data);
     } catch (err) {
-      console.log('--- Kundali Match Error ---', err.response?.data || err.message);
-      Alert.alert('Error', err.response?.data?.message || err.message || 'Failed to generate matching report');
+      Alert.alert('Error', err.response?.data?.message || err.message);
     }
     setLoading(false);
   };
 
-  const renderPersonForm = (label, data, setter, debounceRef, loadSetter) => (
-    <View style={styles.personCard}>
-      <Text style={styles.personHeader}>{label}'s Details</Text>
-      
-      <Text style={styles.label}>Full Name</Text>
-      <TextInput 
-        style={styles.input} placeholder={`Enter ${label}'s name`} placeholderTextColor={colors.textMuted}
-        value={data.name} onChangeText={(v) => setter({...data, name: v})} 
-      />
+  const onChangeLang = async (newLang) => {
+    setLang(newLang);
+    setShowLangModal(false);
+    if (result && boyKundaliId && girlKundaliId) {
+      setLoading(true);
+      try {
+        const matchRes = await apiClient.post('/customer/KundaliMatching/report', {
+          maleKundaliId: boyKundaliId,
+          femaleKundaliId: girlKundaliId,
+          match_type: matchType,
+          lang: newLang
+        });
+        setResult(matchRes.data?.data || matchRes.data);
+        await fetchAllCharts(boyKundaliId, girlKundaliId, chartStyle, newLang);
+      } catch (err) {
+        console.log('Error changing language:', err);
+      }
+      setLoading(false);
+    }
+  };
 
-      <View style={styles.row}>
-        <View style={styles.col}>
-          <Text style={styles.label}>Date of Birth</Text>
-          <TouchableOpacity 
-             style={styles.pickerBtn} 
-             onPress={() => setShowPicker({ visible: true, mode: 'date', targetObj: label.toLowerCase(), targetKey: 'dateOfBirth' })}
-          >
-            <Text style={[styles.pickerText, !data.dateOfBirth && { color: colors.textMuted }]}>
-              {data.dateOfBirth || 'YYYY-MM-DD'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-        <View style={styles.col}>
-          <Text style={styles.label}>Time of Birth</Text>
-          <TouchableOpacity 
-             style={styles.pickerBtn} 
-             onPress={() => setShowPicker({ visible: true, mode: 'time', targetObj: label.toLowerCase(), targetKey: 'timeOfBirth' })}
-          >
-            <Text style={[styles.pickerText, !data.timeOfBirth && { color: colors.textMuted }]}>
-              {data.timeOfBirth || 'HH:MM'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+  const matchData = 
+    result?.recordList || 
+    result?.match_report || 
+    result?.ashtakoot || 
+    result?.ashtakoota || 
+    result?.guna_milan || 
+    result?.data?.recordList || 
+    result?.data?.match_report ||
+    result?.data || 
+    result || 
+    null;
 
-      <Text style={styles.label}>Place of Birth</Text>
-      <View style={{ justifyContent: 'center' }}>
-        <TextInput 
-          style={styles.input} placeholder="e.g. Mumbai, Maharashtra" placeholderTextColor={colors.textMuted}
-          value={data.placeOfBirth} onChangeText={(v) => geocodePlace(v, setter, data, debounceRef, loadSetter)} 
-        />
-        {loadSetter === setBoyLoading ? boyLoading && <ActivityIndicator size="small" color={colors.gold} style={styles.placeStatus} /> : girlLoading && <ActivityIndicator size="small" color={colors.gold} style={styles.placeStatus} />}
-        {!boyLoading && data.latitude && data.longitude && <Text style={styles.placeStatusCheck}>✓</Text>}
+  const totalReceived = num(
+    matchData?.score
+      ?? matchData?.total?.received_points
+      ?? matchData?.score?.received_points
+      ?? matchData?.received_points
+      ?? matchData?.total?.score
+      ?? matchData?.points
+      ?? result?.total?.received_points
+      ?? result?.score?.received_points
+  );
+  const totalMax = num(
+    matchData?.total?.total_points 
+    ?? matchData?.score?.total_points 
+    ?? matchData?.total_points 
+    ?? matchData?.total?.max_score
+    ?? result?.total?.total_points
+    ?? 36, 
+    36
+  );
+  const conclusionText = pickStr(
+    matchData?.bot_response,
+    matchData?.conclusion?.report,
+    typeof matchData?.conclusion === 'string' ? matchData.conclusion : null,
+    result?.conclusion?.report,
+    typeof result?.conclusion === 'string' ? result.conclusion : null,
+    matchData?.message,
+    result?.message
+  );
+  const scorePct = totalMax ? (totalReceived / totalMax) : 0;
+
+  const getBand = (received, max) => {
+    if (!max) return { label: 'N/A', color: '#9ca3af', emoji: '—' };
+    const pct = (received / max) * 100;
+    if (pct >= 75) return { label: 'Excellent Match', color: '#10b981', emoji: '🌟' };
+    if (pct >= 50) return { label: 'Good Match', color: '#3b82f6', emoji: '✨' };
+    if (pct >= 25) return { label: 'Average Match', color: '#f59e0b', emoji: '⚖️' };
+    return { label: 'Poor Match', color: '#ef4444', emoji: '⚠️' };
+  };
+  const band = getBand(totalReceived, totalMax);
+
+  const kootasToRender = (() => {
+    if (!matchData) return [];
+    const seen = new Set();
+    const out = [];
+    for (const k of KOOTA_ORDER) {
+      const data = matchData[k] || matchData[k.charAt(0).toUpperCase() + k.slice(1)] || matchData[k.toUpperCase()];
+      if (data && typeof data === 'object') {
+        const meta = KOOTA_META[k];
+        if (meta && !seen.has(meta.label)) { out.push(k); seen.add(meta.label); }
+      }
+    }
+    return out;
+  })();
+
+  const renderKootaItem = (key) => {
+    const meta = KOOTA_META[key];
+    const data = matchData?.[key] || matchData?.[key.charAt(0).toUpperCase() + key.slice(1)] || matchData?.[key.toUpperCase()];
+    if (!meta || !data || typeof data !== 'object') return null;
+    const got = num(
+      data[key]
+      ?? data[key.charAt(0).toUpperCase() + key.slice(1)]
+      ?? data.received_points 
+      ?? data.score?.received_points 
+      ?? data.score 
+      ?? data.points 
+      ?? data.received_score, 
+      0
+    );
+    const max = num(
+      data.full_score
+      ?? data.total_points 
+      ?? data.score?.total_points 
+      ?? data.max_points 
+      ?? data.total_score 
+      ?? meta.max, 
+      meta.max
+    );
+    const desc = pickStr(data.description, data.bot_response, data.report, data.meaning);
+    const pct = max ? (got / max) : 0;
+    const barColor = pct >= 0.75 ? '#10b981' : pct >= 0.5 ? '#3b82f6' : pct >= 0.25 ? '#f59e0b' : '#ef4444';
+
+    return (
+      <View key={key} style={styles.kootaCard}>
+        <View style={styles.kootaHeader}>
+          <Text style={styles.kootaLabel}>{meta.label}</Text>
+          <Text style={[styles.kootaScore, { color: barColor }]}>{got}/{max}</Text>
+        </View>
+        <View style={styles.kootaBarBg}>
+          <View style={[styles.kootaBarFill, { width: `${pct * 100}%`, backgroundColor: barColor }]} />
+        </View>
+        <Text style={styles.kootaHint}>{meta.hint}</Text>
+        {desc ? <Text style={styles.kootaDesc}>{desc}</Text> : null}
       </View>
-      {data.latitude ? <Text style={styles.coordsText}>Lat: {data.latitude.slice(0,6)}, Lon: {data.longitude.slice(0,6)}</Text> : null}
+    );
+  };
+
+  const CompRow = ({ label, b, g }) => (
+    <View style={styles.compRow}>
+      <Text style={[styles.compLabel, { flex: 1.2 }]}>{label}</Text>
+      <Text style={styles.compVal}>{b || '-'}</Text>
+      <Text style={styles.compVal}>{g || '-'}</Text>
     </View>
   );
 
-  const matchData = result?.recordList;
-  const boyManglik = result?.boyManaglikRpt;
-  const girlManglik = result?.girlMangalikRpt;
-
-  return (
-    <View style={styles.root}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.primary} />
-      
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerOrb} />
-        <TouchableOpacity style={styles.backBtn} onPress={onBack}>
-          <Text style={styles.backArrow}>←</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Kundali Matching</Text>
+  const renderComparison = () => {
+    const boyD = matchData?.boy_details || matchData?.boy_astro_details || {};
+    const girlD = matchData?.girl_details || matchData?.girl_astro_details || {};
+    
+    return (
+      <View style={styles.sectionCard}>
+        <Text style={styles.sectionTitle}>👫 Astro Comparison</Text>
+        <View style={styles.compTable}>
+          <View style={[styles.compHeader, { backgroundColor: '#7c3aed' }]}>
+            <Text style={[styles.compTh, { flex: 1.2, color: '#FFF' }]}>Attribute</Text>
+            <Text style={[styles.compTh, { flex: 1, color: '#FFF' }]}>👨 Boy</Text>
+            <Text style={[styles.compTh, { flex: 1, color: '#FFF' }]}>👩 Girl</Text>
+          </View>
+          <CompRow label="Rashi" b={boyD.rashi} g={girlD.rashi} />
+          <CompRow label="Nakshatra" b={boyD.nakshatra} g={girlD.nakshatra} />
+          <CompRow label="Nakshatra Lord" b={boyD.nakshatra_lord} g={girlD.nakshatra_lord} />
+          <CompRow label="Element (Tatva)" b={boyD.tatva} g={girlD.tatva} />
+          <CompRow label="Paya" b={boyD.paya} g={girlD.paya} />
+          <CompRow label="Current Dasha" b={boyD.current_dasa} g={girlD.current_dasa} />
+        </View>
       </View>
+    );
+  };
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-        <View style={styles.pageHero}>
-          <Text style={styles.heroSub}>Check compatibility between two horoscopes based on Vedic astrology</Text>
+  const renderPanchangComparison = () => {
+    const boyP = result?.boyPlanets?.panchang || result?.boy_astro_details?.panchang;
+    const girlP = result?.girlPlanets?.panchang || result?.girl_astro_details?.panchang;
+    if (!boyP && !girlP) return null;
+
+    return (
+      <View style={styles.sectionCard}>
+        <Text style={styles.sectionTitle}>🌅 Birth Panchang Comparison</Text>
+        <View style={styles.compTable}>
+          <View style={[styles.compHeader, { backgroundColor: '#f59e0b' }]}>
+            <Text style={[styles.compTh, { flex: 1.2, color: '#FFF' }]}>Panchang</Text>
+            <Text style={[styles.compTh, { flex: 1, color: '#FFF' }]}>👨 Boy</Text>
+            <Text style={[styles.compTh, { flex: 1, color: '#FFF' }]}>👩 Girl</Text>
+          </View>
+          <CompRow label="Tithi" b={boyP.tithi} g={girlP.tithi} />
+          <CompRow label="Yoga" b={boyP.yoga} g={girlP.yoga} />
+          <CompRow label="Karana" b={boyP.karana} g={girlP.karana} />
+          <CompRow label="Sunrise" b={boyP.sunrise_at_birth} g={girlP.sunrise_at_birth} />
+          <CompRow label="Sunset" b={boyP.sunset_at_birth} g={girlP.sunset_at_birth} />
+          <CompRow label="Day" b={boyP.day_of_birth} g={girlP.day_of_birth} />
         </View>
+      </View>
+    );
+  };
 
-        <View style={{ flexDirection: 'column', gap: 16 }}>
-          {renderPersonForm("Boy", boy, setBoy, boyDebounce, setBoyLoading)}
-          {renderPersonForm("Girl", girl, setGirl, girlDebounce, setGirlLoading)}
+  const renderGhatkaChakra = () => {
+    const boyG = result?.boyPlanets?.ghatka_chakra || result?.boy_astro_details?.ghatka_chakra;
+    const girlG = result?.girlPlanets?.ghatka_chakra || result?.girl_astro_details?.ghatka_chakra;
+    if (!boyG && !girlG) return null;
+
+    const GhatkaSection = ({ title, data, accent }) => (
+      <View style={[styles.luckyBox, { borderTopColor: accent }]}>
+        <Text style={[styles.luckyBoxTitle, { color: accent }]}>{title}'s Unfavorable Factors</Text>
+        <View style={styles.luckyGrid}>
+          <LuckyItem label="Rasi" value={data.rasi} />
+          <LuckyItem label="Day" value={data.day} />
+          <LuckyItem label="Nakshatra" value={data.nakshatra} />
+          <LuckyItem label="Tatva" value={data.tatva} />
+          <LuckyItem label="Tithi" value={Array.isArray(data.tithi) ? data.tithi.join(', ') : data.tithi} />
+          <LuckyItem label="Lord" value={data.lord} />
         </View>
+      </View>
+    );
 
-        <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit} disabled={loading}>
-          {loading ? <ActivityIndicator color={colors.primary} /> : <Text style={styles.submitBtnText}>Match Kundali</Text>}
-        </TouchableOpacity>
+    return (
+      <View style={styles.sectionCard}>
+        <Text style={styles.sectionTitle}>🚫 Ghatka Chakra</Text>
+        <Text style={styles.sectionSubTitle}>Factors to avoid for prosperity</Text>
+        <View style={{ gap: 12 }}>
+          {boyG && <GhatkaSection title={result?.maleKundali?.name || 'Boy'} data={boyG} accent="#3b82f6" />}
+          {girlG && <GhatkaSection title={result?.femaleKundali?.name || 'Girl'} data={girlG} accent="#ec4899" />}
+        </View>
+      </View>
+    );
+  };
 
-        {/* ── Match Results ── */}
-        {result && (
-          <View style={styles.resultCard}>
-            <Text style={styles.resultTitle}>Matching Report 💖</Text>
+  const renderPlanetaryPositions = () => {
+    const boyP = result?.boyPlanets || result?.recordList?.boy_planetary_details;
+    const girlP = result?.girlPlanets || result?.recordList?.girl_planetary_details;
+    if (!boyP && !girlP) return null;
 
-            {/* Profile Briefs */}
-            {result.maleKundali && result.femaleKundali && (
-              <View style={styles.profileSummaryRow}>
-                <View style={styles.profileSummaryBox}>
-                  <Text style={styles.profSumName}>{result.maleKundali.name}</Text>
-                  <Text style={styles.profSumLocation}>{result.maleKundali.birthPlace?.split(',')[0]} • {result.maleKundali.birthDate}</Text>
+    const PlanetTable = ({ title, data, accent }) => {
+      const planets = Object.keys(data).filter(k => !isNaN(k)).map(k => data[k]);
+      if (planets.length === 0) return null;
+
+      return (
+        <View style={[styles.luckyBox, { borderTopColor: accent, padding: 0, overflow: 'hidden' }]}>
+          <View style={{ padding: 12, backgroundColor: '#FAFAFA', borderBottomWidth: 1, borderBottomColor: '#EEE' }}>
+            <Text style={[styles.luckyBoxTitle, { color: accent, marginBottom: 0 }]}>{title}'s Planetary Positions</Text>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View>
+              <View style={[styles.compHeader, { backgroundColor: '#F3F4F6', borderBottomWidth: 1, borderBottomColor: '#DDD', paddingVertical: 8 }]}>
+                <Text style={[styles.compTh, { width: 45, color: '#4B5563', fontSize: 10 }]}>Planet</Text>
+                <Text style={[styles.compTh, { width: 75, color: '#4B5563', fontSize: 10 }]}>Zodiac</Text>
+                <Text style={[styles.compTh, { width: 45, color: '#4B5563', fontSize: 10 }]}>House</Text>
+                <Text style={[styles.compTh, { width: 90, color: '#4B5563', fontSize: 10 }]}>Nakshatra</Text>
+                <Text style={[styles.compTh, { width: 35, color: '#4B5563', fontSize: 10 }]}>P.</Text>
+                <Text style={[styles.compTh, { width: 60, color: '#4B5563', fontSize: 10 }]}>Degree</Text>
+                <Text style={[styles.compTh, { width: 75, color: '#4B5563', fontSize: 10 }]}>Avastha</Text>
+                <Text style={[styles.compTh, { width: 65, color: '#4B5563', fontSize: 10 }]}>Status</Text>
+              </View>
+              {planets.map((p, i) => (
+                <View key={i} style={[styles.compRow, { borderBottomWidth: i === planets.length - 1 ? 0 : 1, borderBottomColor: '#EEE', paddingVertical: 10 }]}>
+                  <Text style={[styles.compVal, { width: 45, textAlign: 'left', fontWeight: '800', fontSize: 11 }]}>{p.name}</Text>
+                  <Text style={[styles.compVal, { width: 75, textAlign: 'left', fontSize: 11 }]}>{p.zodiac}</Text>
+                  <Text style={[styles.compVal, { width: 45, fontSize: 11 }]}>{p.house}</Text>
+                  <Text style={[styles.compVal, { width: 90, textAlign: 'left', fontSize: 11 }]}>{p.nakshatra}</Text>
+                  <Text style={[styles.compVal, { width: 35, fontSize: 11 }]}>{p.nakshatra_pada}</Text>
+                  <Text style={[styles.compVal, { width: 60, fontSize: 11 }]}>{p.local_degree ? p.local_degree.toFixed(2) : '-'}</Text>
+                  <Text style={[styles.compVal, { width: 75, fontSize: 10, color: '#6b7280' }]}>{p.basic_avastha || '-'}</Text>
+                  <Text style={[styles.compVal, { width: 65, fontSize: 10, color: p.is_combust ? '#ef4444' : p.retro ? '#3b82f6' : '#10b981', fontWeight: '700' }]}>
+                    {p.is_combust ? 'Combust' : p.retro ? 'Retro' : 'Direct'}
+                  </Text>
                 </View>
-                <Text style={styles.hearts}>💕</Text>
-                <View style={styles.profileSummaryBox}>
-                  <Text style={styles.profSumName}>{result.femaleKundali.name}</Text>
-                  <Text style={styles.profSumLocation}>{result.femaleKundali.birthPlace?.split(',')[0]} • {result.femaleKundali.birthDate}</Text>
-                </View>
+              ))}
+            </View>
+          </ScrollView>
+        </View>
+      );
+    };
+
+    return (
+      <View style={styles.sectionCard}>
+        <Text style={styles.sectionTitle}>🪐 Planetary Details</Text>
+        <Text style={styles.sectionSubTitle}>Precise positions at the time of birth</Text>
+        <View style={{ gap: 16 }}>
+          {boyP && <PlanetTable title={result?.maleKundali?.name || 'Boy'} data={boyP} accent="#3b82f6" />}
+          {girlP && <PlanetTable title={result?.femaleKundali?.name || 'Girl'} data={girlP} accent="#ec4899" />}
+        </View>
+      </View>
+    );
+  };
+
+  const boyManglik = extractManglik(result?.boyManaglikRpt || result?.boyManglikRpt || result?.boy_manglik);
+  const girlManglik = extractManglik(result?.girlMangalikRpt || result?.girlManglikRpt || result?.girl_manglik);
+
+  const ManglikCard = ({ side, data, accent }) => {
+    if (!data) return null;
+    return (
+      <View style={styles.manglikCard}>
+        <View style={styles.manglikHeader}>
+          <Text style={[styles.manglikTitle, { color: accent }]}>{side}</Text>
+          <View style={[styles.manglikBadge, { backgroundColor: data.isManglik ? '#fee2e2' : '#dcfce7' }]}>
+            <Text style={[styles.manglikBadgeText, { color: data.isManglik ? '#b91c1c' : '#166534' }]}>
+              {data.isManglik ? '⚠ Manglik' : '✓ Not Manglik'}
+            </Text>
+          </View>
+        </View>
+        {data.percentage != null && (
+          <Text style={styles.manglikIntensity}>Intensity: <Text style={{ fontWeight: '700', color: '#1a0533' }}>{data.percentage}%</Text></Text>
+        )}
+        {data.status ? <Text style={styles.manglikStatus}>{data.status}</Text> : null}
+        
+        {(data.factors?.length > 0 || data.aspects?.length > 0) && (
+          <View style={{ marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#f3f4f6' }}>
+            {data.factors?.map((f, i) => <Text key={`f-${i}`} style={styles.manglikDetailText}>• {f}</Text>)}
+            {data.aspects?.map((a, i) => <Text key={`a-${i}`} style={[styles.manglikDetailText, { color: '#6b7280' }]}>◦ {a}</Text>)}
+          </View>
+        )}
+      </View>
+    );
+  };
+
+  const renderQuickMatch = () => {
+    if (!result?.quickMatch || typeof result.quickMatch !== 'object') return null;
+    const qm = result.quickMatch;
+    const isCompatible = qm.is_compatible === true || qm.compatible === true || qm.match === true || /yes|good|excellent|compatible/i.test(String(qm.verdict || qm.result || qm.match));
+    const scoreQ = qm.score ?? qm.compatibility_score ?? qm.percentage;
+    const verdict = qm.verdict || qm.result || qm.match || qm.bot_response || qm.message;
+    const description = qm.description || qm.bot_response;
+
+    return (
+      <View style={[styles.quickMatchCard, { backgroundColor: isCompatible ? '#d1fae5' : '#fee2e2', borderColor: isCompatible ? '#10b981' : '#dc2626' }]}>
+        <View style={styles.qmHeader}>
+          <Text style={styles.qmIcon}>{isCompatible ? '⚡' : '⚠️'}</Text>
+          <View style={{ flex: 1, paddingLeft: 10 }}>
+            <Text style={[styles.qmTitle, { color: isCompatible ? '#065f46' : '#7f1d1d' }]}>Quick Match Result</Text>
+            {verdict ? <Text style={styles.qmVerdict}>{String(verdict)}</Text> : null}
+          </View>
+          {scoreQ !== undefined && scoreQ !== null && (
+            <View style={[styles.qmScoreBox, { borderColor: isCompatible ? '#10b981' : '#dc2626' }]}>
+              <Text style={styles.qmScoreLabel}>SCORE</Text>
+              <Text style={[styles.qmScoreValue, { color: isCompatible ? '#065f46' : '#7f1d1d' }]}>{scoreQ}</Text>
+            </View>
+          )}
+        </View>
+        {description && description !== verdict && <Text style={styles.qmDesc}>{String(description)}</Text>}
+      </View>
+    );
+  };
+
+  const renderAggregateMatch = () => {
+    if (!result?.aggregateMatch) return null;
+    const ag = result.aggregateMatch;
+    const sc = ag.score ?? ag.match_score ?? ag.received_points ?? ag.total_points;
+    const maxSc = ag.total_points ?? ag.max_score ?? 100;
+    const verdict = ag.verdict || ag.bot_response || ag.message || ag.conclusion || ag.report;
+    const desc = ag.description || ag.bot_response;
+    const extended = ag.extended_response;
+    const perc = ag.percentage || (typeof sc === 'number' && typeof maxSc === 'number' ? Math.round((sc / maxSc) * 100) : null);
+
+    return (
+      <View style={styles.aggCard}>
+        <Text style={styles.aggTitle}>🎯 Aggregate Match</Text>
+        <Text style={styles.aggSub}>Comprehensive overall compatibility combining all factors</Text>
+        
+        {(ag.ashtakoot_score || ag.dashkoot_score) && (
+          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+            {ag.ashtakoot_score && (
+              <View style={styles.miniScore}>
+                <Text style={styles.miniScoreLabel}>Ashtakoot</Text>
+                <Text style={styles.miniScoreVal}>{ag.ashtakoot_score}</Text>
               </View>
             )}
-
-            {matchData?.score !== undefined && (
-              <View style={styles.scoreBoard}>
-                <Text style={styles.scoreText}>
-                  <Text style={styles.scoreBig}>{matchData.score}</Text>
-                  <Text style={styles.scoreTotal}> / 36</Text>
-                </Text>
-                <Text style={styles.scoreLabel}>Guna Match (Ashtakoot)</Text>
-              </View>
-            )}
-
-            {/* Ashtakoot Breakdown */}
-            {matchData && typeof matchData === 'object' && (
-              <View style={styles.breakdown}>
-                {Object.keys(matchData).filter(k => typeof matchData[k] === 'object' && matchData[k].full_score !== undefined).map((key) => {
-                  const val = matchData[key];
-                  const received = val[key] || val.score || 0;
-                  const total = val.full_score || '-';
-                  const isGood = received >= (total / 2);
-                  return (
-                    <View key={key} style={styles.kootRow}>
-                      <View style={{flex:1}}>
-                        <Text style={styles.kootName}>{val.name || key}</Text>
-                        {(val.boy_rasi_name || val.boy_tara || val.boy_varna || val.description) && (
-                          <Text style={[styles.kootDesc, isGood ? { color: colors.success } : { color: colors.textMuted }]}>
-                            {val.description || ''}
-                          </Text>
-                        )}
-                      </View>
-                      <View style={styles.kootScoreBox}>
-                        <Text style={styles.kootScore}>{received}</Text>
-                        <Text style={styles.kootTotal}> / {total}</Text>
-                      </View>
-                    </View>
-                  );
-                })}
-              </View>
-            )}
-
-            {/* Conclusion */}
-            {matchData?.bot_response && (
-              <View style={styles.conclusionBox}>
-                <Text style={styles.conclusionText}>
-                  <Text style={{fontWeight: '800', color: colors.gold}}>Conclusion: </Text>
-                  {matchData.bot_response}
-                </Text>
-              </View>
-            )}
-
-            {/* Manglik Area */}
-            {(boyManglik || girlManglik) && (
-              <View style={styles.manglikBox}>
-                <Text style={styles.manglikTitle}>Manglik Dosha Analysis</Text>
-                <View style={styles.manglikGrid}>
-                  {boyManglik && (
-                    <View style={styles.manglikCard}>
-                      <Text style={styles.manglikLabel}>Boy</Text>
-                      <Text style={[styles.manglikVal, boyManglik.score > 20 ? {color: colors.error} : {color: colors.success}]}>
-                        {boyManglik.score > 0 ? `${boyManglik.score}% Manglik` : 'Not Manglik'}
-                      </Text>
-                    </View>
-                  )}
-                  {girlManglik && (
-                    <View style={styles.manglikCard}>
-                      <Text style={styles.manglikLabel}>Girl</Text>
-                      <Text style={[styles.manglikVal, girlManglik.score > 20 ? {color: colors.error} : {color: colors.success}]}>
-                        {girlManglik.score > 0 ? `${girlManglik.score}% Manglik` : 'Not Manglik'}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-                {boyManglik?.bot_response && <Text style={styles.manglikDetails}>Boy Analysis: {boyManglik.bot_response}</Text>}
-                {boyManglik?.aspects && boyManglik.aspects.length > 0 && (
-                   <View style={styles.listContainer}>
-                     {boyManglik.aspects.map((t, idx) => <Text key={`b-asp-${idx}`} style={styles.listItem}>• {t}</Text>)}
-                     {boyManglik.factors?.map((t, idx) => <Text key={`b-fac-${idx}`} style={styles.listItem}>• {t}</Text>)}
-                   </View>
-                )}
-
-                {girlManglik?.bot_response && <Text style={[styles.manglikDetails, { marginTop: 16 }]}>Girl Analysis: {girlManglik.bot_response}</Text>}
-                {girlManglik?.aspects && girlManglik.aspects.length > 0 && (
-                   <View style={styles.listContainer}>
-                     {girlManglik.aspects.map((t, idx) => <Text key={`g-asp-${idx}`} style={styles.listItem}>• {t}</Text>)}
-                     {girlManglik.factors?.map((t, idx) => <Text key={`g-fac-${idx}`} style={styles.listItem}>• {t}</Text>)}
-                   </View>
-                )}
+            {ag.dashkoot_score && (
+              <View style={styles.miniScore}>
+                <Text style={styles.miniScoreLabel}>Dashakoot</Text>
+                <Text style={styles.miniScoreVal}>{ag.dashkoot_score}</Text>
               </View>
             )}
           </View>
         )}
 
-        <View style={{height: 40}} />
+        <View style={styles.aggRow}>
+          {sc !== undefined && sc !== null && (
+            <View style={styles.aggBox}>
+              <Text style={styles.aggBoxLabel}>OVERALL SCORE</Text>
+              <Text style={styles.aggBoxVal}>{sc}{maxSc ? ` / ${maxSc}` : ''}</Text>
+            </View>
+          )}
+          {perc !== null && (
+            <View style={styles.aggBox}>
+              <Text style={styles.aggBoxLabel}>COMPATIBILITY</Text>
+              <Text style={styles.aggBoxVal}>{perc}%</Text>
+            </View>
+          )}
+        </View>
+        {verdict ? <Text style={styles.aggVerdict}><Text style={{ fontWeight: '700', color: '#92400e' }}>Verdict:</Text> {String(verdict)}</Text> : null}
+        {extended ? <Text style={styles.aggDesc}>{String(extended)}</Text> : (desc && desc !== verdict ? <Text style={styles.aggDesc}>{String(desc)}</Text> : null)}
+      </View>
+    );
+  };
+
+  const renderDetailedDoshas = () => {
+    const ag = result?.aggregateMatch;
+    const rv = result?.rajjuVedha;
+    if (!ag && !rv) return null;
+
+    const items = [];
+    if (ag?.mangaldosh) items.push({ title: 'Mars (Mangal)', text: ag.mangaldosh, ok: !/not favorable|bad|unfavorable|greater than/i.test(ag.mangaldosh) });
+    if (ag?.pitradosh) items.push({ title: 'Pitra Dosha', text: ag.pitradosh, ok: !/have pitra dosha/i.test(ag.pitradosh) });
+    if (ag?.kaalsarpdosh) items.push({ title: 'Kaal-Sarp', text: ag.kaalsarpdosh, ok: !/have kaal-sarp/i.test(ag.kaalsarpdosh) });
+    
+    const hasRajju = rv?.is_rajju_dosha_present === true || ag?.rajjudosh === true;
+    const hasVedha = rv?.is_vedha_dosha_present === true || ag?.vedhadosh === true;
+    
+    if (hasRajju !== undefined) items.push({ title: 'Rajju Dosha', text: hasRajju ? 'Rajju Dosha is present' : 'No Rajju Dosha present', ok: !hasRajju });
+    if (hasVedha !== undefined) items.push({ title: 'Vedha Dosha', text: hasVedha ? 'Vedha Dosha is present' : 'No Vedha Dosha present', ok: !hasVedha });
+
+    if (items.length === 0) return null;
+
+    return (
+      <View style={styles.sectionCard}>
+        <Text style={styles.sectionTitle}>🛡️ Dosha Analysis Summary</Text>
+        <Text style={styles.sectionSubTitle}>Critical compatibility checkpoints</Text>
+        <View style={{ gap: 10 }}>
+          {items.map((item, i) => (
+            <View key={i} style={[styles.doshaItem, { borderLeftColor: item.ok ? '#10b981' : '#ef4444' }]}>
+              <Text style={[styles.doshaItemTitle, { color: item.ok ? '#065f46' : '#991b1b' }]}>{item.title}</Text>
+              <Text style={styles.doshaItemText}>{item.text}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+    );
+  };
+
+  const renderLuckyFactors = () => {
+    const boyD = matchData?.boy_astro_details;
+    const girlD = matchData?.girl_astro_details;
+    if (!boyD && !girlD) return null;
+
+    const renderLuckyBox = (title, data, accent) => (
+      <View style={[styles.luckyBox, { borderTopColor: accent }]}>
+        <Text style={[styles.luckyBoxTitle, { color: accent }]}>{title}</Text>
+        <View style={styles.luckyGrid}>
+          {data.lucky_gem && <LuckyItem label="Gem" value={Array.isArray(data.lucky_gem) ? data.lucky_gem.join(', ') : data.lucky_gem} />}
+          {data.lucky_num && <LuckyItem label="Number" value={Array.isArray(data.lucky_num) ? data.lucky_num.join(', ') : data.lucky_num} />}
+          {data.lucky_colors && <LuckyItem label="Color" value={Array.isArray(data.lucky_colors) ? data.lucky_colors.join(', ') : data.lucky_colors} />}
+          {data.lucky_letters && <LuckyItem label="Letters" value={Array.isArray(data.lucky_letters) ? data.lucky_letters.join(', ') : data.lucky_letters} />}
+          {data.lucky_name_start && <LuckyItem label="Name Starts" value={Array.isArray(data.lucky_name_start) ? data.lucky_name_start.join(', ') : data.lucky_name_start} />}
+        </View>
+      </View>
+    );
+
+    return (
+      <View style={styles.sectionCard}>
+        <Text style={styles.sectionTitle}>🍀 Lucky Factors</Text>
+        <Text style={styles.sectionSubTitle}>Personalized auspicious elements</Text>
+        <View style={{ gap: 12 }}>
+          {boyD && renderLuckyBox(`👨 ${result?.maleKundali?.name || 'Boy'}`, boyD, '#3b82f6')}
+          {girlD && renderLuckyBox(`👩 ${result?.femaleKundali?.name || 'Girl'}`, girlD, '#ec4899')}
+        </View>
+      </View>
+    );
+  };
+
+  const renderPapasamya = () => {
+    if (!result?.papasamayaMatch) return null;
+    const pp = result.papasamayaMatch;
+    const boyPapa = pp.boy_papa_count ?? pp.male_papa_count ?? pp.boy_papasamya;
+    const girlPapa = pp.girl_papa_count ?? pp.female_papa_count ?? pp.girl_papasamya;
+    const isMatching = pp.is_matching === true || pp.is_matching === 'true' || pp.match === true || /yes/i.test(String(pp.match));
+    const desc = pp.description || pp.bot_response || pp.message || pp.report;
+
+    const renderPapaBreakdown = (pData) => {
+      if (!pData || typeof pData !== 'object') return null;
+      const keys = Object.keys(pData).filter(k => k.endsWith('_papa'));
+      return (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 8 }}>
+          {keys.map(k => (
+            <View key={k} style={styles.miniPapaBadge}>
+              <Text style={styles.miniPapaLabel}>{k.replace('_papa','').toUpperCase()}</Text>
+              <Text style={styles.miniPapaVal}>{pData[k]}</Text>
+            </View>
+          ))}
+        </View>
+      );
+    };
+
+    return (
+      <View style={styles.sectionCard}>
+        <Text style={styles.sectionTitle}>⚖️ Papasamya Match</Text>
+        <Text style={styles.sectionSubTitle}>Malefic effects equality for harmony</Text>
+        <View style={[styles.papaContainer, { borderColor: isMatching ? '#10b981' : '#f59e0b' }]}>
+          <View style={[styles.manglikBadge, { alignSelf: 'center', backgroundColor: isMatching ? '#dcfce7' : '#fef3c7', marginBottom: 12 }]}>
+            <Text style={[styles.manglikBadgeText, { color: isMatching ? '#166534' : '#92400e' }]}>
+              {isMatching ? '✓ Papa levels match' : '⚠ Papa levels differ'}
+            </Text>
+          </View>
+          <View style={styles.papaRow}>
+            <View style={styles.papaBoxBoy}>
+              <Text style={styles.papaLabelBoy}>👨 Boy Total</Text>
+              <Text style={styles.papaValBoy}>{boyPapa ?? '-'}</Text>
+              {renderPapaBreakdown(pp.boy_papa)}
+            </View>
+            <View style={styles.papaBoxGirl}>
+              <Text style={styles.papaLabelGirl}>👩 Girl Total</Text>
+              <Text style={styles.papaValGirl}>{girlPapa ?? '-'}</Text>
+              {renderPapaBreakdown(pp.girl_papa)}
+            </View>
+          </View>
+          {desc ? <Text style={styles.papaDesc}>{String(desc)}</Text> : null}
+        </View>
+      </View>
+    );
+  };
+
+  const renderWesternMatch = () => {
+    if (!result?.westernMatch || typeof result.westernMatch !== 'object') return null;
+    const wm = result.westernMatch;
+    const score = wm.score ?? wm.compatibility_score ?? wm.match_score ?? wm.percentage ?? wm.total ?? wm.match;
+    const boySign = wm.boy_sign || wm.male_sign || wm.boy_sun_sign || wm.boy?.sun_sign || wm.boy?.sign || wm.boy_zodiac;
+    const girlSign = wm.girl_sign || wm.female_sign || wm.girl_sun_sign || wm.girl?.sun_sign || wm.girl?.sign || wm.girl_zodiac;
+    const comp = wm.compatibility || wm.verdict || wm.bot_response || wm.report || wm.message;
+    const desc = wm.description || wm.bot_response;
+
+    const hasData = score !== undefined || boySign || girlSign || comp || desc;
+    if (!hasData) return null;
+
+    return (
+      <View style={styles.sectionCard}>
+        <Text style={styles.sectionTitle}>🌍 Western Astrology Match</Text>
+        <Text style={styles.sectionSubTitle}>Sun sign & element-based compatibility</Text>
+        <View style={styles.westernContainer}>
+          {score !== undefined && score !== null && (
+            <View style={styles.westernScoreBox}>
+              <Text style={styles.westernScoreLabel}>COMPATIBILITY SCORE</Text>
+              <Text style={styles.westernScoreVal}>{score}{typeof score === 'number' && score <= 100 && score >= 0 ? '%' : ''}</Text>
+            </View>
+          )}
+          {(boySign || girlSign) && (
+            <View style={styles.papaRow}>
+              <View style={styles.papaBoxBoy}>
+                <Text style={styles.papaLabelBoy}>👨 Boy</Text>
+                <Text style={styles.papaValBoy}>{boySign || '-'}</Text>
+              </View>
+              <View style={styles.papaBoxGirl}>
+                <Text style={styles.papaLabelGirl}>👩 Girl</Text>
+                <Text style={styles.papaValGirl}>{girlSign || '-'}</Text>
+              </View>
+            </View>
+          )}
+          {comp ? <Text style={styles.westernComp}><Text style={{ fontWeight: '700' }}>Compatibility:</Text> {String(comp)}</Text> : null}
+          {desc && desc !== comp ? <Text style={styles.westernDesc}>{String(desc)}</Text> : null}
+        </View>
+      </View>
+    );
+  };
+
+  return (
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFF" />
+
+      <View style={styles.header}>
+        <TouchableOpacity onPress={onBack} style={styles.backButton}>
+          <Text style={styles.backIcon}>←</Text>
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Kundali Matching</Text>
+        <View style={{ width: 40 }} />
+      </View>
+
+      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        {!result ? (
+          <View>
+            <LinearGradient colors={['#1A1A1A', '#2D1500']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.heroBanner}>
+              <Text style={styles.heroEmoji}>💑</Text>
+              <Text style={styles.heroTitle}>Kundali Matching</Text>
+              <Text style={styles.heroDesc}>Vedic Guna Milan — check marriage compatibility</Text>
+              <View style={styles.heroBadgeRow}>
+                <View style={styles.heroBadge}><Text style={styles.heroBadgeText}>✦ Ashtakoot</Text></View>
+                <View style={styles.heroBadge}><Text style={styles.heroBadgeText}>✦ 36 Gunas</Text></View>
+                <View style={styles.heroBadge}><Text style={styles.heroBadgeText}>✦ Free Report</Text></View>
+              </View>
+            </LinearGradient>
+
+            <View style={styles.formContent}>
+              <View style={styles.toggleContainer}>
+                <TouchableOpacity onPress={() => setMatchType('North')} style={[styles.toggleBtn, matchType === 'North' && styles.toggleBtnActive]}>
+                  <Text style={[styles.toggleBtnText, matchType === 'North' && styles.toggleBtnTextActive]}>Ashtakoot</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setMatchType('South')} style={[styles.toggleBtn, matchType === 'South' && styles.toggleBtnActive]}>
+                  <Text style={[styles.toggleBtnText, matchType === 'South' && styles.toggleBtnTextActive]}>Dashakoot</Text>
+                </TouchableOpacity>
+              </View>
+
+              <PersonForm title="👨 Boy's Details" data={boy} target="boy" accent="#3b82f6"
+                onChangeField={handleChange}
+                onPlaceChange={handlePlaceChange}
+                onPick={() => setShowPicker}
+                suggestions={suggestions.boy}
+                showSuggestions={showSuggestions.boy}
+                onSelectPlace={selectPlace}
+                loading={placeLoading.boy}
+              />
+              <View style={{ height: 16 }} />
+              <PersonForm title="👩 Girl's Details" data={girl} target="girl" accent="#ec4899"
+                onChangeField={handleChange}
+                onPlaceChange={handlePlaceChange}
+                onPick={() => setShowPicker}
+                suggestions={suggestions.girl}
+                showSuggestions={showSuggestions.girl}
+                onSelectPlace={selectPlace}
+                loading={placeLoading.girl}
+              />
+
+              <TouchableOpacity style={styles.goldMatchButton} onPress={handleSubmit} disabled={loading} activeOpacity={0.85}>
+                <LinearGradient colors={['#FFCC00', '#E6A800']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.matchGradient}>
+                  {loading
+                    ? <ActivityIndicator color="#1A1A1A" />
+                    : <><Text style={styles.matchButtonText}>💞 Calculate Compatibility</Text><Text style={styles.matchArrow}> →</Text></>
+                  }
+                </LinearGradient>
+              </TouchableOpacity>
+              <Text style={styles.formDisclaimer}>🔒 Your data is private & secure</Text>
+            </View>
+          </View>
+        ) : (
+          <View>
+            <LinearGradient colors={['#1A1A1A', '#2D1500']} style={styles.resultHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.matchTitleNames}>
+                  {result.maleKundali?.name || boy.name} <Text style={{ color: '#ec4899' }}>♥</Text> {result.femaleKundali?.name || girl.name}
+                </Text>
+                <Text style={styles.matchTitleSub}>
+                  {matchType === 'North' ? 'Ashtakoot Guna Milan' : 'Dashakoot Milan'}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowLangModal(true)} style={styles.langBtn}>
+                <Text style={styles.langBtnText}>🌐 {LANGUAGES.find(l => l.code === lang)?.label || 'En'}</Text>
+              </TouchableOpacity>
+            </LinearGradient>
+
+            <View style={styles.resultContent}>
+
+            {/* Total Score Section */}
+            {totalMax > 0 && (
+              <View style={styles.scoreCard}>
+                <View style={styles.scoreDonutWrap}>
+                  <Svg width={100} height={100} viewBox="0 0 120 120">
+                    <Circle cx="60" cy="60" r="50" fill="none" stroke="#f3f0fa" strokeWidth="12" />
+                    <Circle cx="60" cy="60" r="50" fill="none" stroke={band.color} strokeWidth="12"
+                      strokeDasharray={`${(scorePct * 2 * Math.PI * 50)} ${2 * Math.PI * 50}`}
+                      strokeDashoffset="0"
+                      origin="60, 60"
+                      rotation="-90"
+                      strokeLinecap="round" />
+                  </Svg>
+                  <View style={styles.scoreDonutInner}>
+                    <Text style={[styles.scoreBig, { color: band.color }]}>{totalReceived}</Text>
+                    <Text style={styles.scoreMax}>of {totalMax}</Text>
+                  </View>
+                </View>
+                <View style={styles.scoreInfo}>
+                  <Text style={[styles.scoreBand, { color: band.color }]}>{band.emoji} {band.label}</Text>
+                  <Text style={styles.scoreVerdict}>Compatibility Score: <Text style={{ fontWeight: '800', color: '#333' }}>{Math.round(scorePct * 100)}%</Text></Text>
+                </View>
+              </View>
+            )}
+
+            {renderQuickMatch()}
+            {renderAggregateMatch()}
+            {renderDetailedDoshas()}
+            {renderLuckyFactors()}
+            {renderGhatkaChakra()}
+
+            {conclusionText && (
+              <View style={styles.conclusionBox}>
+                <Text style={styles.conclusionTitle}>📜 Conclusion</Text>
+                <Text style={styles.conclusionText}>{conclusionText}</Text>
+              </View>
+            )}
+
+            {renderPlanetaryPositions()}
+            {renderComparison()}
+            {renderPanchangComparison()}
+
+            {/* Birth Charts */}
+            <View style={styles.sectionCard}>
+              <Text style={styles.sectionTitle}>🔭 Birth Charts</Text>
+              <Text style={styles.sectionSubTitle}>Lagna (D1) & Navamsa (D9) charts for both</Text>
+
+              {/* Chart style selector */}
+              <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 10, marginBottom: 16 }}>
+                {['north', 'south', 'east'].map(s => (
+                  <TouchableOpacity
+                    key={s}
+                    style={[styles.chartStyleBtn, chartStyle === s && styles.chartStyleBtnActive]}
+                    onPress={() => onChangeChartStyle(s)}
+                  >
+                    <Text style={[styles.chartStyleText, chartStyle === s && styles.chartStyleTextActive]}>
+                      {s.charAt(0).toUpperCase() + s.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {chartsLoading ? (
+                <View style={{ height: 120, justifyContent: 'center', alignItems: 'center' }}>
+                  <ActivityIndicator size="large" color="#FFCC00" />
+                  <Text style={{ color: '#999', marginTop: 10, fontSize: 13 }}>Loading charts...</Text>
+                </View>
+              ) : (
+                <View>
+                  {/* ── Lagna D1 ── */}
+                  <View style={styles.chartDivider}>
+                    <View style={styles.chartDividerLine} />
+                    <Text style={styles.chartDividerLabel}>LAGNA CHART (D1)</Text>
+                    <View style={styles.chartDividerLine} />
+                  </View>
+
+                  <View style={styles.chartPersonRow}>
+                    <View style={styles.chartPersonBadgeBoy}>
+                      <Text style={styles.chartPersonBadgeText}>👨 {result?.maleKundali?.name || boy.name || 'Boy'}</Text>
+                    </View>
+                  </View>
+                  <View style={styles.chartBox}>
+                    <WebView
+                      originWhitelist={['*']}
+                      source={{ html: `<html><body style="margin:0;padding:0;background:#fff;display:flex;justify-content:center;align-items:center;">${injectDegreesIntoSvg(cleanSvg(boyCharts.D1), buildDegreeMap(result?.boyPlanets || result?.recordList?.boy_planetary_details)) || '<p style="color:#999;font-family:sans-serif;font-size:13px;text-align:center;">Chart not available</p>'}</body></html>` }}
+                      style={{ width: '100%', height: width - 64, backgroundColor: 'transparent' }}
+                      scrollEnabled={false}
+                      scalesPageToFit={true}
+                    />
+                  </View>
+
+                  <View style={{ height: 12 }} />
+
+                  <View style={styles.chartPersonRow}>
+                    <View style={styles.chartPersonBadgeGirl}>
+                      <Text style={styles.chartPersonBadgeText}>👩 {result?.femaleKundali?.name || girl.name || 'Girl'}</Text>
+                    </View>
+                  </View>
+                  <View style={styles.chartBox}>
+                    <WebView
+                      originWhitelist={['*']}
+                      source={{ html: `<html><body style="margin:0;padding:0;background:#fff;display:flex;justify-content:center;align-items:center;">${injectDegreesIntoSvg(cleanSvg(girlCharts.D1), buildDegreeMap(result?.girlPlanets || result?.recordList?.girl_planetary_details)) || '<p style="color:#999;font-family:sans-serif;font-size:13px;text-align:center;">Chart not available</p>'}</body></html>` }}
+                      style={{ width: '100%', height: width - 64, backgroundColor: 'transparent' }}
+                      scrollEnabled={false}
+                      scalesPageToFit={true}
+                    />
+                  </View>
+
+                  {/* ── Navamsa D9 ── */}
+                  {(boyCharts.D9 || girlCharts.D9) && (
+                    <View>
+                      <View style={[styles.chartDivider, { marginTop: 20 }]}>
+                        <View style={styles.chartDividerLine} />
+                        <Text style={styles.chartDividerLabel}>NAVAMSA CHART (D9)</Text>
+                        <View style={styles.chartDividerLine} />
+                      </View>
+
+                      {boyCharts.D9 && (
+                        <View>
+                          <View style={styles.chartPersonRow}>
+                            <View style={styles.chartPersonBadgeBoy}>
+                              <Text style={styles.chartPersonBadgeText}>👨 {result?.maleKundali?.name || boy.name || 'Boy'}</Text>
+                            </View>
+                          </View>
+                          <View style={styles.chartBox}>
+                            <WebView
+                              originWhitelist={['*']}
+                              source={{ html: `<html><body style="margin:0;padding:0;background:#fff;display:flex;justify-content:center;align-items:center;">${injectDegreesIntoSvg(cleanSvg(boyCharts.D9), buildDegreeMap(result?.boyPlanets || result?.recordList?.boy_planetary_details)) || '<p style="color:#999;font-family:sans-serif;font-size:13px;text-align:center;">Chart not available</p>'}</body></html>` }}
+                              style={{ width: '100%', height: width - 64, backgroundColor: 'transparent' }}
+                              scrollEnabled={false}
+                              scalesPageToFit={true}
+                            />
+                          </View>
+                          <View style={{ height: 12 }} />
+                        </View>
+                      )}
+
+                      {girlCharts.D9 && (
+                        <View>
+                          <View style={styles.chartPersonRow}>
+                            <View style={styles.chartPersonBadgeGirl}>
+                              <Text style={styles.chartPersonBadgeText}>👩 {result?.femaleKundali?.name || girl.name || 'Girl'}</Text>
+                            </View>
+                          </View>
+                          <View style={styles.chartBox}>
+                            <WebView
+                              originWhitelist={['*']}
+                              source={{ html: `<html><body style="margin:0;padding:0;background:#fff;display:flex;justify-content:center;align-items:center;">${injectDegreesIntoSvg(cleanSvg(girlCharts.D9), buildDegreeMap(result?.girlPlanets || result?.recordList?.girl_planetary_details)) || '<p style="color:#999;font-family:sans-serif;font-size:13px;text-align:center;">Chart not available</p>'}</body></html>` }}
+                              style={{ width: '100%', height: width - 64, backgroundColor: 'transparent' }}
+                              scrollEnabled={false}
+                              scalesPageToFit={true}
+                            />
+                          </View>
+                        </View>
+                      )}
+                    </View>
+                  )}
+                </View>
+              )}
+            </View>
+
+            {/* Manglik */}
+            {(boyManglik || girlManglik) && (
+              <View style={styles.sectionCard}>
+                <Text style={styles.sectionTitle}>🔥 Manglik Dosha Analysis</Text>
+                <ManglikCard side="👨 Boy" data={boyManglik} accent="#3b82f6" />
+                <View style={{ height: 10 }} />
+                <ManglikCard side="👩 Girl" data={girlManglik} accent="#ec4899" />
+              </View>
+            )}
+
+            {renderPapasamya()}
+            {renderWesternMatch()}
+
+            {/* Koota Breakdown */}
+            {kootasToRender.length > 0 && (
+              <View style={styles.sectionCard}>
+                <Text style={styles.sectionTitle}>📊 Guna-by-Guna Breakdown</Text>
+                <View style={styles.kootaGrid}>
+                  {kootasToRender.map(key => renderKootaItem(key))}
+                </View>
+              </View>
+            )}
+
+            <TouchableOpacity style={styles.resetButton} onPress={() => setResult(null)}>
+              <Text style={styles.resetText}>↺ Reset & Match Another</Text>
+            </TouchableOpacity>
+            </View>
+          </View>
+        )}
       </ScrollView>
 
-      {/* Date / Time Picker Overlay */}
+      {/* Language Picker Modal */}
+      <Modal visible={showLangModal} transparent animationType="slide">
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
+          <View style={{ backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '80%', paddingBottom: 20 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: 20, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' }}>
+              <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1a0533' }}>Select Language</Text>
+              <TouchableOpacity onPress={() => setShowLangModal(false)}>
+                <Text style={{ fontSize: 16, color: '#7c3aed', fontWeight: 'bold' }}>Close</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView>
+              {LANGUAGES.map(l => (
+                <TouchableOpacity
+                  key={l.code}
+                  style={{ padding: 16, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', backgroundColor: lang === l.code ? '#faf5ff' : '#fff' }}
+                  onPress={() => onChangeLang(l.code)}
+                >
+                  <Text style={{ fontSize: 16, color: lang === l.code ? '#7c3aed' : '#4b5563', fontWeight: lang === l.code ? 'bold' : 'normal' }}>
+                    {l.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
       {showPicker.visible && (
         <DateTimePicker
           value={new Date()}
           mode={showPicker.mode}
-          display="default"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
           onChange={onChangePicker}
         />
       )}
-    </View>
+    </KeyboardAvoidingView>
   );
 };
 
-export default KundaliMatchingScreen;
+const PersonForm = ({ title, data, target, accent, onChangeField, onPlaceChange, onPick, suggestions, showSuggestions, onSelectPlace, loading }) => (
+  <View style={[styles.formCard, { borderLeftColor: accent, borderLeftWidth: 4 }]}>
+    <View style={styles.formCardHeader}>
+      <View style={[styles.formCardDot, { backgroundColor: accent }]} />
+      <Text style={[styles.formCardTitle, { color: accent }]}>{title}</Text>
+    </View>
+
+    <Text style={styles.inputLabel}>👤 Full Name</Text>
+    <TextInput
+      style={styles.textInput}
+      placeholder="Enter full name"
+      placeholderTextColor="#BBB"
+      value={data.name}
+      returnKeyType="next"
+      onChangeText={t => onChangeField(target, 'name', t)}
+    />
+
+    <View style={styles.row}>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.inputLabel}>📅 Date</Text>
+        <TouchableOpacity style={styles.pickerTrigger} onPress={() => onPick()({ visible: true, mode: 'date', target, key: 'birthDate' })}>
+          <Text style={[styles.pickerValue, !data.birthDate && { color: '#BBB' }]}>{data.birthDate || 'YYYY-MM-DD'}</Text>
+        </TouchableOpacity>
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.inputLabel}>⏰ Time</Text>
+        <TouchableOpacity style={styles.pickerTrigger} onPress={() => onPick()({ visible: true, mode: 'time', target, key: 'birthTime' })}>
+          <Text style={[styles.pickerValue, !data.birthTime && { color: '#BBB' }]}>{data.birthTime || 'HH:MM'}</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+
+    <Text style={styles.inputLabel}>📍 Place of Birth</Text>
+    <View style={{ position: 'relative', zIndex: 10 }}>
+      <TextInput
+        style={styles.textInput}
+        placeholder="Search city, town..."
+        placeholderTextColor="#BBB"
+        value={data.birthPlace}
+        returnKeyType="search"
+        onChangeText={t => onPlaceChange(target, t)}
+      />
+      {loading && <ActivityIndicator style={styles.placeLoader} size="small" color={accent} />}
+    </View>
+    {data.latitude ? (
+      <View style={styles.coordBadge}>
+        <Text style={styles.coordText}>✔ Location verified</Text>
+      </View>
+    ) : null}
+
+    {showSuggestions && suggestions.length > 0 && (
+      <View style={styles.suggestionBox}>
+        {suggestions.map((s, i) => (
+          <TouchableOpacity key={i} style={[styles.suggestionItem, i === suggestions.length - 1 && { borderBottomWidth: 0 }]} onPress={() => onSelectPlace(target, s)}>
+            <Text style={styles.suggestionText}>📍 {s.name}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    )}
+  </View>
+);
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.primary },
+  container: { flex: 1, backgroundColor: '#F7F7F7' },
   header: {
-    paddingHorizontal: 20, paddingTop: 52, paddingBottom: 16,
-    backgroundColor: colors.secondary, flexDirection: 'row', alignItems: 'center',
-    borderBottomWidth: 1, borderBottomColor: colors.border, overflow: 'hidden', gap: 12
+    height: 90, paddingTop: 30, flexDirection: 'row',
+    alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 16, backgroundColor: '#FFF',
+    borderBottomWidth: 1, borderBottomColor: '#F0F0F0',
   },
-  headerOrb:  { position: 'absolute', right: -50, top: -50, width: 140, height: 140, borderRadius: 70, backgroundColor: colors.gold, opacity: 0.05 },
-  backBtn:    { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
-  backArrow:  { color: colors.text, fontSize: 18, fontWeight: '700' },
-  headerTitle:{ flex: 1, color: colors.text, fontSize: 18, fontWeight: '800' },
-
-  scroll: { padding: 16 },
-  pageHero: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, paddingHorizontal: 4 },
-  heroSub: { flex: 1, color: colors.textMuted, fontSize: 12, lineHeight: 18, paddingRight: 10 },
+  backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#F5F5F5', alignItems: 'center', justifyContent: 'center' },
+  backIcon: { fontSize: 20, color: '#000', fontWeight: 'bold' },
+  headerTitle: { fontSize: 18, fontWeight: '700', color: '#000' },
+  scroll: { flexGrow: 1 },
+  formContent: { padding: 16, paddingBottom: 40 },
+  heroBanner: { paddingTop: 36, paddingBottom: 48, alignItems: 'center', paddingHorizontal: 20 },
+  heroEmoji: { fontSize: 42, marginBottom: 10 },
+  heroTitle: { fontSize: 24, fontWeight: '800', color: '#FFCC00', textAlign: 'center', marginBottom: 8 },
+  heroDesc: { fontSize: 13, color: '#CCC', textAlign: 'center', lineHeight: 20, marginBottom: 14 },
+  heroBadgeRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', justifyContent: 'center' },
+  heroBadge: { backgroundColor: 'rgba(255,204,0,0.15)', borderRadius: 50, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: 'rgba(255,204,0,0.4)' },
+  heroBadgeText: { color: '#FFCC00', fontSize: 11, fontWeight: '700' },
+  toggleContainer: { flexDirection: 'row', backgroundColor: '#F0F0F0', borderRadius: 12, padding: 4, marginBottom: 20 },
+  toggleBtn: { flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center' },
+  toggleBtnActive: { backgroundColor: '#FFF', shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
+  toggleBtnText: { fontSize: 13, fontWeight: '600', color: '#888' },
+  toggleBtnTextActive: { color: '#1A1A1A', fontWeight: '800' },
+  formCard: { backgroundColor: '#FFF', borderRadius: 16, padding: 16, marginBottom: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 3 },
+  formCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  formCardDot: { width: 8, height: 8, borderRadius: 4 },
+  formCardTitle: { fontSize: 15, fontWeight: '800' },
+  inputLabel: { fontSize: 12, fontWeight: '700', color: '#555', marginBottom: 6, marginTop: 12, letterSpacing: 0.3 },
+  textInput: { backgroundColor: '#F7F7F7', borderWidth: 1.5, borderColor: '#EEE', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, color: '#1A1A1A', fontWeight: '500' },
+  row: { flexDirection: 'row', gap: 10 },
+  pickerTrigger: { backgroundColor: '#F7F7F7', borderWidth: 1.5, borderColor: '#EEE', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13 },
+  pickerValue: { fontSize: 14, color: '#1A1A1A', fontWeight: '500' },
+  placeLoader: { position: 'absolute', right: 12, top: 12 },
+  placeCheck: { position: 'absolute', right: 12, top: 12, color: '#10b981', fontWeight: '800' },
+  coordBadge: { marginTop: 6, backgroundColor: '#F0FFF4', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: '#BBF7D0' },
+  coordText: { fontSize: 11, color: '#16A34A', fontWeight: '600' },
+  suggestionBox: { backgroundColor: '#FFF', borderWidth: 1, borderColor: '#EEE', borderRadius: 12, marginTop: 4, elevation: 6, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 4 } },
+  suggestionItem: { padding: 13, borderBottomWidth: 1, borderBottomColor: '#F5F5F5' },
+  suggestionText: { fontSize: 13, color: '#1A1A1A' },
+  goldMatchButton: { borderRadius: 14, marginTop: 20, overflow: 'hidden', shadowColor: '#FFCC00', shadowOpacity: 0.45, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 8 },
+  matchGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, gap: 8 },
+  matchButton: { borderRadius: 14, marginTop: 20, overflow: 'hidden' },
+  matchButtonText: { fontSize: 16, fontWeight: '800', color: '#1A1A1A' },
+  matchArrow: { fontSize: 18, fontWeight: '800', color: '#1A1A1A' },
+  formDisclaimer: { textAlign: 'center', fontSize: 11, color: '#AAA', marginTop: 12 },
   
-
-  personCard: { backgroundColor: colors.surface, padding: 18, borderRadius: 16, borderWidth: 1, borderColor: colors.border },
-  personHeader: { color: colors.gold, fontSize: 15, fontWeight: '800', marginBottom: 12, borderBottomWidth: 1, borderBottomColor: colors.border, paddingBottom: 8 },
-
-  label: { color: colors.textSub || '#c4b5fd', fontSize: 11, fontWeight: '600', marginBottom: 8, marginTop: 12 },
-  input: {
-    backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 10,
-    borderWidth: 1, borderColor: colors.border,
-    color: colors.text, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14
+  resultHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    padding: 16, paddingTop: 20, paddingBottom: 20,
   },
-  pickerBtn: {
-    backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 10,
-    borderWidth: 1, borderColor: colors.border,
-    paddingHorizontal: 14, paddingVertical: 14, 
+  langBtn: { backgroundColor: 'rgba(255,204,0,0.15)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 50, borderWidth: 1, borderColor: 'rgba(255,204,0,0.5)' },
+  langBtnText: { fontSize: 12, fontWeight: '800', color: '#FFCC00' },
+  resultContent: { padding: 16 },
+  matchTitleNames: { fontSize: 20, fontWeight: '800', color: '#FFCC00' },
+  matchTitleSub: { fontSize: 13, color: '#CCC', marginTop: 4 },
+  scoreCard: { backgroundColor: '#FFF', borderRadius: 20, padding: 20, flexDirection: 'row', alignItems: 'center', marginBottom: 20, borderWidth: 1, borderColor: '#F0F0F0', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
+  scoreDonutWrap: { width: 100, height: 100, position: 'relative' },
+  scoreDonutInner: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' },
+  scoreBig: { fontSize: 24, fontWeight: '800' },
+  scoreMax: { fontSize: 11, color: '#9ca3af' },
+  scoreInfo: { flex: 1, marginLeft: 20, alignItems: 'center' },
+  scoreBand: { fontSize: 18, fontWeight: '800', textAlign: 'center' },
+  scoreVerdict: { fontSize: 13, color: '#666', marginTop: 6, textAlign: 'center' },
+  conclusionBox: { backgroundColor: '#FFFBE6', borderLeftWidth: 4, borderLeftColor: '#FFCC00', padding: 16, borderRadius: 10, marginBottom: 20 },
+  conclusionTitle: { fontSize: 14, fontWeight: '800', color: '#E6A800', marginBottom: 6 },
+  conclusionText: { fontSize: 13, color: '#374151', lineHeight: 20 },
+  sectionCard: { backgroundColor: '#FFF', borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#F0F0F0', shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 6, elevation: 2 },
+  sectionTitle: { fontSize: 15, fontWeight: '800', color: '#1A1A1A', marginBottom: 4 },
+  sectionSubTitle: { fontSize: 12, color: '#9ca3af', marginBottom: 12 },
+  chartStyleBtn: { paddingVertical: 7, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1.5, borderColor: '#EEE', backgroundColor: '#FFF' },
+  chartStyleBtnActive: { borderColor: '#FFCC00', backgroundColor: '#FFCC00' },
+  chartStyleText: { fontSize: 12, fontWeight: '600', color: '#555' },
+  chartStyleTextActive: { color: '#1A1A1A', fontWeight: '800' },
+  chartPair: { flexDirection: 'row', justifyContent: 'space-between' },
+  chartLabel: { fontSize: 12, fontWeight: '800', color: '#1A1A1A', marginBottom: 4, textAlign: 'center' },
+
+  chartBox: {
+    width: '100%', borderRadius: 12, overflow: 'hidden',
+    borderWidth: 1, borderColor: '#F0F0F0',
+    backgroundColor: '#FFF',
+    shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 6, elevation: 2,
   },
-  pickerText: { color: colors.text, fontSize: 14 },
-  
-  row: { flexDirection: 'row', gap: 12 },
-  col: { flex: 1 },
+  chartDivider: {
+    flexDirection: 'row', alignItems: 'center', marginVertical: 14,
+  },
+  chartDividerLine: { flex: 1, height: 1, backgroundColor: '#EEEEEE' },
+  chartDividerLabel: {
+    marginHorizontal: 10, fontSize: 10, fontWeight: '800',
+    color: '#AAAAAA', letterSpacing: 1,
+  },
+  chartPersonRow: { marginBottom: 6 },
+  chartPersonBadgeBoy: {
+    alignSelf: 'flex-start', backgroundColor: '#EFF6FF',
+    borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5,
+    borderWidth: 1, borderColor: '#BFDBFE',
+  },
+  chartPersonBadgeGirl: {
+    alignSelf: 'flex-start', backgroundColor: '#FDF2F8',
+    borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5,
+    borderWidth: 1, borderColor: '#FBCFE8',
+  },
+  chartPersonBadgeText: { fontSize: 13, fontWeight: '700', color: '#1A1A1A' },
+  compTable: { borderWidth: 1, borderColor: '#F0F0F0', borderRadius: 12, overflow: 'hidden' },
+  compHeader: { flexDirection: 'row', padding: 10 },
+  compTh: { fontSize: 12, fontWeight: '700' },
+  compRow: { flexDirection: 'row', padding: 10, borderBottomWidth: 1, borderBottomColor: '#F5F5F5' },
+  compLabel: { fontSize: 12, fontWeight: '600', color: '#6b7280', flex: 1.2 },
+  compVal: { flex: 1, fontSize: 12, fontWeight: '600', color: '#1A1A1A' },
+  kootaGrid: { gap: 10 },
+  kootaCard: { backgroundColor: '#FAFAFA', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#F0F0F0' },
+  kootaHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  kootaLabel: { fontSize: 14, fontWeight: '800', color: '#1A1A1A' },
+  kootaScore: { fontSize: 14, fontWeight: '800' },
+  kootaBarBg: { height: 6, backgroundColor: '#EEEEEE', borderRadius: 3, marginBottom: 8, overflow: 'hidden' },
+  kootaBarFill: { height: '100%', borderRadius: 3 },
+  kootaHint: { fontSize: 11, color: '#9ca3af', marginBottom: 4 },
+  kootaDesc: { fontSize: 12, color: '#4b5563', lineHeight: 18 },
+  manglikCard: { borderWidth: 1, borderRadius: 12, padding: 14, backgroundColor: '#FFF' },
+  manglikHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  manglikTitle: { fontSize: 14, fontWeight: '800' },
+  manglikBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+  manglikBadgeText: { fontSize: 11, fontWeight: '800' },
+  manglikIntensity: { fontSize: 12, color: '#6b7280', marginBottom: 6 },
+  manglikStatus: { fontSize: 12, color: '#374151', lineHeight: 18 },
+  quickMatchCard: { borderRadius: 14, padding: 16, marginBottom: 16, borderWidth: 2, flexDirection: 'column' },
+  qmHeader: { flexDirection: 'row', alignItems: 'center' },
+  qmIcon: { fontSize: 28 },
+  qmTitle: { fontSize: 15, fontWeight: '800' },
+  qmVerdict: { fontSize: 13, fontWeight: '700', marginTop: 2, color: '#1A1A1A' },
+  qmScoreBox: { backgroundColor: '#FFF', padding: 8, borderRadius: 10, borderWidth: 1, alignItems: 'center', minWidth: 60 },
+  qmScoreLabel: { fontSize: 9, fontWeight: '800', color: '#6b7280' },
+  qmScoreValue: { fontSize: 16, fontWeight: '800', marginTop: 2 },
+  qmDesc: { fontSize: 12, color: '#374151', marginTop: 10, lineHeight: 18 },
+  aggCard: { backgroundColor: '#FFFBE6', borderRadius: 14, padding: 16, marginBottom: 16, borderWidth: 2, borderColor: '#FFCC00' },
+  aggTitle: { fontSize: 15, fontWeight: '800', color: '#92400e' },
+  aggSub: { fontSize: 12, color: '#92400e', opacity: 0.8, marginBottom: 12 },
+  aggRow: { flexDirection: 'row', gap: 10, marginBottom: 12 },
+  aggBox: { backgroundColor: '#FFF', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#fde68a', flex: 1, alignItems: 'center' },
+  aggBoxLabel: { fontSize: 10, fontWeight: '800', color: '#92400e' },
+  aggBoxVal: { fontSize: 18, fontWeight: '800', color: '#92400e', marginTop: 2 },
+  aggVerdict: { fontSize: 13, backgroundColor: '#FFF', padding: 12, borderRadius: 8, color: '#374151', marginBottom: 8 },
+  aggDesc: { fontSize: 12, backgroundColor: '#FFF', padding: 12, borderRadius: 8, color: '#374151' },
+  papaContainer: { backgroundColor: '#FFF', borderRadius: 12, padding: 16, borderWidth: 2 },
+  papaRow: { flexDirection: 'row', gap: 10, marginBottom: 10 },
+  papaBoxBoy: { flex: 1, backgroundColor: '#eff6ff', padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#bfdbfe', alignItems: 'center' },
+  papaBoxGirl: { flex: 1, backgroundColor: '#fdf2f8', padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#fbcfe8', alignItems: 'center' },
+  papaLabelBoy: { fontSize: 11, fontWeight: '800', color: '#1e40af' },
+  papaLabelGirl: { fontSize: 11, fontWeight: '800', color: '#9d174d' },
+  papaValBoy: { fontSize: 20, fontWeight: '800', color: '#1e40af', marginVertical: 4 },
+  papaValGirl: { fontSize: 20, fontWeight: '800', color: '#9d174d', marginVertical: 4 },
+  papaSub: { fontSize: 10, color: '#6b7280' },
+  papaDesc: { fontSize: 12, color: '#374151', marginTop: 6 },
+  westernContainer: { backgroundColor: '#FFF', borderRadius: 12, padding: 16, borderWidth: 2, borderColor: '#6366f1', borderTopWidth: 4 },
+  westernScoreBox: { backgroundColor: '#eef2ff', padding: 12, borderRadius: 10, alignItems: 'center', marginBottom: 12 },
+  westernScoreLabel: { fontSize: 10, fontWeight: '800', color: '#4338ca' },
+  westernScoreVal: { fontSize: 22, fontWeight: '800', color: '#4338ca', marginTop: 4 },
+  westernComp: { fontSize: 13, backgroundColor: '#faf5ff', padding: 10, borderRadius: 8, color: '#1A1A1A', marginBottom: 8 },
+  westernDesc: { fontSize: 12, color: '#374151' },
+  resetButton: { marginVertical: 16, paddingVertical: 14, alignItems: 'center', borderRadius: 12, borderWidth: 1.5, borderColor: '#EEE', backgroundColor: '#FFF' },
+  resetText: { fontSize: 14, fontWeight: '800', color: '#555' },
 
-  placeStatus: { position: 'absolute', right: 14, top: 14 },
-  placeStatusCheck: { position: 'absolute', right: 14, top: 14, color: colors.success, fontSize: 16, fontWeight: '800' },
-  coordsText: { color: colors.success, fontSize: 10, marginTop: 6 },
-
-  submitBtn: { backgroundColor: colors.gold, borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginTop: 24, marginBottom: 12 },
-  submitBtnText: { color: colors.primary, fontSize: 15, fontWeight: '800' },
-
-  resultCard: { backgroundColor: colors.surface, padding: 20, borderRadius: 16, borderWidth: 1, borderColor: colors.borderGold, marginTop: 12 },
-  resultTitle: { color: colors.gold, fontSize: 18, fontWeight: '800', marginBottom: 16, textAlign: 'center' },
-  
-  scoreBoard: { backgroundColor: 'rgba(245,200,66,0.1)', paddingVertical: 20, alignItems: 'center', borderRadius: 14, marginBottom: 20 },
-  scoreText: { flexDirection: 'row', alignItems: 'baseline' },
-  scoreBig: { color: colors.gold, fontSize: 42, fontWeight: '800' },
-  scoreTotal: { color: colors.textSub || '#c4b5fd', fontSize: 20, fontWeight: '700' },
-  scoreLabel: { color: 'rgba(245,200,66,0.8)', fontSize: 13, fontWeight: '600', marginTop: 4 },
-
-  breakdown: { backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 12, padding: 16, marginBottom: 16 },
-  kootRow: { flexDirection: 'row', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)', alignItems: 'center' },
-  kootName: { color: colors.text, fontSize: 14, fontWeight: '700', textTransform: 'capitalize' },
-  kootDesc: { color: colors.textMuted, fontSize: 11, marginTop: 3 },
-  kootScoreBox: { flexDirection: 'row', alignItems: 'baseline', backgroundColor: 'rgba(255,255,255,0.08)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
-  kootScore: { color: colors.gold, fontSize: 15, fontWeight: '800' },
-  kootTotal: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
-
-  conclusionBox: { backgroundColor: 'rgba(124,58,237,0.15)', borderWidth: 1, borderColor: 'rgba(124,58,237,0.4)', borderRadius: 12, padding: 16, marginBottom: 20 },
-  conclusionText: { color: colors.text, fontSize: 14, lineHeight: 22 },
-
-  manglikBox: { backgroundColor: colors.secondary, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: colors.border },
-  manglikTitle: { color: colors.text, fontSize: 14, fontWeight: '700', marginBottom: 12 },
-  manglikGrid: { flexDirection: 'row', gap: 12 },
-  manglikCard: { flex: 1, backgroundColor: 'rgba(255,255,255,0.05)', padding: 14, borderRadius: 10, alignItems: 'center' },
-  manglikLabel: { color: colors.textMuted, fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 },
-  manglikVal: { fontSize: 14, fontWeight: '800', textAlign: 'center' },
-  manglikDetails: { color: colors.gold, fontSize: 13, marginTop: 16, fontWeight: '700' },
-  listContainer: { marginTop: 6, backgroundColor: 'rgba(255,255,255,0.02)', padding: 12, borderRadius: 8 },
-  listItem: { color: colors.textMuted, fontSize: 11, marginBottom: 4, lineHeight: 16 },
-
-  profileSummaryRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: 'rgba(255,255,255,0.02)', padding: 12, borderRadius: 12, marginBottom: 20 },
-  profileSummaryBox: { flex: 1, alignItems: 'center' },
-  profSumName: { color: colors.gold, fontSize: 13, fontWeight: '800', textTransform: 'capitalize', textAlign: 'center' },
-  profSumLocation: { color: colors.textSub || '#c4b5fd', fontSize: 9, marginTop: 4, textAlign: 'center' },
-  hearts: { fontSize: 16, marginHorizontal: 8 }
+  doshaItem: { backgroundColor: '#F9FAFB', borderLeftWidth: 4, borderRadius: 8, padding: 12, borderWidth: 1, borderColor: '#F3F4F6' },
+  doshaItemTitle: { fontSize: 13, fontWeight: '800', marginBottom: 4 },
+  doshaItemText: { fontSize: 12, color: '#4B5563', lineHeight: 18 },
+  luckyBox: { backgroundColor: '#FAFAFA', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#F0F0F0', borderTopWidth: 4 },
+  luckyBoxTitle: { fontSize: 14, fontWeight: '800', marginBottom: 10 },
+  luckyGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  luckyItem: { minWidth: '45%' },
+  luckyItemLabel: { fontSize: 10, fontWeight: '700', color: '#9CA3AF', textTransform: 'uppercase', marginBottom: 2 },
+  luckyItemVal: { fontSize: 13, fontWeight: '700', color: '#1A1A1A' },
+  miniScore: { backgroundColor: '#FFF', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: '#FDE68A', alignItems: 'center', flex: 1 },
+  miniScoreLabel: { fontSize: 9, fontWeight: '800', color: '#92400E', marginBottom: 2 },
+  miniScoreVal: { fontSize: 13, fontWeight: '800', color: '#92400E' },
+  manglikDetailText: { fontSize: 11, color: '#4b5563', lineHeight: 16, marginBottom: 2 },
+  miniPapaBadge: { backgroundColor: '#FFF', paddingHorizontal: 6, paddingVertical: 3, borderRadius: 4, borderWidth: 1, borderColor: '#DDD', alignItems: 'center', minWidth: 45 },
+  miniPapaLabel: { fontSize: 8, fontWeight: '800', color: '#666' },
+  miniPapaVal: { fontSize: 10, fontWeight: '800', color: '#1A1A1A' },
 });
+
+const LuckyItem = ({ label, value }) => (
+  <View style={styles.luckyItem}>
+    <Text style={styles.luckyItemLabel}>{label}</Text>
+    <Text style={styles.luckyItemVal}>{value || '-'}</Text>
+  </View>
+);
+
+export default KundaliMatchingScreen;

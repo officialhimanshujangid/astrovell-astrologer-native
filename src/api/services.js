@@ -84,11 +84,36 @@ export const horoscopeApi = {
 // ── Kundali ───────────────────────────────────────────────────────────────────
 export const kundaliApi = {
   add: (data) => API.post('/customer/kundali/add', data),
+  addNew: (data) => API.post('/customer/kundali/addnew', data),
+  getAll: () => API.post('/customer/getkundali'),
+  getById: (params) => API.post('/customer/kundali/get/' + params.id),
   matching: (data) => API.post('/customer/KundaliMatching/add', data),
   matchReport: (data) => API.post('/customer/KundaliMatching/report', data),
   getBasicReport: (data) => API.post('/customer/kundali/basic', data),
-  geocode: (data) => API.post('/customer/geocode', data),
+  getChartReport: (data) => API.post('/customer/kundali/chart', data),
+  getAstakvarga: (data) => API.post('/customer/kundali/astakvarga', data),
+  getAscendant: (data) => API.post('/customer/kundali/ascendant-report', data),
+  getPlanetReport: (data) => API.post('/customer/kundali/planet-report', data),
+  getDasha: (data) => API.post('/customer/kundali/dasha', data),
+  getDosha: (data) => API.post('/customer/kundali/dosha', data),
+  getFullReport: (data) => API.post('/customer/kundali/getKundaliReport', data),
   getPanchang: (data) => API.post('/customer/get/panchang', data),
+  geocode: (data) => API.post('/customer/geocode', data),
+  placeAutocomplete: (data) => API.post('/customer/place-autocomplete', data),
+  
+  // New endpoints for full phases
+  getBirthPanchang: (data) => API.post('/customer/kundali/birth-panchang', data),
+  getAvakhadaDetails: (data) => API.post('/customer/kundali/avakhada', data),
+  getMahadashaList: (data) => API.post('/customer/kundali/mahadasha', data),
+  getYoginiDashaList: (data) => API.post('/customer/kundali/yogini-dasha', data),
+  getTransitChart: (data) => API.post('/customer/kundali/transit-chart', data),
+  getTransitPlanets: (data) => API.post('/customer/kundali/transit-planets', data),
+  getAshtakvargaFull: (data) => API.post('/customer/kundali/ashtakvarga-full', data),
+  getKpFull: (data) => API.post('/customer/kundali/kp-full', data),
+  getSadeSati: (data) => API.post('/customer/kundali/sade-sati', data),
+  getShadbala: (data) => API.post('/customer/kundali/shadbala', data),
+  getBhavBala: (data) => API.post('/customer/kundali/bhav-bala', data),
+  getManglikDosh: (data) => API.post('/customer/kundali/manglik', data),
 };
 
 // ── Profile Boost ─────────────────────────────────────────────────────────────

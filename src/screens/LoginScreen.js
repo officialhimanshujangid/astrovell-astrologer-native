@@ -179,24 +179,29 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   emoji: { fontSize: 56, marginBottom: 8 },
-  brand: { color: colors.gold, fontSize: 30, fontWeight: '900', letterSpacing: 1 },
-  brandSub: { color: colors.textSub, fontSize: 13, marginTop: 4, letterSpacing: 0.5 },
+  brand: { color: colors.goldDark, fontSize: 30, fontWeight: '900', letterSpacing: 1 },
+  brandSub: { color: colors.textSecondary, fontSize: 13, marginTop: 4, letterSpacing: 0.5 },
 
   card: {
     width: '100%',
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     borderRadius: 24,
     padding: 24,
     borderWidth: 1,
     borderColor: colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 5,
   },
   cardTitle: { color: colors.text, fontSize: 22, fontWeight: '800', marginBottom: 6 },
   cardSub:   { color: colors.textMuted, fontSize: 13, marginBottom: 24 },
 
   fieldWrap: { marginBottom: 16 },
-  label: { color: colors.textSub, fontSize: 12, fontWeight: '600', marginBottom: 6, letterSpacing: 0.5 },
+  label: { color: colors.textSecondary, fontSize: 12, fontWeight: '600', marginBottom: 6, letterSpacing: 0.5 },
   input: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 12,
@@ -207,7 +212,7 @@ const styles = StyleSheet.create({
   },
   phoneRow:    { flexDirection: 'row', gap: 8 },
   countryCode: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 12,
@@ -217,23 +222,28 @@ const styles = StyleSheet.create({
   countryCodeText: { color: colors.text, fontSize: 14, fontWeight: '600' },
   phoneInput:      { flex: 1 },
 
-  devOtp: { color: colors.secondary, fontSize: 12, fontWeight: '600', marginTop: 6 },
+  devOtp: { color: colors.goldDark, fontSize: 12, fontWeight: '600', marginTop: 6 },
 
   btn: {
-    backgroundColor: colors.secondary,
+    backgroundColor: colors.gold,
     borderRadius: 14,
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 8,
+    shadowColor: colors.gold,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
   },
   btnDisabled: { opacity: 0.6 },
-  btnText: { color: colors.white, fontSize: 16, fontWeight: '800', letterSpacing: 0.5 },
+  btnText: { color: colors.text, fontSize: 16, fontWeight: '800', letterSpacing: 0.5 },
 
-  editPhone: { color: colors.secondary, textAlign: 'center', marginTop: 14, fontSize: 13, fontWeight: '600' },
+  editPhone: { color: colors.goldDark, textAlign: 'center', marginTop: 14, fontSize: 13, fontWeight: '600' },
 
   registerLink: { marginTop: 20, alignItems: 'center' },
   registerText: { color: colors.textMuted, fontSize: 13 },
-  registerHighlight: { color: colors.accent, fontWeight: '700' },
+  registerHighlight: { color: colors.goldDark, fontWeight: '700' },
 
   footer: { color: colors.textMuted, fontSize: 11, marginTop: 24, textAlign: 'center' },
 });

@@ -85,7 +85,7 @@ const styles = StyleSheet.create({
 
   section: { marginBottom: 20 },
   sectionTitle: {
-    color: colors.textMuted,
+    color: colors.textSecondary,
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 1,
@@ -94,11 +94,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   sectionCard: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     borderRadius: 18,
     borderWidth: 1,
     borderColor: colors.border,
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   menuItem: {
     flexDirection: 'row',
@@ -120,6 +125,6 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
     marginTop: 8,
   },
-  versionText: { color: colors.textMuted, fontSize: 13, fontWeight: '700' },
+  versionText: { color: colors.textSecondary, fontSize: 13, fontWeight: '700' },
   versionSub: { color: colors.textMuted, fontSize: 11, marginTop: 4, opacity: 0.6 },
 });

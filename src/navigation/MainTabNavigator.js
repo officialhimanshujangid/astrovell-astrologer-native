@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, BackHandler } from 'react-native';
 
 import DashboardScreen    from '../screens/DashboardScreen';
 import WalletScreen       from '../screens/WalletScreen';
@@ -24,6 +24,27 @@ const MainTabNavigator = () => {
   const [activeTab, setActiveTab]         = useState('Dashboard');
   const [activeSubScreen, setActiveSubScreen] = useState(null);
   const { can } = usePermissions();
+  
+  // ── Hardware Back Button Handling ─────────────────────────────────────────
+  useEffect(() => {
+    const onBackPress = () => {
+      // If a sub-screen is open, close it
+      if (activeSubScreen) {
+        closeSubScreen();
+        return true; // handled
+      }
+      // If we are not on the Dashboard tab, go to Dashboard
+      if (activeTab !== 'Dashboard') {
+        setActiveTab('Dashboard');
+        return true; // handled
+      }
+      // Let the default behavior (exit app) happen
+      return false;
+    };
+
+    const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => subscription.remove();
+  }, [activeTab, activeSubScreen]);
 
   const openSubScreen = (name) => {
     // Guard: only open sub-screen if permission allows

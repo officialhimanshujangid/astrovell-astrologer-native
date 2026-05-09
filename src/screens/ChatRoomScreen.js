@@ -269,10 +269,8 @@ const ChatRoomScreen = ({ route }) => {
     const renderTick = () => {
       if (!isSent) return null;
       const tickColor = item.status === 'read'
-        ? '#34d399'           // green = read
-        : item.status === 'delivered'
-        ? 'rgba(255,255,255,0.7)'
-        : 'rgba(255,255,255,0.4)';
+        ? colors.success      // green = read
+        : colors.textSecondary;
       const tickText = item.status === 'read' || item.status === 'delivered' ? '✓✓' : '✓';
       return (
         <Text style={[styles.tickText, { color: tickColor }]}>{tickText}</Text>
@@ -504,20 +502,25 @@ const styles = StyleSheet.create({
     maxWidth: '80%', borderRadius: 16, padding: 12, marginBottom: 8,
   },
   bubbleSent: {
-    backgroundColor: colors.secondary,
+    backgroundColor: colors.gold,
     alignSelf: 'flex-end',
     borderBottomRightRadius: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
   },
   bubbleReceived: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     alignSelf: 'flex-start',
     borderBottomLeftRadius: 4,
     borderWidth: 1, borderColor: colors.border,
   },
-  bubbleText:         { color: colors.white, fontSize: 14 },
+  bubbleText:         { color: colors.text, fontSize: 14 },
   bubbleTextReceived: { color: colors.text },
   bubbleFooter:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 4, gap: 3 },
-  bubbleTime:         { color: 'rgba(255,255,255,0.6)', fontSize: 10 },
+  bubbleTime:         { color: colors.textSecondary, fontSize: 10, opacity: 0.7 },
   tickText:           { fontSize: 11, fontWeight: '700', letterSpacing: -1 },
 
   pujaCard: {
@@ -558,17 +561,22 @@ const styles = StyleSheet.create({
     borderTopWidth: 1, borderTopColor: colors.border,
   },
   input: {
-    flex: 1, backgroundColor: colors.card,
+    flex: 1, backgroundColor: colors.white,
     borderRadius: 22, paddingHorizontal: 16, paddingVertical: 10,
     color: colors.text, fontSize: 14, maxHeight: 100,
     borderWidth: 1, borderColor: colors.border,
   },
   sendBtn: {
     width: 44, height: 44, borderRadius: 22,
-    backgroundColor: colors.secondary,
+    backgroundColor: colors.gold,
     alignItems: 'center', justifyContent: 'center',
+    shadowColor: colors.gold,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  sendBtnText: { color: colors.white, fontSize: 18, marginLeft: 2 },
+  sendBtnText: { color: colors.text, fontSize: 18, marginLeft: 2, fontWeight: '800' },
 
   doneBar: {
     backgroundColor: colors.surface,
@@ -580,7 +588,7 @@ const styles = StyleSheet.create({
   // ── Puja Modal ─────────────────────────────────────────────────────────────
   modalOverlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'flex-end' },
   modalBox: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     borderTopLeftRadius: 24, borderTopRightRadius: 24,
     padding: 24, maxHeight: '60%',
     borderTopWidth: 1, borderColor: colors.border,
@@ -594,8 +602,8 @@ const styles = StyleSheet.create({
   },
   pujaItemTitle:    { color: colors.text, fontSize: 14, fontWeight: '700' },
   pujaItemPrice:    { color: colors.accent, fontSize: 13, marginTop: 2 },
-  pujaItemBtn:      { backgroundColor: colors.secondary, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 7 },
-  pujaItemBtnText:  { color: colors.white, fontWeight: '700', fontSize: 13 },
+  pujaItemBtn:      { backgroundColor: colors.gold, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 7 },
+  pujaItemBtnText:  { color: colors.text, fontWeight: '700', fontSize: 13 },
   modalClose: {
     marginTop: 16, backgroundColor: colors.surface,
     borderRadius: 12, paddingVertical: 12, alignItems: 'center',
