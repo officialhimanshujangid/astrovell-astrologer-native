@@ -15,8 +15,10 @@ const API = axios.create({
 // Attach astrologer auth token from AsyncStorage
 API.interceptors.request.use(
   async (config) => {
+    console.log(`[API REQUEST] ${config.method?.toUpperCase()} ${config.url}`);
     try {
       const token = await AsyncStorage.getItem('astrologerToken');
+      console.log(`[API REQUEST] Token found: ${!!token}`);
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }

@@ -5,6 +5,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import authReducer      from './slices/authSlice';
 import walletReducer    from './slices/walletSlice';
 import dashboardReducer from './slices/dashboardSlice';
+import panchangReducer  from './slices/panchangSlice';
+import horoscopeReducer from './slices/horoscopeSlice';
+import homeReducer      from './slices/homeSlice';
 
 const persistConfig = {
   key: 'astrologer-root',
@@ -16,6 +19,9 @@ const rootReducer = combineReducers({
   auth:      authReducer,
   wallet:    walletReducer,
   dashboard: dashboardReducer,
+  panchang:  panchangReducer,
+  horoscope: horoscopeReducer,
+  home:      homeReducer,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);

@@ -7,6 +7,7 @@ import ProfileScreen      from '../screens/ProfileScreen';
 import MoreScreen         from '../screens/MoreScreen';
 import ChatHistoryScreen  from '../screens/ChatHistoryScreen';
 import CallHistoryScreen  from '../screens/CallHistoryScreen';
+import CallScreen         from '../screens/CallScreen';
 import ReviewsScreen      from '../screens/ReviewsScreen';
 import ReportsScreen      from '../screens/ReportsScreen';
 import AppointmentsScreen from '../screens/AppointmentsScreen';
@@ -16,6 +17,8 @@ import FollowersScreen    from '../screens/FollowersScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import KundaliScreen      from '../screens/KundaliScreen';
 import KundaliMatchingScreen from '../screens/KundaliMatchingScreen';
+import HoroscopeScreen    from '../screens/HoroscopeScreen';
+import PanchangScreen     from '../screens/PanchangScreen';
 import BottomTabBar       from '../components/BottomTabBar';
 import { colors }         from '../theme/colors';
 import usePermissions     from '../hooks/usePermissions';
@@ -60,6 +63,8 @@ const MainTabNavigator = () => {
       Notifications: 'notifications',
       Kundali:       'kundali',
       KundaliMatching: 'kundali_matching',
+      Horoscope:     'horoscope',
+      Panchang:      'panchang',
     };
     const permKey = subPermMap[name];
     if (permKey && !can(permKey)) return; // blocked
@@ -80,6 +85,8 @@ const MainTabNavigator = () => {
   if (activeSubScreen === 'Notifications')  return <NotificationsScreen onBack={closeSubScreen} />;
   if (activeSubScreen === 'Kundali')        return <KundaliScreen onBack={closeSubScreen} />;
   if (activeSubScreen === 'KundaliMatching')return <KundaliMatchingScreen onBack={closeSubScreen} />;
+  if (activeSubScreen === 'Horoscope')      return <HoroscopeScreen onBack={closeSubScreen} />;
+  if (activeSubScreen === 'Panchang')       return <PanchangScreen onBack={closeSubScreen} />;
 
   const renderScreen = () => {
     switch (activeTab) {

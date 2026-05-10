@@ -40,6 +40,10 @@ const translations = {
     calls: 'Calls',
     reviews: 'Reviews',
     schedule: 'Schedule',
+    freeKundali: 'Free Kundali',
+    matching: 'Matching',
+    horoscope: 'Horoscope',
+    panchang: 'Panchang',
     chatRequests: 'Chat Requests',
     callRequests: 'Call Requests',
     noRequests: 'No pending requests',
@@ -61,6 +65,10 @@ const translations = {
     calls: 'कॉल्स',
     reviews: 'समीक्षाएं',
     schedule: 'अनुसूची',
+    freeKundali: 'फ्री कुंडली',
+    matching: 'मिलान',
+    horoscope: 'राशिफल',
+    panchang: 'पंचांग',
     chatRequests: 'चैट अनुरोध',
     callRequests: 'कॉल अनुरोध',
     noRequests: 'कोई लंबित अनुरोध नहीं',
@@ -186,8 +194,8 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
       }
       dispatch(removeChatRequest(req.id));
       navigation.navigate('ChatRoom', { chatId: req.id });
-    } catch (_) {
-      Alert.alert('Error', 'Failed to accept chat');
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.message || 'Failed to accept chat');
     }
   };
 
@@ -218,9 +226,14 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
         await callApi.acceptRequest({ callId: req.id });
       }
       dispatch(removeCallRequest(req.id));
-      Alert.alert('✅ Call Accepted', 'Call session started!');
-    } catch (_) {
-      Alert.alert('Error', 'Failed to accept call');
+      // Navigate to CallRoom
+      navigation.navigate('CallRoom', { 
+        callId: req.id, 
+        isAccepted: true, 
+        initialData: req 
+      });
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.message || 'Failed to accept call');
     }
   };
 
@@ -499,6 +512,29 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
               <Text style={styles.quickStatLabel}>{t.schedule}</Text>
             </TouchableOpacity>
           )}
+        </View>
+
+        {/* ── Astro Tools ─────────────────────────────────────────────────── */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>✨ Astro Tools</Text>
+        </View>
+        <View style={styles.quickStats}>
+          <TouchableOpacity style={styles.quickStat} onPress={() => onOpenSubScreen?.('Kundali')}>
+            <Text style={styles.quickStatEmoji}>🎡</Text>
+            <Text style={styles.quickStatLabel}>{t.freeKundali}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.quickStat} onPress={() => onOpenSubScreen?.('KundaliMatching')}>
+            <Text style={styles.quickStatEmoji}>👫</Text>
+            <Text style={styles.quickStatLabel}>{t.matching}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.quickStat} onPress={() => onOpenSubScreen?.('Horoscope')}>
+            <Text style={styles.quickStatEmoji}>🔮</Text>
+            <Text style={styles.quickStatLabel}>{t.horoscope}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.quickStat} onPress={() => onOpenSubScreen?.('Panchang')}>
+            <Text style={styles.quickStatEmoji}>📅</Text>
+            <Text style={styles.quickStatLabel}>{t.panchang}</Text>
+          </TouchableOpacity>
         </View>
 
         {/* ── Chat Requests ─────────────────────────────────────────────── */}

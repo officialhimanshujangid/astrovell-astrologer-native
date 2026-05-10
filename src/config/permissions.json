@@ -19,5 +19,7 @@
   "followers": true,
   "appointments": true,
   "notifications": true,
-  "profile": true
+  "profile": true,
+  "horoscope": true,
+  "panchang": true
 }

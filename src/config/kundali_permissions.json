@@ -1,0 +1,106 @@
+{
+  "free_kundali": {
+    "tabs": {
+      "basic": {
+        "show": true,
+        "sections": {
+          "birth_details": true,
+          "birth_panchang": true,
+          "avakhada_details": true,
+          "lucky_factors": true,
+          "travel_directions": true,
+          "vedic_calendar": true,
+          "astronomical_data": true,
+          "muhurta_kaals": true,
+          "ghatka_chakra": true,
+          "panchang_insights": true
+        }
+      },
+      "lagna": {
+        "show": true,
+        "sections": {
+          "d1_chart": true,
+          "d9_chart": true
+        }
+      },
+      "transit": {
+        "show": true,
+        "sections": {
+          "chart": true,
+          "planets": false
+        }
+      },
+      "dasha": {
+        "show": true,
+        "sections": {
+          "vimshottari": true
+        }
+      },
+      "yogini": {
+        "show": true,
+        "sections": {
+          "yogini_dasha": true
+        }
+      },
+      "ashtakvarga": {
+        "show": true,
+        "sections": {
+          "sav": false,
+          "bhinnashtakvarga": true,
+          "contributions": false
+        }
+      },
+      "planets": {
+        "show": true,
+        "sections": {
+          "planetary_list": true,
+          "sign_view": true,
+          "nakshatra_view": true
+        }
+      },
+
+      "divisional": {
+        "show": true,
+        "sections": {
+          "charts": true
+        }
+      },
+      "kp": {
+        "show": true,
+        "sections": {
+          "chalit_chart": true,
+          "ruling_planets": true,
+          "planets": true,
+          "cusps": true
+        }
+      },
+      "sadesati": {
+        "show": true,
+        "sections": {
+          "status": true,
+          "analysis": true,
+          "phases": true
+        }
+      },
+      "shadbala": {
+        "show": true,
+        "sections": {
+          "planetary_strength": true,
+          "component_breakdown": true
+        }
+      },
+      "bhavbala": {
+        "show": true,
+        "sections": {
+          "house_strength": true
+        }
+      },
+      "manglik": {
+        "show": true,
+        "sections": {
+          "analysis": true
+        }
+      }
+    }
+  }
+}

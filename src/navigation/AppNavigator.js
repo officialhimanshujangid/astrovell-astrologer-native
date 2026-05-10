@@ -8,6 +8,7 @@ import LoginScreen       from '../screens/LoginScreen';
 import RegisterScreen    from '../screens/RegisterScreen';
 import MainTabNavigator  from './MainTabNavigator';
 import ChatRoomScreen    from '../screens/ChatRoomScreen';
+import CallRoomScreen    from '../screens/CallRoomScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -36,6 +37,7 @@ const AppNavigator = () => {
         <>
           <Stack.Screen name="Main"     component={MainTabNavigator} />
           <Stack.Screen name="ChatRoom" component={ChatRoomScreen} />
+          <Stack.Screen name="CallRoom" component={CallRoomScreen} />
         </>
       )}
     </Stack.Navigator>

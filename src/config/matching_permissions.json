@@ -1,0 +1,24 @@
+{
+  "kundali_matching": {
+    "sections": {
+      "quick_match": { "show": true },
+      "aggregate_match": { "show": true },
+      "ashtakoot_guna_milan": {
+        "show": true,
+        "sections": {
+          "total_score": true,
+          "breakdown": true
+        }
+      },
+      "manglik_match": { "show": true },
+      "rajju_vedha_dosha": { "show": true },
+      "papasamya_match": { "show": true },
+      "astro_comparison": { "show": true },
+      "panchang_comparison": { "show": true },
+      "ghatka_chakra": { "show": true },
+      "planetary_details": { "show": true },
+      "lucky_factors": { "show": true },
+      "charts": { "show": true }
+    }
+  }
+}

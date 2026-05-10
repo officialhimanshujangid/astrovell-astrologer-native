@@ -14,7 +14,7 @@ import { chatApi, pujaApi, kundaliApi, horoscopeApi } from '../api/services';
 import { SOCKET_BASE, BASE_IMG } from '../api/apiClient';
 import usePermissions from '../hooks/usePermissions';
 
-const ChatRoomScreen = ({ route }) => {
+const ChatRoomScreen = ({ route, navigation }) => {
   const { chatId } = route.params;
   const { astrologer, token } = useSelector(s => s.auth);
   const insets = useSafeAreaInsets();
@@ -398,6 +398,9 @@ const ChatRoomScreen = ({ route }) => {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <View style={styles.header}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
+        </TouchableOpacity>
         <View style={styles.headerUser}>
           {chatDetail?.userProfile ? (
             <Image
@@ -754,7 +757,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  headerUser:              { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  backBtn: { marginRight: 12, padding: 4 },
+  headerUser:              { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
   headerAvatar:            { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.border },
   headerAvatarPlaceholder: {
     width: 42, height: 42, borderRadius: 21,

@@ -8,16 +8,20 @@ import { useSelector } from 'react-redux';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import apiClient from '../api/apiClient';
 import { kundaliApi } from '../api/services';
+import { locationService } from '../api/locationService';
 import { colors } from '../theme/colors';
 import { LinearGradient } from 'expo-linear-gradient';
 import { WebView } from 'react-native-webview';
 import Svg, { Circle } from 'react-native-svg';
+import matchingPermissions from '../config/matching_permissions.json';
+
 
 const { width } = Dimensions.get('window');
 
 const LANGUAGES = [
   { code: 'en', label: 'English' },
   { code: 'hi', label: 'Hindi' },
+  /*
   { code: 'mr', label: 'Marathi' },
   { code: 'bn', label: 'Bengali' },
   { code: 'gu', label: 'Gujarati' },
@@ -26,6 +30,7 @@ const LANGUAGES = [
   { code: 'kn', label: 'Kannada' },
   { code: 'ml', label: 'Malayalam' },
   { code: 'or', label: 'Odia' }
+  */
 ];
 
 const KOOTA_META = {
@@ -47,9 +52,146 @@ const KOOTA_META = {
 };
 
 const KOOTA_ORDER = [
-  'varna', 'vasya', 'tara', 'dina', 'yoni', 'grahamaitri', 'graha_maitri', 
+  'varna', 'vasya', 'tara', 'dina', 'yoni', 'grahamaitri', 'graha_maitri',
   'gana', 'bhakoot', 'nadi', 'mahendra', 'stree_deergha', 'rajju', 'vedha'
 ];
+
+const LABELS = {
+  en: {
+    title: 'Kundali Matching',
+    heroTitle: 'Match Your Souls',
+    heroDesc: 'Vedic compatibility analysis for a prosperous and happy married life.',
+    boyDetails: "Boy's Details",
+    girlDetails: "Girl's Details",
+    fullName: 'Full Name',
+    enterName: 'Enter full name',
+    date: 'Date',
+    time: 'Time',
+    placeOfBirth: 'Place of Birth',
+    searchCity: 'Search city, town...',
+    locVerified: 'Location verified',
+    calculate: 'Calculate Compatibility',
+    conclusion: 'Conclusion',
+    astroComp: 'Astro Comparison',
+    panchangComp: 'Birth Panchang Comparison',
+    ghatkaChakra: 'Ghatka Chakra',
+    planetaryDetails: 'Planetary Details',
+    manglikAnalysis: 'Manglik Dosha Analysis',
+    papasamya: 'Papasamya Match',
+    westernMatch: 'Western Astrology Match',
+    gunaBreakdown: 'Guna-by-Guna Breakdown',
+    reset: 'Reset & Match Another',
+    charts: 'Birth Charts',
+    north: 'North', south: 'South', east: 'East',
+    loading: 'Calculating compatibility...',
+    excellent: 'Excellent Match',
+    good: 'Good Match',
+    average: 'Average Match',
+    poor: 'Poor Match',
+    private: 'Your data is private & secure',
+    selectLang: 'Select Language',
+    close: 'Close',
+    attribute: 'Attribute', boy: 'Boy', girl: 'Girl',
+    panchang: 'Panchang',
+    dosha: 'Dosha Analysis Summary', doshaDesc: 'Critical compatibility checkpoints',
+    luckyFactors: 'Lucky Factors', luckyFactorsDesc: 'Personalized auspicious elements',
+    quickMatch: 'Quick Match Result', aggregateMatch: 'Aggregate Match',
+    aggregateMatchDesc: 'Comprehensive overall compatibility combining all factors',
+    unfavorableFactors: 'Unfavorable Factors',
+    boyPlanetary: "Boy's Planetary Positions",
+    girlPlanetary: "Girl's Planetary Positions",
+    planetHeader: 'Planet', zodiacHeader: 'Zodiac', houseHeader: 'House',
+    nakshatraHeader: 'Nakshatra', padaHeader: 'P.', degreeHeader: 'Degree',
+    avasthaHeader: 'Avastha', statusHeader: 'Status',
+    ghatkaSub: 'Factors to avoid for prosperity',
+    planetarySub: 'Precise positions at the time of birth',
+    combust: 'Combust', retro: 'Retro', direct: 'Direct',
+    manglikYes: '⚠ Manglik', manglikNo: '✓ Not Manglik',
+    intensity: 'Intensity', scoreLabel: 'SCORE',
+    papasamyaSub: 'Malefic effects equality for harmony',
+    papaMatch: '✓ Papa levels match', papaDiff: '⚠ Papa levels differ',
+    boyTotal: '👨 Boy Total', girlTotal: '👩 Girl Total',
+    westernSub: 'Sun sign & element-based compatibility',
+    compScore: 'COMPATIBILITY SCORE',
+    compLabel: 'Compatibility:',
+    planetaryPositions: 'Planetary Positions',
+    ashtakoot: 'Ashtakoot', dashakoot: 'Dashakoot', overallScore: 'OVERALL SCORE',
+    compatibilityLabel: 'COMPATIBILITY', verdictLabel: 'Verdict:',
+    vAshtakoot: '✓ Ashtakoot', vManglik: '✓ Manglik', vDashakoot: '✓ Dashakoot',
+    compScoreColon: 'Compatibility Score:',
+    chartsSubTitle: 'Lagna (D1) & Navamsa (D9) charts for both',
+    loadingCharts: 'Loading charts...',
+    lagnaChartD1: 'LAGNA CHART (D1)', navamsaChartD9: 'NAVAMSA CHART (D9)',
+    locationVerified: '✓ Location verified',
+  },
+  hi: {
+    title: 'कुंडली मिलान',
+    heroTitle: 'गुण मिलान',
+    heroDesc: 'एक समृद्ध और सुखी वैवाहिक जीवन के लिए वैदिक संगतता विश्लेषण।',
+    boyDetails: "लड़के का विवरण",
+    girlDetails: "लड़की का विवरण",
+    fullName: 'पूरा नाम',
+    enterName: 'पूरा नाम दर्ज करें',
+    date: 'तारीख',
+    time: 'समय',
+    placeOfBirth: 'जन्म स्थान',
+    searchCity: 'शहर खोजें...',
+    locVerified: 'स्थान सत्यापित',
+    calculate: 'संगतता की गणना करें',
+    conclusion: 'निष्कर्ष',
+    astroComp: 'ज्योतिषीय तुलना',
+    panchangComp: 'जन्म पंचांग तुलना',
+    ghatkaChakra: 'घातक चक्र',
+    planetaryDetails: 'ग्रह विवरण',
+    manglikAnalysis: 'मांगलिक दोष विश्लेषण',
+    papasamya: 'पापसाम्य मिलान',
+    westernMatch: 'पश्चिमी ज्योतिष मिलान',
+    gunaBreakdown: 'गुण-दर-गुण विवरण',
+    reset: 'रीसेट और दूसरा मिलान करें',
+    charts: 'जन्म कुंडली',
+    north: 'उत्तर', south: 'दक्षिण', east: 'पूर्व',
+    loading: 'संगतता की गणना हो रही है...',
+    excellent: 'उत्कृष्ट मिलान',
+    good: 'अच्छा मिलान',
+    average: 'औसत मिलान',
+    poor: 'कमजोर मिलान',
+    private: 'आपका डेटा निजी और सुरक्षित है',
+    selectLang: 'भाषा चुनें',
+    close: 'बंद करें',
+    attribute: 'विशेषता', boy: 'लड़का', girl: 'लड़की',
+    panchang: 'पंचांग',
+    dosha: 'दोष विश्लेषण सारांश', doshaDesc: 'महत्वपूर्ण संगतता जांच बिंदु',
+    luckyFactors: 'भाग्यशाली कारक', luckyFactorsDesc: 'व्यक्तिगत शुभ तत्व',
+    quickMatch: 'त्वरित मिलान परिणाम', aggregateMatch: 'समग्र मिलान',
+    aggregateMatchDesc: 'सभी कारकों को मिलाकर समग्र संगतता',
+    unfavorableFactors: 'अशुभ कारक',
+    boyPlanetary: 'लड़के के ग्रह स्थितियां',
+    girlPlanetary: 'लड़की के ग्रह स्थितियां',
+    planetHeader: 'ग्रह', zodiacHeader: 'राशि', houseHeader: 'भाव',
+    nakshatraHeader: 'नक्षत्र', padaHeader: 'पद', degreeHeader: 'अंश',
+    avasthaHeader: 'अवस्था', statusHeader: 'स्थिति',
+    ghatkaSub: 'समृद्धि के लिए बचने योग्य कारक',
+    planetarySub: 'जन्म के समय सटीक स्थितियां',
+    combust: 'अस्त', retro: 'वक्री', direct: 'मार्गी',
+    manglikYes: '⚠ मांगलिक', manglikNo: '✓ मांगलिक नहीं',
+    intensity: 'तीव्रता', scoreLabel: 'स्कोर',
+    papasamyaSub: 'सद्भाव के लिए अशुभ प्रभावों की समानता',
+    papaMatch: '✓ पाप स्तर मेल खाते हैं', papaDiff: '⚠ पाप स्तर भिन्न हैं',
+    boyTotal: '👨 लड़के का कुल', girlTotal: '👩 लड़की का कुल',
+    westernSub: 'सूर्य राशि और तत्व-आधारित संगतता',
+    compScore: 'संगतता स्कोर',
+    compLabel: 'संगतता:',
+    planetaryPositions: 'ग्रह स्थितियां',
+    ashtakoot: 'अष्टकूट', dashakoot: 'दशकूट', overallScore: 'कुल स्कोर',
+    compatibilityLabel: 'संगतता', verdictLabel: 'निर्णय:',
+    vAshtakoot: '✓ अष्टकूट', vManglik: '✓ मांगलिक', vDashakoot: '✓ दशकूट',
+    compScoreColon: 'संगतता स्कोर:',
+    chartsSubTitle: 'दोनों के लिए लग्न (D1) और नवांश (D9) चार्ट',
+    loadingCharts: 'चार्ट लोड हो रहे हैं...',
+    lagnaChartD1: 'लग्न कुंडली (D1)', navamsaChartD9: 'नवांश कुंडली (D9)',
+    locationVerified: '✓ स्थान सत्यापित',
+  }
+};
 
 const num = (v, fb = 0) => {
   const n = parseFloat(v);
@@ -140,16 +282,19 @@ const injectDegreesIntoSvg = (svgStr, degreeMap) => {
     }
   );
 };
-
 const KundaliMatchingScreen = ({ onBack }) => {
-  const { token } = useSelector(s => s.auth);
+  const { token, globalLang } = useSelector(s => s.auth);
   const [boy, setBoy] = useState({ name: '', birthDate: '', birthTime: '', birthPlace: '', latitude: '', longitude: '' });
   const [girl, setGirl] = useState({ name: '', birthDate: '', birthTime: '', birthPlace: '', latitude: '', longitude: '' });
   const [matchType, setMatchType] = useState('North');
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [lang, setLang] = useState('en');
+  const [lang, setLang] = useState(globalLang || 'en');
   const [showLangModal, setShowLangModal] = useState(false);
+
+  React.useEffect(() => {
+    if (globalLang) setLang(globalLang);
+  }, [globalLang]);
 
   const [chartStyle, setChartStyle] = useState('north');
   const [chartsLoading, setChartsLoading] = useState(false);
@@ -164,6 +309,15 @@ const KundaliMatchingScreen = ({ onBack }) => {
   const debounceRef = useRef({ boy: null, girl: null });
 
   const [showPicker, setShowPicker] = useState({ visible: false, mode: 'date', target: null, key: '' });
+
+  const canShowMatching = (sectionKey, subKey) => {
+    const sec = matchingPermissions.kundali_matching.sections[sectionKey];
+    if (!sec || sec.show === false) return false;
+    if (subKey && sec.sections && sec.sections[subKey] === false) return false;
+    return true;
+  };
+
+
 
   const handleChange = (target, key, val) => {
     if (target === 'boy') setBoy(prev => ({ ...prev, [key]: val }));
@@ -201,10 +355,14 @@ const KundaliMatchingScreen = ({ onBack }) => {
     debounceRef.current[target] = setTimeout(async () => {
       setPlaceLoading(prev => ({ ...prev, [target]: true }));
       try {
-        const res = await apiClient.post('/customer/place-autocomplete', { query: place });
-        const list = res.data?.suggestions || [];
-        setSuggestions(prev => ({ ...prev, [target]: list }));
-        setShowSuggestions(prev => ({ ...prev, [target]: list.length > 0 }));
+        const results = await locationService.search(place);
+        if (results?.length) {
+          setSuggestions(prev => ({ ...prev, [target]: results }));
+          setShowSuggestions(prev => ({ ...prev, [target]: true }));
+        } else {
+          setSuggestions(prev => ({ ...prev, [target]: [] }));
+          setShowSuggestions(prev => ({ ...prev, [target]: false }));
+        }
       } catch (err) {
         setSuggestions(prev => ({ ...prev, [target]: [] }));
       }
@@ -226,10 +384,10 @@ const KundaliMatchingScreen = ({ onBack }) => {
 
     if (!suggestion.lat) {
       try {
-        const res = await apiClient.post('/customer/geocode', { place: suggestion.name });
-        if (res.data?.latitude) {
-          handleChange(target, 'latitude', String(res.data.latitude));
-          handleChange(target, 'longitude', String(res.data.longitude));
+        const res = await locationService.geocode(suggestion.name);
+        if (res?.latitude) {
+          handleChange(target, 'latitude', String(res.latitude));
+          handleChange(target, 'longitude', String(res.longitude));
         }
       } catch (e) { }
     }
@@ -275,9 +433,10 @@ const KundaliMatchingScreen = ({ onBack }) => {
 
     setLoading(true);
     try {
+      const headers = { Authorization: `Bearer ${token}` };
       const [boyRes, girlRes] = await Promise.all([
-        apiClient.post('/customer/kundali/add', { kundali: [{ ...boy, gender: 'Male', pdf_type: 'basic' }] }),
-        apiClient.post('/customer/kundali/add', { kundali: [{ ...girl, gender: 'Female', pdf_type: 'basic' }] }),
+        apiClient.post('/customer/kundali/add', { kundali: [{ ...boy, gender: 'Male', pdf_type: 'basic' }] }, { headers }),
+        apiClient.post('/customer/kundali/add', { kundali: [{ ...girl, gender: 'Female', pdf_type: 'basic' }] }, { headers }),
       ]);
 
       const bId = boyRes.data?.data?.recordList?.[0]?.id || boyRes.data?.recordList?.[0]?.id;
@@ -294,7 +453,7 @@ const KundaliMatchingScreen = ({ onBack }) => {
         femaleKundaliId: gId,
         match_type: matchType,
         lang: lang
-      });
+      }, { headers });
 
       setResult(matchRes.data?.data || matchRes.data);
     } catch (err) {
@@ -309,12 +468,13 @@ const KundaliMatchingScreen = ({ onBack }) => {
     if (result && boyKundaliId && girlKundaliId) {
       setLoading(true);
       try {
+        const headers = { Authorization: `Bearer ${token}` };
         const matchRes = await apiClient.post('/customer/KundaliMatching/report', {
           maleKundaliId: boyKundaliId,
           femaleKundaliId: girlKundaliId,
           match_type: matchType,
           lang: newLang
-        });
+        }, { headers });
         setResult(matchRes.data?.data || matchRes.data);
         await fetchAllCharts(boyKundaliId, girlKundaliId, chartStyle, newLang);
       } catch (err) {
@@ -324,35 +484,35 @@ const KundaliMatchingScreen = ({ onBack }) => {
     }
   };
 
-  const matchData = 
-    result?.recordList || 
-    result?.match_report || 
-    result?.ashtakoot || 
-    result?.ashtakoota || 
-    result?.guna_milan || 
-    result?.data?.recordList || 
+  const matchData =
+    result?.recordList ||
+    result?.match_report ||
+    result?.ashtakoot ||
+    result?.ashtakoota ||
+    result?.guna_milan ||
+    result?.data?.recordList ||
     result?.data?.match_report ||
-    result?.data || 
-    result || 
+    result?.data ||
+    result ||
     null;
 
   const totalReceived = num(
     matchData?.score
-      ?? matchData?.total?.received_points
-      ?? matchData?.score?.received_points
-      ?? matchData?.received_points
-      ?? matchData?.total?.score
-      ?? matchData?.points
-      ?? result?.total?.received_points
-      ?? result?.score?.received_points
+    ?? matchData?.total?.received_points
+    ?? matchData?.score?.received_points
+    ?? matchData?.received_points
+    ?? matchData?.total?.score
+    ?? matchData?.points
+    ?? result?.total?.received_points
+    ?? result?.score?.received_points
   );
   const totalMax = num(
-    matchData?.total?.total_points 
-    ?? matchData?.score?.total_points 
-    ?? matchData?.total_points 
+    matchData?.total?.total_points
+    ?? matchData?.score?.total_points
+    ?? matchData?.total_points
     ?? matchData?.total?.max_score
     ?? result?.total?.total_points
-    ?? 36, 
+    ?? 36,
     36
   );
   const conclusionText = pickStr(
@@ -369,10 +529,11 @@ const KundaliMatchingScreen = ({ onBack }) => {
   const getBand = (received, max) => {
     if (!max) return { label: 'N/A', color: '#9ca3af', emoji: '—' };
     const pct = (received / max) * 100;
-    if (pct >= 75) return { label: 'Excellent Match', color: '#10b981', emoji: '🌟' };
-    if (pct >= 50) return { label: 'Good Match', color: '#3b82f6', emoji: '✨' };
-    if (pct >= 25) return { label: 'Average Match', color: '#f59e0b', emoji: '⚖️' };
-    return { label: 'Poor Match', color: '#ef4444', emoji: '⚠️' };
+    const l = LABELS[lang];
+    if (pct >= 75) return { label: l.excellent, color: '#10b981', emoji: '🌟' };
+    if (pct >= 50) return { label: l.good, color: '#3b82f6', emoji: '✨' };
+    if (pct >= 25) return { label: l.average, color: '#f59e0b', emoji: '⚖️' };
+    return { label: l.poor, color: '#ef4444', emoji: '⚠️' };
   };
   const band = getBand(totalReceived, totalMax);
 
@@ -397,20 +558,20 @@ const KundaliMatchingScreen = ({ onBack }) => {
     const got = num(
       data[key]
       ?? data[key.charAt(0).toUpperCase() + key.slice(1)]
-      ?? data.received_points 
-      ?? data.score?.received_points 
-      ?? data.score 
-      ?? data.points 
-      ?? data.received_score, 
+      ?? data.received_points
+      ?? data.score?.received_points
+      ?? data.score
+      ?? data.points
+      ?? data.received_score,
       0
     );
     const max = num(
       data.full_score
-      ?? data.total_points 
-      ?? data.score?.total_points 
-      ?? data.max_points 
-      ?? data.total_score 
-      ?? meta.max, 
+      ?? data.total_points
+      ?? data.score?.total_points
+      ?? data.max_points
+      ?? data.total_score
+      ?? meta.max,
       meta.max
     );
     const desc = pickStr(data.description, data.bot_response, data.report, data.meaning);
@@ -443,15 +604,15 @@ const KundaliMatchingScreen = ({ onBack }) => {
   const renderComparison = () => {
     const boyD = matchData?.boy_details || matchData?.boy_astro_details || {};
     const girlD = matchData?.girl_details || matchData?.girl_astro_details || {};
-    
+
     return (
       <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>👫 Astro Comparison</Text>
+        <Text style={styles.sectionTitle}>👫 {l.astroComp}</Text>
         <View style={styles.compTable}>
-          <View style={[styles.compHeader, { backgroundColor: '#7c3aed' }]}>
-            <Text style={[styles.compTh, { flex: 1.2, color: '#FFF' }]}>Attribute</Text>
-            <Text style={[styles.compTh, { flex: 1, color: '#FFF' }]}>👨 Boy</Text>
-            <Text style={[styles.compTh, { flex: 1, color: '#FFF' }]}>👩 Girl</Text>
+          <View style={[styles.compHeader, { backgroundColor: colors.purple || '#7c3aed' }]}>
+            <Text style={[styles.compTh, { flex: 1.2, color: '#FFF' }]}>{l.attribute || 'Attribute'}</Text>
+            <Text style={[styles.compTh, { flex: 1, color: '#FFF' }]}>👨 {l.boy || 'Boy'}</Text>
+            <Text style={[styles.compTh, { flex: 1, color: '#FFF' }]}>👩 {l.girl || 'Girl'}</Text>
           </View>
           <CompRow label="Rashi" b={boyD.rashi} g={girlD.rashi} />
           <CompRow label="Nakshatra" b={boyD.nakshatra} g={girlD.nakshatra} />
@@ -471,12 +632,12 @@ const KundaliMatchingScreen = ({ onBack }) => {
 
     return (
       <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>🌅 Birth Panchang Comparison</Text>
+        <Text style={styles.sectionTitle}>🌅 {l.panchangComp}</Text>
         <View style={styles.compTable}>
           <View style={[styles.compHeader, { backgroundColor: '#f59e0b' }]}>
-            <Text style={[styles.compTh, { flex: 1.2, color: '#FFF' }]}>Panchang</Text>
-            <Text style={[styles.compTh, { flex: 1, color: '#FFF' }]}>👨 Boy</Text>
-            <Text style={[styles.compTh, { flex: 1, color: '#FFF' }]}>👩 Girl</Text>
+            <Text style={[styles.compTh, { flex: 1.2, color: '#FFF' }]}>{l.panchang || 'Panchang'}</Text>
+            <Text style={[styles.compTh, { flex: 1, color: '#FFF' }]}>👨 {l.boy || 'Boy'}</Text>
+            <Text style={[styles.compTh, { flex: 1, color: '#FFF' }]}>👩 {l.girl || 'Girl'}</Text>
           </View>
           <CompRow label="Tithi" b={boyP.tithi} g={girlP.tithi} />
           <CompRow label="Yoga" b={boyP.yoga} g={girlP.yoga} />
@@ -496,7 +657,7 @@ const KundaliMatchingScreen = ({ onBack }) => {
 
     const GhatkaSection = ({ title, data, accent }) => (
       <View style={[styles.luckyBox, { borderTopColor: accent }]}>
-        <Text style={[styles.luckyBoxTitle, { color: accent }]}>{title}'s Unfavorable Factors</Text>
+        <Text style={[styles.luckyBoxTitle, { color: accent }]}>{title} - {l.unfavorableFactors}</Text>
         <View style={styles.luckyGrid}>
           <LuckyItem label="Rasi" value={data.rasi} />
           <LuckyItem label="Day" value={data.day} />
@@ -510,8 +671,8 @@ const KundaliMatchingScreen = ({ onBack }) => {
 
     return (
       <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>🚫 Ghatka Chakra</Text>
-        <Text style={styles.sectionSubTitle}>Factors to avoid for prosperity</Text>
+        <Text style={styles.sectionTitle}>🚫 {l.ghatkaChakra}</Text>
+        <Text style={styles.sectionSubTitle}>{l.ghatkaSub}</Text>
         <View style={{ gap: 12 }}>
           {boyG && <GhatkaSection title={result?.maleKundali?.name || 'Boy'} data={boyG} accent="#3b82f6" />}
           {girlG && <GhatkaSection title={result?.femaleKundali?.name || 'Girl'} data={girlG} accent="#ec4899" />}
@@ -532,19 +693,19 @@ const KundaliMatchingScreen = ({ onBack }) => {
       return (
         <View style={[styles.luckyBox, { borderTopColor: accent, padding: 0, overflow: 'hidden' }]}>
           <View style={{ padding: 12, backgroundColor: '#FAFAFA', borderBottomWidth: 1, borderBottomColor: '#EEE' }}>
-            <Text style={[styles.luckyBoxTitle, { color: accent, marginBottom: 0 }]}>{title}'s Planetary Positions</Text>
+            <Text style={[styles.luckyBoxTitle, { color: accent, marginBottom: 0 }]}>{title} - {l.planetaryPositions || 'Planetary Positions'}</Text>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View>
               <View style={[styles.compHeader, { backgroundColor: '#F3F4F6', borderBottomWidth: 1, borderBottomColor: '#DDD', paddingVertical: 8 }]}>
-                <Text style={[styles.compTh, { width: 45, color: '#4B5563', fontSize: 10 }]}>Planet</Text>
-                <Text style={[styles.compTh, { width: 75, color: '#4B5563', fontSize: 10 }]}>Zodiac</Text>
-                <Text style={[styles.compTh, { width: 45, color: '#4B5563', fontSize: 10 }]}>House</Text>
-                <Text style={[styles.compTh, { width: 90, color: '#4B5563', fontSize: 10 }]}>Nakshatra</Text>
-                <Text style={[styles.compTh, { width: 35, color: '#4B5563', fontSize: 10 }]}>P.</Text>
-                <Text style={[styles.compTh, { width: 60, color: '#4B5563', fontSize: 10 }]}>Degree</Text>
-                <Text style={[styles.compTh, { width: 75, color: '#4B5563', fontSize: 10 }]}>Avastha</Text>
-                <Text style={[styles.compTh, { width: 65, color: '#4B5563', fontSize: 10 }]}>Status</Text>
+                <Text style={[styles.compTh, { width: 45, color: '#4B5563', fontSize: 10 }]}>{l.planetHeader}</Text>
+                <Text style={[styles.compTh, { width: 75, color: '#4B5563', fontSize: 10 }]}>{l.zodiacHeader}</Text>
+                <Text style={[styles.compTh, { width: 45, color: '#4B5563', fontSize: 10 }]}>{l.houseHeader}</Text>
+                <Text style={[styles.compTh, { width: 90, color: '#4B5563', fontSize: 10 }]}>{l.nakshatraHeader}</Text>
+                <Text style={[styles.compTh, { width: 35, color: '#4B5563', fontSize: 10 }]}>{l.padaHeader}</Text>
+                <Text style={[styles.compTh, { width: 60, color: '#4B5563', fontSize: 10 }]}>{l.degreeHeader}</Text>
+                <Text style={[styles.compTh, { width: 75, color: '#4B5563', fontSize: 10 }]}>{l.avasthaHeader}</Text>
+                <Text style={[styles.compTh, { width: 65, color: '#4B5563', fontSize: 10 }]}>{l.statusHeader}</Text>
               </View>
               {planets.map((p, i) => (
                 <View key={i} style={[styles.compRow, { borderBottomWidth: i === planets.length - 1 ? 0 : 1, borderBottomColor: '#EEE', paddingVertical: 10 }]}>
@@ -556,7 +717,7 @@ const KundaliMatchingScreen = ({ onBack }) => {
                   <Text style={[styles.compVal, { width: 60, fontSize: 11 }]}>{p.local_degree ? p.local_degree.toFixed(2) : '-'}</Text>
                   <Text style={[styles.compVal, { width: 75, fontSize: 10, color: '#6b7280' }]}>{p.basic_avastha || '-'}</Text>
                   <Text style={[styles.compVal, { width: 65, fontSize: 10, color: p.is_combust ? '#ef4444' : p.retro ? '#3b82f6' : '#10b981', fontWeight: '700' }]}>
-                    {p.is_combust ? 'Combust' : p.retro ? 'Retro' : 'Direct'}
+                    {p.is_combust ? l.combust : p.retro ? l.retro : l.direct}
                   </Text>
                 </View>
               ))}
@@ -568,8 +729,8 @@ const KundaliMatchingScreen = ({ onBack }) => {
 
     return (
       <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>🪐 Planetary Details</Text>
-        <Text style={styles.sectionSubTitle}>Precise positions at the time of birth</Text>
+        <Text style={styles.sectionTitle}>🪐 {l.planetaryDetails}</Text>
+        <Text style={styles.sectionSubTitle}>{l.planetarySub}</Text>
         <View style={{ gap: 16 }}>
           {boyP && <PlanetTable title={result?.maleKundali?.name || 'Boy'} data={boyP} accent="#3b82f6" />}
           {girlP && <PlanetTable title={result?.femaleKundali?.name || 'Girl'} data={girlP} accent="#ec4899" />}
@@ -589,15 +750,15 @@ const KundaliMatchingScreen = ({ onBack }) => {
           <Text style={[styles.manglikTitle, { color: accent }]}>{side}</Text>
           <View style={[styles.manglikBadge, { backgroundColor: data.isManglik ? '#fee2e2' : '#dcfce7' }]}>
             <Text style={[styles.manglikBadgeText, { color: data.isManglik ? '#b91c1c' : '#166534' }]}>
-              {data.isManglik ? '⚠ Manglik' : '✓ Not Manglik'}
+              {data.isManglik ? l.manglikYes : l.manglikNo}
             </Text>
           </View>
         </View>
         {data.percentage != null && (
-          <Text style={styles.manglikIntensity}>Intensity: <Text style={{ fontWeight: '700', color: '#1a0533' }}>{data.percentage}%</Text></Text>
+          <Text style={styles.manglikIntensity}>{l.intensity}: <Text style={{ fontWeight: '700', color: '#1a0533' }}>{data.percentage}%</Text></Text>
         )}
         {data.status ? <Text style={styles.manglikStatus}>{data.status}</Text> : null}
-        
+
         {(data.factors?.length > 0 || data.aspects?.length > 0) && (
           <View style={{ marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#f3f4f6' }}>
             {data.factors?.map((f, i) => <Text key={`f-${i}`} style={styles.manglikDetailText}>• {f}</Text>)}
@@ -621,12 +782,12 @@ const KundaliMatchingScreen = ({ onBack }) => {
         <View style={styles.qmHeader}>
           <Text style={styles.qmIcon}>{isCompatible ? '⚡' : '⚠️'}</Text>
           <View style={{ flex: 1, paddingLeft: 10 }}>
-            <Text style={[styles.qmTitle, { color: isCompatible ? '#065f46' : '#7f1d1d' }]}>Quick Match Result</Text>
+            <Text style={[styles.qmTitle, { color: isCompatible ? '#065f46' : '#7f1d1d' }]}>{l.quickMatch}</Text>
             {verdict ? <Text style={styles.qmVerdict}>{String(verdict)}</Text> : null}
           </View>
           {scoreQ !== undefined && scoreQ !== null && (
             <View style={[styles.qmScoreBox, { borderColor: isCompatible ? '#10b981' : '#dc2626' }]}>
-              <Text style={styles.qmScoreLabel}>SCORE</Text>
+              <Text style={styles.qmScoreLabel}>{l.scoreLabel}</Text>
               <Text style={[styles.qmScoreValue, { color: isCompatible ? '#065f46' : '#7f1d1d' }]}>{scoreQ}</Text>
             </View>
           )}
@@ -648,20 +809,20 @@ const KundaliMatchingScreen = ({ onBack }) => {
 
     return (
       <View style={styles.aggCard}>
-        <Text style={styles.aggTitle}>🎯 Aggregate Match</Text>
-        <Text style={styles.aggSub}>Comprehensive overall compatibility combining all factors</Text>
-        
+        <Text style={styles.aggTitle}>🎯 {l.aggregateMatch}</Text>
+        <Text style={styles.aggSub}>{l.aggregateMatchDesc}</Text>
+
         {(ag.ashtakoot_score || ag.dashkoot_score) && (
           <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
             {ag.ashtakoot_score && (
               <View style={styles.miniScore}>
-                <Text style={styles.miniScoreLabel}>Ashtakoot</Text>
+                <Text style={styles.miniScoreLabel}>{l.ashtakoot}</Text>
                 <Text style={styles.miniScoreVal}>{ag.ashtakoot_score}</Text>
               </View>
             )}
             {ag.dashkoot_score && (
               <View style={styles.miniScore}>
-                <Text style={styles.miniScoreLabel}>Dashakoot</Text>
+                <Text style={styles.miniScoreLabel}>{l.dashakoot}</Text>
                 <Text style={styles.miniScoreVal}>{ag.dashkoot_score}</Text>
               </View>
             )}
@@ -671,18 +832,18 @@ const KundaliMatchingScreen = ({ onBack }) => {
         <View style={styles.aggRow}>
           {sc !== undefined && sc !== null && (
             <View style={styles.aggBox}>
-              <Text style={styles.aggBoxLabel}>OVERALL SCORE</Text>
+              <Text style={styles.aggBoxLabel}>{l.overallScore}</Text>
               <Text style={styles.aggBoxVal}>{sc}{maxSc ? ` / ${maxSc}` : ''}</Text>
             </View>
           )}
           {perc !== null && (
             <View style={styles.aggBox}>
-              <Text style={styles.aggBoxLabel}>COMPATIBILITY</Text>
+              <Text style={styles.aggBoxLabel}>{l.compatibilityLabel}</Text>
               <Text style={styles.aggBoxVal}>{perc}%</Text>
             </View>
           )}
         </View>
-        {verdict ? <Text style={styles.aggVerdict}><Text style={{ fontWeight: '700', color: '#92400e' }}>Verdict:</Text> {String(verdict)}</Text> : null}
+        {verdict ? <Text style={styles.aggVerdict}><Text style={{ fontWeight: '700', color: '#92400e' }}>{l.verdictLabel}</Text> {String(verdict)}</Text> : null}
         {extended ? <Text style={styles.aggDesc}>{String(extended)}</Text> : (desc && desc !== verdict ? <Text style={styles.aggDesc}>{String(desc)}</Text> : null)}
       </View>
     );
@@ -697,10 +858,10 @@ const KundaliMatchingScreen = ({ onBack }) => {
     if (ag?.mangaldosh) items.push({ title: 'Mars (Mangal)', text: ag.mangaldosh, ok: !/not favorable|bad|unfavorable|greater than/i.test(ag.mangaldosh) });
     if (ag?.pitradosh) items.push({ title: 'Pitra Dosha', text: ag.pitradosh, ok: !/have pitra dosha/i.test(ag.pitradosh) });
     if (ag?.kaalsarpdosh) items.push({ title: 'Kaal-Sarp', text: ag.kaalsarpdosh, ok: !/have kaal-sarp/i.test(ag.kaalsarpdosh) });
-    
+
     const hasRajju = rv?.is_rajju_dosha_present === true || ag?.rajjudosh === true;
     const hasVedha = rv?.is_vedha_dosha_present === true || ag?.vedhadosh === true;
-    
+
     if (hasRajju !== undefined) items.push({ title: 'Rajju Dosha', text: hasRajju ? 'Rajju Dosha is present' : 'No Rajju Dosha present', ok: !hasRajju });
     if (hasVedha !== undefined) items.push({ title: 'Vedha Dosha', text: hasVedha ? 'Vedha Dosha is present' : 'No Vedha Dosha present', ok: !hasVedha });
 
@@ -708,8 +869,8 @@ const KundaliMatchingScreen = ({ onBack }) => {
 
     return (
       <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>🛡️ Dosha Analysis Summary</Text>
-        <Text style={styles.sectionSubTitle}>Critical compatibility checkpoints</Text>
+        <Text style={styles.sectionTitle}>🛡️ {l.dosha || 'Dosha Analysis Summary'}</Text>
+        <Text style={styles.sectionSubTitle}>{l.doshaDesc || 'Critical compatibility checkpoints'}</Text>
         <View style={{ gap: 10 }}>
           {items.map((item, i) => (
             <View key={i} style={[styles.doshaItem, { borderLeftColor: item.ok ? '#10b981' : '#ef4444' }]}>
@@ -742,8 +903,8 @@ const KundaliMatchingScreen = ({ onBack }) => {
 
     return (
       <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>🍀 Lucky Factors</Text>
-        <Text style={styles.sectionSubTitle}>Personalized auspicious elements</Text>
+        <Text style={styles.sectionTitle}>🍀 {l.luckyFactors || 'Lucky Factors'}</Text>
+        <Text style={styles.sectionSubTitle}>{l.luckyFactorsDesc || 'Personalized auspicious elements'}</Text>
         <View style={{ gap: 12 }}>
           {boyD && renderLuckyBox(`👨 ${result?.maleKundali?.name || 'Boy'}`, boyD, '#3b82f6')}
           {girlD && renderLuckyBox(`👩 ${result?.femaleKundali?.name || 'Girl'}`, girlD, '#ec4899')}
@@ -767,7 +928,7 @@ const KundaliMatchingScreen = ({ onBack }) => {
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 8 }}>
           {keys.map(k => (
             <View key={k} style={styles.miniPapaBadge}>
-              <Text style={styles.miniPapaLabel}>{k.replace('_papa','').toUpperCase()}</Text>
+              <Text style={styles.miniPapaLabel}>{k.replace('_papa', '').toUpperCase()}</Text>
               <Text style={styles.miniPapaVal}>{pData[k]}</Text>
             </View>
           ))}
@@ -777,22 +938,22 @@ const KundaliMatchingScreen = ({ onBack }) => {
 
     return (
       <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>⚖️ Papasamya Match</Text>
-        <Text style={styles.sectionSubTitle}>Malefic effects equality for harmony</Text>
+        <Text style={styles.sectionTitle}>⚖️ {l.papasamya}</Text>
+        <Text style={styles.sectionSubTitle}>{l.papasamyaSub}</Text>
         <View style={[styles.papaContainer, { borderColor: isMatching ? '#10b981' : '#f59e0b' }]}>
           <View style={[styles.manglikBadge, { alignSelf: 'center', backgroundColor: isMatching ? '#dcfce7' : '#fef3c7', marginBottom: 12 }]}>
             <Text style={[styles.manglikBadgeText, { color: isMatching ? '#166534' : '#92400e' }]}>
-              {isMatching ? '✓ Papa levels match' : '⚠ Papa levels differ'}
+              {isMatching ? l.papaMatch : l.papaDiff}
             </Text>
           </View>
           <View style={styles.papaRow}>
             <View style={styles.papaBoxBoy}>
-              <Text style={styles.papaLabelBoy}>👨 Boy Total</Text>
+              <Text style={styles.papaLabelBoy}>{l.boyTotal}</Text>
               <Text style={styles.papaValBoy}>{boyPapa ?? '-'}</Text>
               {renderPapaBreakdown(pp.boy_papa)}
             </View>
             <View style={styles.papaBoxGirl}>
-              <Text style={styles.papaLabelGirl}>👩 Girl Total</Text>
+              <Text style={styles.papaLabelGirl}>{l.girlTotal}</Text>
               <Text style={styles.papaValGirl}>{girlPapa ?? '-'}</Text>
               {renderPapaBreakdown(pp.girl_papa)}
             </View>
@@ -817,71 +978,80 @@ const KundaliMatchingScreen = ({ onBack }) => {
 
     return (
       <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>🌍 Western Astrology Match</Text>
-        <Text style={styles.sectionSubTitle}>Sun sign & element-based compatibility</Text>
+        <Text style={styles.sectionTitle}>🌍 {l.westernMatch}</Text>
+        <Text style={styles.sectionSubTitle}>{l.westernSub}</Text>
         <View style={styles.westernContainer}>
           {score !== undefined && score !== null && (
             <View style={styles.westernScoreBox}>
-              <Text style={styles.westernScoreLabel}>COMPATIBILITY SCORE</Text>
+              <Text style={styles.westernScoreLabel}>{l.compScore}</Text>
               <Text style={styles.westernScoreVal}>{score}{typeof score === 'number' && score <= 100 && score >= 0 ? '%' : ''}</Text>
             </View>
           )}
           {(boySign || girlSign) && (
             <View style={styles.papaRow}>
               <View style={styles.papaBoxBoy}>
-                <Text style={styles.papaLabelBoy}>👨 Boy</Text>
+                <Text style={styles.papaLabelBoy}>👨 {l.boy}</Text>
                 <Text style={styles.papaValBoy}>{boySign || '-'}</Text>
               </View>
               <View style={styles.papaBoxGirl}>
-                <Text style={styles.papaLabelGirl}>👩 Girl</Text>
+                <Text style={styles.papaLabelGirl}>👩 {l.girl}</Text>
                 <Text style={styles.papaValGirl}>{girlSign || '-'}</Text>
               </View>
             </View>
           )}
-          {comp ? <Text style={styles.westernComp}><Text style={{ fontWeight: '700' }}>Compatibility:</Text> {String(comp)}</Text> : null}
+          {comp ? <Text style={styles.westernComp}><Text style={{ fontWeight: '700' }}>{l.compLabel}</Text> {String(comp)}</Text> : null}
           {desc && desc !== comp ? <Text style={styles.westernDesc}>{String(desc)}</Text> : null}
         </View>
       </View>
     );
   };
 
-  return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFF" />
+  const l = LABELS[lang];
 
+  return (
+    <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFF" />
       <View style={styles.header}>
-        <TouchableOpacity onPress={onBack} style={styles.backButton}>
-          <Text style={styles.backIcon}>←</Text>
+        <TouchableOpacity style={styles.backButton} onPress={onBack}>
+          <Text style={styles.backIcon}>‹</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Kundali Matching</Text>
-        <View style={{ width: 40 }} />
+        <Text style={styles.headerTitle}>{l.title}</Text>
+        <TouchableOpacity onPress={() => setShowLangModal(true)} style={{ padding: 8 }}>
+          <Text style={{ fontSize: 18 }}>🌐</Text>
+        </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 60 }}>
         {!result ? (
           <View>
-            <LinearGradient colors={['#1A1A1A', '#2D1500']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.heroBanner}>
+            <LinearGradient colors={['#1A1A1A', '#3C096C']} style={styles.heroBanner}>
               <Text style={styles.heroEmoji}>💑</Text>
-              <Text style={styles.heroTitle}>Kundali Matching</Text>
-              <Text style={styles.heroDesc}>Vedic Guna Milan — check marriage compatibility</Text>
+              <Text style={styles.heroTitle}>{l.heroTitle}</Text>
+              <Text style={styles.heroDesc}>{l.heroDesc}</Text>
               <View style={styles.heroBadgeRow}>
-                <View style={styles.heroBadge}><Text style={styles.heroBadgeText}>✦ Ashtakoot</Text></View>
-                <View style={styles.heroBadge}><Text style={styles.heroBadgeText}>✦ 36 Gunas</Text></View>
-                <View style={styles.heroBadge}><Text style={styles.heroBadgeText}>✦ Free Report</Text></View>
+                <View style={styles.heroBadge}><Text style={styles.heroBadgeText}>{l.vAshtakoot}</Text></View>
+                <View style={styles.heroBadge}><Text style={styles.heroBadgeText}>{l.vManglik}</Text></View>
+                <View style={styles.heroBadge}><Text style={styles.heroBadgeText}>{l.vDashakoot}</Text></View>
               </View>
             </LinearGradient>
 
             <View style={styles.formContent}>
               <View style={styles.toggleContainer}>
-                <TouchableOpacity onPress={() => setMatchType('North')} style={[styles.toggleBtn, matchType === 'North' && styles.toggleBtnActive]}>
-                  <Text style={[styles.toggleBtnText, matchType === 'North' && styles.toggleBtnTextActive]}>Ashtakoot</Text>
+                <TouchableOpacity
+                  style={[styles.toggleBtn, matchType === 'North' && styles.toggleBtnActive]}
+                  onPress={() => setMatchType('North')}
+                >
+                  <Text style={[styles.toggleBtnText, matchType === 'North' && styles.toggleBtnTextActive]}>{l.north} Indian</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => setMatchType('South')} style={[styles.toggleBtn, matchType === 'South' && styles.toggleBtnActive]}>
-                  <Text style={[styles.toggleBtnText, matchType === 'South' && styles.toggleBtnTextActive]}>Dashakoot</Text>
+                <TouchableOpacity
+                  style={[styles.toggleBtn, matchType === 'South' && styles.toggleBtnActive]}
+                  onPress={() => setMatchType('South')}
+                >
+                  <Text style={[styles.toggleBtnText, matchType === 'South' && styles.toggleBtnTextActive]}>{l.south} Indian</Text>
                 </TouchableOpacity>
               </View>
 
-              <PersonForm title="👨 Boy's Details" data={boy} target="boy" accent="#3b82f6"
+              <PersonForm title={`👨 ${l.boyDetails}`} data={boy} target="boy" accent="#3b82f6"
                 onChangeField={handleChange}
                 onPlaceChange={handlePlaceChange}
                 onPick={() => setShowPicker}
@@ -889,9 +1059,10 @@ const KundaliMatchingScreen = ({ onBack }) => {
                 showSuggestions={showSuggestions.boy}
                 onSelectPlace={selectPlace}
                 loading={placeLoading.boy}
+                l={l}
               />
               <View style={{ height: 16 }} />
-              <PersonForm title="👩 Girl's Details" data={girl} target="girl" accent="#ec4899"
+              <PersonForm title={`👩 ${l.girlDetails}`} data={girl} target="girl" accent="#ec4899"
                 onChangeField={handleChange}
                 onPlaceChange={handlePlaceChange}
                 onPick={() => setShowPicker}
@@ -899,17 +1070,18 @@ const KundaliMatchingScreen = ({ onBack }) => {
                 showSuggestions={showSuggestions.girl}
                 onSelectPlace={selectPlace}
                 loading={placeLoading.girl}
+                l={l}
               />
 
               <TouchableOpacity style={styles.goldMatchButton} onPress={handleSubmit} disabled={loading} activeOpacity={0.85}>
                 <LinearGradient colors={['#FFCC00', '#E6A800']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.matchGradient}>
                   {loading
                     ? <ActivityIndicator color="#1A1A1A" />
-                    : <><Text style={styles.matchButtonText}>💞 Calculate Compatibility</Text><Text style={styles.matchArrow}> →</Text></>
+                    : <><Text style={styles.matchButtonText}>💞 {l.calculate}</Text><Text style={styles.matchArrow}> →</Text></>
                   }
                 </LinearGradient>
               </TouchableOpacity>
-              <Text style={styles.formDisclaimer}>🔒 Your data is private & secure</Text>
+              <Text style={styles.formDisclaimer}>🔒 {l.private}</Text>
             </View>
           </View>
         ) : (
@@ -930,193 +1102,194 @@ const KundaliMatchingScreen = ({ onBack }) => {
 
             <View style={styles.resultContent}>
 
-            {/* Total Score Section */}
-            {totalMax > 0 && (
-              <View style={styles.scoreCard}>
-                <View style={styles.scoreDonutWrap}>
-                  <Svg width={100} height={100} viewBox="0 0 120 120">
-                    <Circle cx="60" cy="60" r="50" fill="none" stroke="#f3f0fa" strokeWidth="12" />
-                    <Circle cx="60" cy="60" r="50" fill="none" stroke={band.color} strokeWidth="12"
-                      strokeDasharray={`${(scorePct * 2 * Math.PI * 50)} ${2 * Math.PI * 50}`}
-                      strokeDashoffset="0"
-                      origin="60, 60"
-                      rotation="-90"
-                      strokeLinecap="round" />
-                  </Svg>
-                  <View style={styles.scoreDonutInner}>
-                    <Text style={[styles.scoreBig, { color: band.color }]}>{totalReceived}</Text>
-                    <Text style={styles.scoreMax}>of {totalMax}</Text>
-                  </View>
-                </View>
-                <View style={styles.scoreInfo}>
-                  <Text style={[styles.scoreBand, { color: band.color }]}>{band.emoji} {band.label}</Text>
-                  <Text style={styles.scoreVerdict}>Compatibility Score: <Text style={{ fontWeight: '800', color: '#333' }}>{Math.round(scorePct * 100)}%</Text></Text>
-                </View>
-              </View>
-            )}
+              {/* Total Score Section */}
+              {canShowMatching('ashtakoot_guna_milan', 'total_score') && totalMax > 0 && (
 
-            {renderQuickMatch()}
-            {renderAggregateMatch()}
-            {renderDetailedDoshas()}
-            {renderLuckyFactors()}
-            {renderGhatkaChakra()}
-
-            {conclusionText && (
-              <View style={styles.conclusionBox}>
-                <Text style={styles.conclusionTitle}>📜 Conclusion</Text>
-                <Text style={styles.conclusionText}>{conclusionText}</Text>
-              </View>
-            )}
-
-            {renderPlanetaryPositions()}
-            {renderComparison()}
-            {renderPanchangComparison()}
-
-            {/* Birth Charts */}
-            <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>🔭 Birth Charts</Text>
-              <Text style={styles.sectionSubTitle}>Lagna (D1) & Navamsa (D9) charts for both</Text>
-
-              {/* Chart style selector */}
-              <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 10, marginBottom: 16 }}>
-                {['north', 'south', 'east'].map(s => (
-                  <TouchableOpacity
-                    key={s}
-                    style={[styles.chartStyleBtn, chartStyle === s && styles.chartStyleBtnActive]}
-                    onPress={() => onChangeChartStyle(s)}
-                  >
-                    <Text style={[styles.chartStyleText, chartStyle === s && styles.chartStyleTextActive]}>
-                      {s.charAt(0).toUpperCase() + s.slice(1)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              {chartsLoading ? (
-                <View style={{ height: 120, justifyContent: 'center', alignItems: 'center' }}>
-                  <ActivityIndicator size="large" color="#FFCC00" />
-                  <Text style={{ color: '#999', marginTop: 10, fontSize: 13 }}>Loading charts...</Text>
-                </View>
-              ) : (
-                <View>
-                  {/* ── Lagna D1 ── */}
-                  <View style={styles.chartDivider}>
-                    <View style={styles.chartDividerLine} />
-                    <Text style={styles.chartDividerLabel}>LAGNA CHART (D1)</Text>
-                    <View style={styles.chartDividerLine} />
-                  </View>
-
-                  <View style={styles.chartPersonRow}>
-                    <View style={styles.chartPersonBadgeBoy}>
-                      <Text style={styles.chartPersonBadgeText}>👨 {result?.maleKundali?.name || boy.name || 'Boy'}</Text>
+                <View style={styles.scoreCard}>
+                  <View style={styles.scoreDonutWrap}>
+                    <Svg width={100} height={100} viewBox="0 0 120 120">
+                      <Circle cx="60" cy="60" r="50" fill="none" stroke="#f3f0fa" strokeWidth="12" />
+                      <Circle cx="60" cy="60" r="50" fill="none" stroke={band.color} strokeWidth="12"
+                        strokeDasharray={`${(scorePct * 2 * Math.PI * 50)} ${2 * Math.PI * 50}`}
+                        strokeDashoffset="0"
+                        origin="60, 60"
+                        rotation="-90"
+                        strokeLinecap="round" />
+                    </Svg>
+                    <View style={styles.scoreDonutInner}>
+                      <Text style={[styles.scoreBig, { color: band.color }]}>{totalReceived}</Text>
+                      <Text style={styles.scoreMax}>of {totalMax}</Text>
                     </View>
                   </View>
-                  <View style={styles.chartBox}>
-                    <WebView
-                      originWhitelist={['*']}
-                      source={{ html: `<html><body style="margin:0;padding:0;background:#fff;display:flex;justify-content:center;align-items:center;">${injectDegreesIntoSvg(cleanSvg(boyCharts.D1), buildDegreeMap(result?.boyPlanets || result?.recordList?.boy_planetary_details)) || '<p style="color:#999;font-family:sans-serif;font-size:13px;text-align:center;">Chart not available</p>'}</body></html>` }}
-                      style={{ width: '100%', height: width - 64, backgroundColor: 'transparent' }}
-                      scrollEnabled={false}
-                      scalesPageToFit={true}
-                    />
+                  <View style={styles.scoreInfo}>
+                    <Text style={[styles.scoreBand, { color: band.color }]}>{band.emoji} {band.label}</Text>
+                    <Text style={styles.scoreVerdict}>{l.compScoreColon} <Text style={{ fontWeight: '800', color: '#7c3aed' }}>{String(Math.round(scorePct * 100))}%</Text></Text>
+                  </View>
+                </View>
+              )}
+
+              {canShowMatching('quick_match') && renderQuickMatch()}
+              {canShowMatching('aggregate_match') && renderAggregateMatch()}
+              {/* Birth Charts */}
+              {canShowMatching('charts') && (
+                <View style={styles.sectionCard}>
+                  <Text style={styles.sectionTitle}>🔭 {l.charts}</Text>
+                  <Text style={styles.sectionSubTitle}>{l.chartsSubTitle}</Text>
+
+                  {/* Chart style selector */}
+                  <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 10, marginBottom: 16 }}>
+                    {['north', 'south', 'east'].map(s => (
+                      <TouchableOpacity
+                        key={s}
+                        style={[styles.chartStyleBtn, chartStyle === s && styles.chartStyleBtnActive]}
+                        onPress={() => onChangeChartStyle(s)}
+                      >
+                        <Text style={[styles.chartStyleText, chartStyle === s && styles.chartStyleTextActive]}>
+                          {l[s] || s}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
                   </View>
 
-                  <View style={{ height: 12 }} />
-
-                  <View style={styles.chartPersonRow}>
-                    <View style={styles.chartPersonBadgeGirl}>
-                      <Text style={styles.chartPersonBadgeText}>👩 {result?.femaleKundali?.name || girl.name || 'Girl'}</Text>
+                  {chartsLoading ? (
+                    <View style={{ height: 120, justifyContent: 'center', alignItems: 'center' }}>
+                      <ActivityIndicator size="large" color="#FFCC00" />
+                      <Text style={{ color: '#999', marginTop: 10, fontSize: 13 }}>{l.loadingCharts}</Text>
                     </View>
-                  </View>
-                  <View style={styles.chartBox}>
-                    <WebView
-                      originWhitelist={['*']}
-                      source={{ html: `<html><body style="margin:0;padding:0;background:#fff;display:flex;justify-content:center;align-items:center;">${injectDegreesIntoSvg(cleanSvg(girlCharts.D1), buildDegreeMap(result?.girlPlanets || result?.recordList?.girl_planetary_details)) || '<p style="color:#999;font-family:sans-serif;font-size:13px;text-align:center;">Chart not available</p>'}</body></html>` }}
-                      style={{ width: '100%', height: width - 64, backgroundColor: 'transparent' }}
-                      scrollEnabled={false}
-                      scalesPageToFit={true}
-                    />
-                  </View>
-
-                  {/* ── Navamsa D9 ── */}
-                  {(boyCharts.D9 || girlCharts.D9) && (
+                  ) : (
                     <View>
-                      <View style={[styles.chartDivider, { marginTop: 20 }]}>
+                      {/* ── Lagna D1 ── */}
+                      <View style={styles.chartDivider}>
                         <View style={styles.chartDividerLine} />
-                        <Text style={styles.chartDividerLabel}>NAVAMSA CHART (D9)</Text>
+                        <Text style={styles.chartDividerLabel}>{l.lagnaChartD1}</Text>
                         <View style={styles.chartDividerLine} />
                       </View>
 
-                      {boyCharts.D9 && (
-                        <View>
-                          <View style={styles.chartPersonRow}>
-                            <View style={styles.chartPersonBadgeBoy}>
-                              <Text style={styles.chartPersonBadgeText}>👨 {result?.maleKundali?.name || boy.name || 'Boy'}</Text>
-                            </View>
-                          </View>
-                          <View style={styles.chartBox}>
-                            <WebView
-                              originWhitelist={['*']}
-                              source={{ html: `<html><body style="margin:0;padding:0;background:#fff;display:flex;justify-content:center;align-items:center;">${injectDegreesIntoSvg(cleanSvg(boyCharts.D9), buildDegreeMap(result?.boyPlanets || result?.recordList?.boy_planetary_details)) || '<p style="color:#999;font-family:sans-serif;font-size:13px;text-align:center;">Chart not available</p>'}</body></html>` }}
-                              style={{ width: '100%', height: width - 64, backgroundColor: 'transparent' }}
-                              scrollEnabled={false}
-                              scalesPageToFit={true}
-                            />
-                          </View>
-                          <View style={{ height: 12 }} />
+                      <View style={styles.chartPersonRow}>
+                        <View style={styles.chartPersonBadgeBoy}>
+                          <Text style={styles.chartPersonBadgeText}>👨 {result?.maleKundali?.name || boy.name || 'Boy'}</Text>
                         </View>
-                      )}
+                      </View>
+                      <View style={styles.chartBox}>
+                        <WebView
+                          originWhitelist={['*']}
+                          source={{ html: `<html><body style="margin:0;padding:0;background:#fff;display:flex;justify-content:center;align-items:center;">${injectDegreesIntoSvg(cleanSvg(boyCharts.D1), buildDegreeMap(result?.boyPlanets || result?.recordList?.boy_planetary_details)) || '<p style="color:#999;font-family:sans-serif;font-size:13px;text-align:center;">Chart not available</p>'}</body></html>` }}
+                          style={{ width: '100%', height: width - 64, backgroundColor: 'transparent' }}
+                          scrollEnabled={false}
+                          scalesPageToFit={true}
+                        />
+                      </View>
 
-                      {girlCharts.D9 && (
+                      <View style={{ height: 12 }} />
+
+                      <View style={styles.chartPersonRow}>
+                        <View style={styles.chartPersonBadgeGirl}>
+                          <Text style={styles.chartPersonBadgeText}>👩 {result?.femaleKundali?.name || girl.name || 'Girl'}</Text>
+                        </View>
+                      </View>
+                      <View style={styles.chartBox}>
+                        <WebView
+                          originWhitelist={['*']}
+                          source={{ html: `<html><body style="margin:0;padding:0;background:#fff;display:flex;justify-content:center;align-items:center;">${injectDegreesIntoSvg(cleanSvg(girlCharts.D1), buildDegreeMap(result?.girlPlanets || result?.recordList?.girl_planetary_details)) || '<p style="color:#999;font-family:sans-serif;font-size:13px;text-align:center;">Chart not available</p>'}</body></html>` }}
+                          style={{ width: '100%', height: width - 64, backgroundColor: 'transparent' }}
+                          scrollEnabled={false}
+                          scalesPageToFit={true}
+                        />
+                      </View>
+
+                      {/* ── Navamsa D9 ── */}
+                      {(boyCharts.D9 || girlCharts.D9) && (
                         <View>
-                          <View style={styles.chartPersonRow}>
-                            <View style={styles.chartPersonBadgeGirl}>
-                              <Text style={styles.chartPersonBadgeText}>👩 {result?.femaleKundali?.name || girl.name || 'Girl'}</Text>
+                          <View style={[styles.chartDivider, { marginTop: 20 }]}>
+                            <View style={styles.chartDividerLine} />
+                            <Text style={styles.chartDividerLabel}>{l.navamsaChartD9}</Text>
+                            <View style={styles.chartDividerLine} />
+                          </View>
+
+                          {boyCharts.D9 && (
+                            <View>
+                              <View style={styles.chartPersonRow}>
+                                <View style={styles.chartPersonBadgeBoy}>
+                                  <Text style={styles.chartPersonBadgeText}>👨 {result?.maleKundali?.name || boy.name || 'Boy'}</Text>
+                                </View>
+                              </View>
+                              <View style={styles.chartBox}>
+                                <WebView
+                                  originWhitelist={['*']}
+                                  source={{ html: `<html><body style="margin:0;padding:0;background:#fff;display:flex;justify-content:center;align-items:center;">${injectDegreesIntoSvg(cleanSvg(boyCharts.D9), buildDegreeMap(result?.boyPlanets || result?.recordList?.boy_planetary_details)) || '<p style="color:#999;font-family:sans-serif;font-size:13px;text-align:center;">Chart not available</p>'}</body></html>` }}
+                                  style={{ width: '100%', height: width - 64, backgroundColor: 'transparent' }}
+                                  scrollEnabled={false}
+                                  scalesPageToFit={true}
+                                />
+                              </View>
+                              <View style={{ height: 12 }} />
                             </View>
-                          </View>
-                          <View style={styles.chartBox}>
-                            <WebView
-                              originWhitelist={['*']}
-                              source={{ html: `<html><body style="margin:0;padding:0;background:#fff;display:flex;justify-content:center;align-items:center;">${injectDegreesIntoSvg(cleanSvg(girlCharts.D9), buildDegreeMap(result?.girlPlanets || result?.recordList?.girl_planetary_details)) || '<p style="color:#999;font-family:sans-serif;font-size:13px;text-align:center;">Chart not available</p>'}</body></html>` }}
-                              style={{ width: '100%', height: width - 64, backgroundColor: 'transparent' }}
-                              scrollEnabled={false}
-                              scalesPageToFit={true}
-                            />
-                          </View>
+                          )}
+
+                          {girlCharts.D9 && (
+                            <View>
+                              <View style={styles.chartPersonRow}>
+                                <View style={styles.chartPersonBadgeGirl}>
+                                  <Text style={styles.chartPersonBadgeText}>👩 {result?.femaleKundali?.name || girl.name || 'Girl'}</Text>
+                                </View>
+                              </View>
+                              <View style={styles.chartBox}>
+                                <WebView
+                                  originWhitelist={['*']}
+                                  source={{ html: `<html><body style="margin:0;padding:0;background:#fff;display:flex;justify-content:center;align-items:center;">${injectDegreesIntoSvg(cleanSvg(girlCharts.D9), buildDegreeMap(result?.girlPlanets || result?.recordList?.girl_planetary_details)) || '<p style="color:#999;font-family:sans-serif;font-size:13px;text-align:center;">Chart not available</p>'}</body></html>` }}
+                                  style={{ width: '100%', height: width - 64, backgroundColor: 'transparent' }}
+                                  scrollEnabled={false}
+                                  scalesPageToFit={true}
+                                />
+                              </View>
+                            </View>
+                          )}
                         </View>
                       )}
                     </View>
                   )}
                 </View>
               )}
-            </View>
+              {canShowMatching('rajju_vedha_dosha') && renderDetailedDoshas()}
+              {canShowMatching('lucky_factors') && renderLuckyFactors()}
+              {canShowMatching('ghatka_chakra') && renderGhatkaChakra()}
 
-            {/* Manglik */}
-            {(boyManglik || girlManglik) && (
-              <View style={styles.sectionCard}>
-                <Text style={styles.sectionTitle}>🔥 Manglik Dosha Analysis</Text>
-                <ManglikCard side="👨 Boy" data={boyManglik} accent="#3b82f6" />
-                <View style={{ height: 10 }} />
-                <ManglikCard side="👩 Girl" data={girlManglik} accent="#ec4899" />
-              </View>
-            )}
-
-            {renderPapasamya()}
-            {renderWesternMatch()}
-
-            {/* Koota Breakdown */}
-            {kootasToRender.length > 0 && (
-              <View style={styles.sectionCard}>
-                <Text style={styles.sectionTitle}>📊 Guna-by-Guna Breakdown</Text>
-                <View style={styles.kootaGrid}>
-                  {kootasToRender.map(key => renderKootaItem(key))}
+              {canShowMatching('aggregate_match') && conclusionText && (
+                <View style={styles.conclusionBox}>
+                  <Text style={styles.conclusionTitle}>📜 {l.conclusion}</Text>
+                  <Text style={styles.conclusionText}>{conclusionText}</Text>
                 </View>
-              </View>
-            )}
+              )}
 
-            <TouchableOpacity style={styles.resetButton} onPress={() => setResult(null)}>
-              <Text style={styles.resetText}>↺ Reset & Match Another</Text>
-            </TouchableOpacity>
+              {canShowMatching('planetary_details') && renderPlanetaryPositions()}
+              {canShowMatching('astro_comparison') && renderComparison()}
+              {canShowMatching('panchang_comparison') && renderPanchangComparison()}
+
+              {canShowMatching('manglik_match') && (boyManglik || girlManglik) && (
+                <View style={styles.sectionCard}>
+                  <Text style={styles.sectionTitle}>🔥 {l.manglikAnalysis}</Text>
+                  <ManglikCard side={`👨 ${result?.maleKundali?.name || boy.name}`} data={boyManglik} accent="#3b82f6" />
+                  <View style={{ height: 10 }} />
+                  <ManglikCard side={`👩 ${result?.femaleKundali?.name || girl.name}`} data={girlManglik} accent="#ec4899" />
+                </View>
+              )}
+
+              {canShowMatching('papasamya_match') && renderPapasamya()}
+              {canShowMatching('quick_match') && renderWesternMatch()}
+
+              {/* Koota Breakdown */}
+              {canShowMatching('ashtakoot_guna_milan', 'breakdown') && kootasToRender.length > 0 && (
+                <View style={styles.sectionCard}>
+                  <Text style={styles.sectionTitle}>📊 {l.gunaBreakdown}</Text>
+                  <View style={styles.kootaGrid}>
+                    {kootasToRender.map(key => renderKootaItem(key))}
+                  </View>
+                </View>
+              )}
+
+              <TouchableOpacity style={styles.resetButton} onPress={() => setResult(null)}>
+                <Text style={styles.resetText}>↺ {l.reset}</Text>
+              </TouchableOpacity>
             </View>
           </View>
         )}
@@ -1127,20 +1300,20 @@ const KundaliMatchingScreen = ({ onBack }) => {
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
           <View style={{ backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '80%', paddingBottom: 20 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: 20, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' }}>
-              <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1a0533' }}>Select Language</Text>
+              <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1a0533' }}>{l.selectLang}</Text>
               <TouchableOpacity onPress={() => setShowLangModal(false)}>
-                <Text style={{ fontSize: 16, color: '#7c3aed', fontWeight: 'bold' }}>Close</Text>
+                <Text style={{ fontSize: 16, color: '#7c3aed', fontWeight: 'bold' }}>{l.close}</Text>
               </TouchableOpacity>
             </View>
             <ScrollView>
-              {LANGUAGES.map(l => (
+              {LANGUAGES.map(langOpt => (
                 <TouchableOpacity
-                  key={l.code}
-                  style={{ padding: 16, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', backgroundColor: lang === l.code ? '#faf5ff' : '#fff' }}
-                  onPress={() => onChangeLang(l.code)}
+                  key={langOpt.code}
+                  style={{ padding: 16, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', backgroundColor: lang === langOpt.code ? '#faf5ff' : '#fff' }}
+                  onPress={() => onChangeLang(langOpt.code)}
                 >
-                  <Text style={{ fontSize: 16, color: lang === l.code ? '#7c3aed' : '#4b5563', fontWeight: lang === l.code ? 'bold' : 'normal' }}>
-                    {l.label}
+                  <Text style={{ fontSize: 16, color: lang === langOpt.code ? '#7c3aed' : '#4b5563', fontWeight: lang === langOpt.code ? 'bold' : 'normal' }}>
+                    {langOpt.label}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -1157,21 +1330,21 @@ const KundaliMatchingScreen = ({ onBack }) => {
           onChange={onChangePicker}
         />
       )}
-    </KeyboardAvoidingView>
+    </View>
   );
 };
 
-const PersonForm = ({ title, data, target, accent, onChangeField, onPlaceChange, onPick, suggestions, showSuggestions, onSelectPlace, loading }) => (
-  <View style={[styles.formCard, { borderLeftColor: accent, borderLeftWidth: 4 }]}>
+const PersonForm = ({ title, data, target, accent, onChangeField, onPlaceChange, onPick, suggestions, showSuggestions, onSelectPlace, loading, l }) => (
+  <View style={styles.formCard}>
     <View style={styles.formCardHeader}>
       <View style={[styles.formCardDot, { backgroundColor: accent }]} />
       <Text style={[styles.formCardTitle, { color: accent }]}>{title}</Text>
     </View>
 
-    <Text style={styles.inputLabel}>👤 Full Name</Text>
+    <Text style={styles.inputLabel}>👤 {l.fullName}</Text>
     <TextInput
       style={styles.textInput}
-      placeholder="Enter full name"
+      placeholder={l.enterName}
       placeholderTextColor="#BBB"
       value={data.name}
       returnKeyType="next"
@@ -1180,24 +1353,24 @@ const PersonForm = ({ title, data, target, accent, onChangeField, onPlaceChange,
 
     <View style={styles.row}>
       <View style={{ flex: 1 }}>
-        <Text style={styles.inputLabel}>📅 Date</Text>
+        <Text style={styles.inputLabel}>📅 {l.date}</Text>
         <TouchableOpacity style={styles.pickerTrigger} onPress={() => onPick()({ visible: true, mode: 'date', target, key: 'birthDate' })}>
           <Text style={[styles.pickerValue, !data.birthDate && { color: '#BBB' }]}>{data.birthDate || 'YYYY-MM-DD'}</Text>
         </TouchableOpacity>
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={styles.inputLabel}>⏰ Time</Text>
+        <Text style={styles.inputLabel}>⏰ {l.time}</Text>
         <TouchableOpacity style={styles.pickerTrigger} onPress={() => onPick()({ visible: true, mode: 'time', target, key: 'birthTime' })}>
           <Text style={[styles.pickerValue, !data.birthTime && { color: '#BBB' }]}>{data.birthTime || 'HH:MM'}</Text>
         </TouchableOpacity>
       </View>
     </View>
 
-    <Text style={styles.inputLabel}>📍 Place of Birth</Text>
+    <Text style={styles.inputLabel}>📍 {l.placeOfBirth}</Text>
     <View style={{ position: 'relative', zIndex: 10 }}>
       <TextInput
         style={styles.textInput}
-        placeholder="Search city, town..."
+        placeholder={l.searchCity}
         placeholderTextColor="#BBB"
         value={data.birthPlace}
         returnKeyType="search"
@@ -1207,7 +1380,7 @@ const PersonForm = ({ title, data, target, accent, onChangeField, onPlaceChange,
     </View>
     {data.latitude ? (
       <View style={styles.coordBadge}>
-        <Text style={styles.coordText}>✔ Location verified</Text>
+        <Text style={styles.coordText}>{l.locationVerified}</Text>
       </View>
     ) : null}
 
@@ -1270,7 +1443,7 @@ const styles = StyleSheet.create({
   matchButtonText: { fontSize: 16, fontWeight: '800', color: '#1A1A1A' },
   matchArrow: { fontSize: 18, fontWeight: '800', color: '#1A1A1A' },
   formDisclaimer: { textAlign: 'center', fontSize: 11, color: '#AAA', marginTop: 12 },
-  
+
   resultHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     padding: 16, paddingTop: 20, paddingBottom: 20,

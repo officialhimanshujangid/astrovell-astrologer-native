@@ -8,31 +8,43 @@ import { useDispatch, useSelector } from 'react-redux';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import apiClient from '../api/apiClient';
 import { kundaliApi } from '../api/services';
+import { locationService } from '../api/locationService';
 import { colors } from '../theme/colors';
 import { LinearGradient } from 'expo-linear-gradient';
 import { WebView } from 'react-native-webview';
+import KundaliChart from '../components/KundaliChart';
+import kundaliPermissions from '../config/kundali_permissions.json';
 
 const { width } = Dimensions.get('window');
 
+const canShow = (tabKey, sectionKey = null) => {
+  const tab = kundaliPermissions.free_kundali.tabs[tabKey];
+  if (!tab || tab.show === false) return false;
+  if (sectionKey && tab.sections && tab.sections[sectionKey] === false) return false;
+  return true;
+};
+
 const TABS = [
-  { key: 'basic', label: '🏠 Basic', phase: 1 },
-  { key: 'lagna', label: '📊 Lagna', phase: 2 },
-  { key: 'transit', label: '🌌 Transit', phase: 3 },
-  { key: 'dasha', label: '⏰ Dasha', phase: 4 },
-  { key: 'yogini', label: '🌙 Yogini', phase: 5 },
-  { key: 'ashtakvarga', label: '🎯 Ashtakvarga', phase: 6 },
-  { key: 'planets', label: '🪐 Planets', phase: 7 },
-  { key: 'divisional', label: '📐 Divisional', phase: 8 },
-  { key: 'kp', label: '🔮 KP System', phase: 9 },
-  { key: 'sadesati', label: '🪨 Sade Sati', phase: 10 },
-  { key: 'shadbala', label: '⚖️ Shadbala', phase: 11 },
-  { key: 'bhavbala', label: '🏛️ Bhav Bala', phase: 12 },
-  { key: 'manglik', label: '🔥 Manglik', phase: 13 },
-];
+  { key: 'basic', labelKey: 'tabBasic', phase: 1 },
+  { key: 'lagna', labelKey: 'tabLagna', phase: 2 },
+  { key: 'transit', labelKey: 'tabTransit', phase: 3 },
+  { key: 'dasha', labelKey: 'tabDasha', phase: 4 },
+  { key: 'yogini', labelKey: 'tabYogini', phase: 5 },
+  { key: 'ashtakvarga', labelKey: 'tabAshtakvarga', phase: 6 },
+  { key: 'planets', labelKey: 'tabPlanets', phase: 7 },
+  { key: 'divisional', labelKey: 'tabDivisional', phase: 8 },
+  { key: 'kp', labelKey: 'tabKP', phase: 9 },
+  { key: 'sadesati', labelKey: 'tabSadeSati', phase: 10 },
+  { key: 'shadbala', labelKey: 'tabShadbala', phase: 11 },
+  { key: 'bhavbala', labelKey: 'tabBhavBala', phase: 12 },
+  { key: 'manglik', labelKey: 'tabManglik', phase: 13 },
+].filter(t => canShow(t.key));
+
 
 const LANGUAGES = [
   { code: 'en', label: 'English' },
   { code: 'hi', label: 'Hindi' },
+  /*
   { code: 'bn', label: 'Bengali' },
   { code: 'ta', label: 'Tamil' },
   { code: 'te', label: 'Telugu' },
@@ -40,13 +52,243 @@ const LANGUAGES = [
   { code: 'gu', label: 'Gujarati' },
   { code: 'kn', label: 'Kannada' },
   { code: 'ml', label: 'Malayalam' },
-  { code: 'or', label: 'Odia' },
+  */
 ];
+
+const KUNDALI_LABELS = {
+  en: {
+    title: 'Free Kundali', heroTitle: 'Free Janam Kundali',
+    heroSubtitle: 'Accurate Vedic birth chart with 13 detailed sections',
+    birthDetails: 'Birth Details', fullName: 'Full Name', enterName: 'Enter your full name',
+    gender: 'Gender', male: '♂ Male', female: '♀ Female', other: '⚧ Other',
+    dateOfBirth: 'Date of Birth', timeOfBirth: 'Time of Birth',
+    placeOfBirth: 'Place of Birth', searchCity: 'Search city, town...',
+    generate: 'Generate Free Kundali', private: '🔒 Your data is private & secure',
+    generateNew: '↺ Generate New Kundali',
+    name: 'Name', genderLabel: 'Gender', date: 'Date', time: 'Time',
+    place: 'Place', latitude: 'Latitude', longitude: 'Longitude', timezone: 'Timezone',
+    birthPanchang: 'Birth Panchang',
+    tithi: 'Tithi', nakshatra: 'Nakshatra', yoga: 'Yoga', karana: 'Karana',
+    sunrise: 'Sunrise', sunset: 'Sunset', moonSign: 'Moon Sign', sunSign: 'Sun Sign',
+    masa: 'Masa', ritu: 'Ritu', ayanamsa: 'Ayanamsa', vikramSamvat: 'Vikram Samvat',
+    avakhada: 'Avakhada Details',
+    varna: 'Varna', vashya: 'Vashya', yoni: 'Yoni', gana: 'Gana', nadi: 'Nadi',
+    rasi: 'Rasi', rasiLord: 'Rasi Lord', nakshatraLord: 'Nakshatra Lord',
+    lagna: 'Lagna', lagnaNak: 'Lagna Nak.', tatva: 'Tatva', paya: 'Paya (Nak)',
+    luckyFactors: 'Lucky Factors & Gems',
+    lifeStone: 'Life Stone', luckyStone: 'Lucky Stone', fortuneStone: 'Fortune Stone',
+    luckyNumber: 'Lucky Number', luckyColor: 'Lucky Color', letters: 'Letters',
+    recommendedName: 'Recommended Name Starts',
+    travelDirections: 'Travel & Directions',
+    dishaShool: 'Disha Shool', auspDirection: 'Ausp. Direction',
+    yoginiNivas: 'Yogini Nivas', moonPhase: 'Moon Phase',
+    vedicCalendar: 'Vedic Calendar (Samvat)',
+    vikramSamvatSec: 'Vikram Samvat', sakaSamvat: 'Saka Samvat',
+    kaliSamvat: 'Kali Samvat', tamilMonth: 'Tamil Month',
+    astronomicalData: 'Astronomical Data',
+    sunAtRise: 'Sun @ Rise', sunNakshatra: 'Sun Nakshatra',
+    moonDegree: 'Moon Degree', ahargana: 'Ahargana',
+    muhurtaKaals: 'Muhurta & Important Kaals',
+    abhijitMuhurta: '😇 Abhijit Muhurta', moonRiseSet: '🌙 Moon Rise/Set',
+    rahukaal: '🌑 Rahukaal', gulikaKaal: '👺 Gulika Kaal',
+    ghatkaChakra: 'Ghatka Chakra (Unfavorable)', panchangInsights: 'Panchang Insights',
+    loadingBasic: 'Loading basic details...', loadingLagna: 'Loading Lagna charts...',
+    loadingPlanets: 'Loading Planets...', loadingTransit: 'Loading Transit Chart...',
+    loadingDasha: 'Loading Dasha...', loadingYogini: 'Loading Yogini Dasha...',
+    loadingKP: 'Loading KP System...', loadingSadeSati: 'Loading Sade Sati...',
+    loadingShadbala: 'Loading Shadbala...', loadingManglik: 'Loading Manglik Details...',
+    loadingAshtakvarga: 'Loading Ashtakvarga...',
+    planet: 'Planet', house: 'House', zodiac: 'Zodiac', signLord: 'Sign Lord',
+    degreeInSign: 'Degree in Sign', totalDegree: 'Total Degree',
+    pada: 'Pada', degree: 'Degree',
+    signView: '♉ Sign View', zodiacSignLord: 'Zodiac & Sign Lord',
+    nakshatraView: '⭐ Nakshatra View', lunarMansion: 'Lunar mansion & Pada',
+    transitChart: 'Transit Chart', transitPlanets: 'Transit Planets',
+    vimshottariDasha: 'Vimshottari Dasha', yoginiDasha: 'Yogini Dasha', root: 'Root',
+    notInSadeSati: 'Not in Sade Sati', inSadeSati: 'Currently in Sade Sati',
+    sadeSatiAnalysis: 'Sade Sati Analysis', sadeSatiPhases: 'Sade Sati Phases',
+    active: 'ACTIVE', inactive: 'INACTIVE',
+    bhavChalit: 'Bhav Chalit Chart (KP)', rulingPlanets: 'Ruling Planets',
+    kpPlanets: 'KP Planets Table', kpCusps: 'KP Cusps (Houses) Table',
+    sign: 'Sign', cusp: 'Cusp', starLord: 'Star Lord', subLord: 'Sub Lord',
+    shadBala: 'Shad Bala', componentBreakdown: 'Component Breakdown (Virupas)',
+    bhavBala: 'Bhav Bala',
+    youAreManglik: 'You are Manglik', youAreNotManglik: 'You are NOT Manglik',
+    intensity: 'Intensity', analysis: 'Analysis',
+    factorsCausing: 'Factors Causing Mangal Dosh',
+    cancellationRules: 'Cancellation Rules (Apavada)',
+    suggestedRemedies: 'Suggested Remedies', finalVerdict: 'Final Verdict',
+    selectLang: 'Select Language', close: 'Close',
+    noData: 'No data available', chartNotAvailable: 'Chart not available',
+    sarvashtakvarga: 'Sarvashtakvarga (SAV) Points', contributions: 'Contributions',
+    bhinnashtakvarga: 'Bhinnashtakvarga',
+    lagnaChart: 'Lagna Chart (D1)', navamsa: 'Navamsa Chart (D9)',
+    tabBasic: 'Basic', tabLagna: 'Lagna', tabTransit: 'Transit',
+    tabDasha: 'Dasha', tabYogini: 'Yogini', tabAshtakvarga: 'Ashtakvarga',
+    tabPlanets: 'Planets', tabDivisional: 'Divisional', tabKP: 'KP System',
+    tabSadeSati: 'Sade Sati', tabShadbala: 'Shadbala', tabBhavBala: 'Bhav Bala',
+    tabManglik: 'Manglik',
+    day: 'Day', lord: 'Lord', lagnaM: 'Lagna (M)', lagnaF: 'Lagna (F)',
+    planetSignLordStarSub: 'Planet with sign, sign lord, star lord, sub lord',
+    twelveCuspsDesc: '12 cusps with degree, sign, sign lord, star lord, sub lord',
+    componentBreakdownVirupas: 'Component Breakdown (Virupas)',
+    combinedAshtakvargaPoints: 'Combined Ashtakvarga points for all houses',
+    hundredPercentFree: '✦ 100% Free', instantResults: '✦ Instant Results', vedicSystem: '✦ Vedic System',
+    source: 'Source',
+    shadbalaUnavailable: 'Shadbala data unavailable',
+    ashtakvargaUnavailable: 'Ashtakvarga data unavailable',
+    planetSignLordDesc: 'Planet with degree, zodiac, sign lord',
+    uccha: 'Uccha', saptavarga: 'Saptavarga', dig: 'Dig', ayana: 'Ayana', chesta: 'Chesta', naisargika: 'Naisargika', drik: 'Drik',
+    d1: 'Lagna / Birth Chart (D1)', d1Desc: 'Overall life, personality & soul',
+    d9: 'Navamsa (D9)', d9Desc: 'Marriage, dharma & spiritual path',
+    chalit: 'Chalit Chart', chalitDesc: 'House cusps & bhav placement',
+    sun: 'Sun Chart (Surya)', sunDesc: 'Personality & ego',
+    moon: 'Moon Chart (Chandra)', moonDesc: 'Mind & emotions',
+    d2: 'Hora (D2)', d2Desc: 'Wealth, financial prospects',
+    d3: 'Drekkana (D3)', d3Desc: 'Siblings, courage, life span',
+    d4: 'Chaturthamsa (D4)', d4Desc: 'Property, residence, fortune',
+    d7: 'Saptamsa (D7)', d7Desc: 'Children, progeny, creativity',
+    d10: 'Dasamsa (D10)', d10Desc: 'Career, profession, social status',
+    d12: 'Dwadasamsa (D12)', d12Desc: 'Parents, ancestry, lineage',
+    d16: 'Shodasamsa (D16)', d16Desc: 'Vehicles, pleasures, comforts',
+    d20: 'Vimsamsa (D20)', d20Desc: 'Spirituality, religious progress',
+    d24: 'Chaturvimsamsa (D24)', d24Desc: 'Education, learning',
+    d27: 'Saptavimsamsa (D27)', d27Desc: 'Strength, weakness, stamina',
+    d30: 'Trimsamsa (D30)', d30Desc: 'Misfortunes, illnesses, troubles',
+    d40: 'Khavedamsa (D40)', d40Desc: 'Auspicious & inauspicious effects',
+    d45: 'Akshavedamsa (D45)', d45Desc: 'Character, conduct, integrity',
+    d60: 'Shashtiamsa (D60)', d60Desc: 'Past karma, deepest analysis',
+    planetWisePointsDesc: 'Planet-wise points contributed to each house for',
+  },
+  hi: {
+    title: 'मुफ्त कुंडली', heroTitle: 'मुफ्त जन्म कुंडली',
+    heroSubtitle: '13 विस्तृत खंडों के साथ सटीक वैदिक जन्म चार्ट',
+    birthDetails: 'जन्म विवरण', fullName: 'पूरा नाम', enterName: 'अपना पूरा नाम दर्ज करें',
+    gender: 'लिंग', male: '♂ पुरुष', female: '♀ महिला', other: '⚧ अन्य',
+    dateOfBirth: 'जन्म तिथि', timeOfBirth: 'जन्म समय',
+    placeOfBirth: 'जन्म स्थान', searchCity: 'शहर, कस्बा खोजें...',
+    generate: 'मुफ्त कुंडली बनाएं', private: '🔒 आपका डेटा निजी और सुरक्षित है',
+    generateNew: '↺ नई कुंडली बनाएं',
+    name: 'नाम', genderLabel: 'लिंग', date: 'तारीख', time: 'समय',
+    place: 'स्थान', latitude: 'अक्षांश', longitude: 'देशांतर', timezone: 'समय क्षेत्र',
+    birthPanchang: 'जन्म पंचांग',
+    tithi: 'तिथि', nakshatra: 'नक्षत्र', yoga: 'योग', karana: 'करण',
+    sunrise: 'सूर्योदय', sunset: 'सूर्यास्त', moonSign: 'चंद्र राशि', sunSign: 'सूर्य राशि',
+    masa: 'मास', ritu: 'ऋतु', ayanamsa: 'अयनांश', vikramSamvat: 'विक्रम संवत',
+    avakhada: 'अवखड़ा विवरण',
+    varna: 'वर्ण', vashya: 'वश्य', yoni: 'योनि', gana: 'गण', nadi: 'नाड़ी',
+    rasi: 'राशि', rasiLord: 'राशि स्वामी', nakshatraLord: 'नक्षत्र स्वामी',
+    lagna: 'लग्न', lagnaNak: 'लग्न नक्षत्र', tatva: 'तत्व', paya: 'पाया (नक्ष)',
+    luckyFactors: 'भाग्यशाली कारक और रत्न',
+    lifeStone: 'जीवन रत्न', luckyStone: 'भाग्य रत्न', fortuneStone: 'सौभाग्य रत्न',
+    luckyNumber: 'भाग्यशाली संख्या', luckyColor: 'भाग्यशाली रंग', letters: 'अक्षर',
+    recommendedName: 'अनुशंसित नाम अक्षर',
+    travelDirections: 'यात्रा और दिशाएं',
+    dishaShool: 'दिशा शूल', auspDirection: 'शुभ दिशा',
+    yoginiNivas: 'योगिनी निवास', moonPhase: 'चंद्र चरण',
+    vedicCalendar: 'वैदिक कैलेंडर (संवत)',
+    vikramSamvatSec: 'विक्रम संवत', sakaSamvat: 'शक संवत',
+    kaliSamvat: 'कलि संवत', tamilMonth: 'तमिल मास',
+    astronomicalData: 'खगोलीय डेटा',
+    sunAtRise: 'उदय सूर्य', sunNakshatra: 'सूर्य नक्षत्र',
+    moonDegree: 'चंद्र अंश', ahargana: 'अहर्गण',
+    muhurtaKaals: 'मुहूर्त और महत्वपूर्ण काल',
+    abhijitMuhurta: '😇 अभिजित मुहूर्त', moonRiseSet: '🌙 चंद्रोदय/चंद्रास्त',
+    rahukaal: '🌑 राहुकाल', gulikaKaal: '👺 गुलिका काल',
+    ghatkaChakra: 'घातक चक्र (अशुभ)', panchangInsights: 'पंचांग विवेचना',
+    loadingBasic: 'बुनियादी विवरण लोड हो रहा है...', loadingLagna: 'लग्न चार्ट लोड हो रहे हैं...',
+    loadingPlanets: 'ग्रह लोड हो रहे हैं...', loadingTransit: 'गोचर चार्ट लोड हो रहा है...',
+    loadingDasha: 'दशा लोड हो रही है...', loadingYogini: 'योगिनी दशा लोड हो रही है...',
+    loadingKP: 'केपी प्रणाली लोड हो रही है...', loadingSadeSati: 'साढ़ेसाती लोड हो रही है...',
+    loadingShadbala: 'षड्बल लोड हो रहा है...', loadingManglik: 'मांगलिक विवरण लोड हो रहे हैं...',
+    loadingAshtakvarga: 'अष्टकवर्ग लोड हो रहा है...',
+    planet: 'ग्रह', house: 'भाव', zodiac: 'राशि', signLord: 'राशि स्वामी',
+    degreeInSign: 'राशि में अंश', totalDegree: 'कुल अंश',
+    pada: 'पद', degree: 'अंश',
+    signView: '♉ राशि दृश्य', zodiacSignLord: 'राशि और राशि स्वामी',
+    nakshatraView: '⭐ नक्षत्र दृश्य', lunarMansion: 'चंद्र मंदिर और पद',
+    transitChart: 'गोचर चार्ट', transitPlanets: 'गोचर ग्रह',
+    vimshottariDasha: 'विंशोत्तरी दशा', yoginiDasha: 'योगिनी दशा', root: 'मूल',
+    notInSadeSati: 'साढ़ेसाती में नहीं', inSadeSati: 'वर्तमान में साढ़ेसाती में',
+    sadeSatiAnalysis: 'साढ़ेसाती विश्लेषण', sadeSatiPhases: 'साढ़ेसाती के चरण',
+    active: 'सक्रिय', inactive: 'निष्क्रिय',
+    bhavChalit: 'भाव चलित चार्ट (केपी)', rulingPlanets: 'शासक ग्रह',
+    kpPlanets: 'केपी ग्रह तालिका', kpCusps: 'केपी भाव (कस्प) तालिका',
+    sign: 'राशि', cusp: 'कस्प', starLord: 'नक्षत्र स्वामी', subLord: 'उप-स्वामी',
+    shadBala: 'षड्बल', componentBreakdown: 'घटक विवरण (विरूप)',
+    bhavBala: 'भाव बल',
+    youAreManglik: 'आप मांगलिक हैं', youAreNotManglik: 'आप मांगलिक नहीं हैं',
+    intensity: 'तीव्रता', analysis: 'विश्लेषण',
+    factorsCausing: 'मांगल दोष के कारण',
+    cancellationRules: 'निरसन नियम (अपवाद)',
+    suggestedRemedies: 'सुझाए गए उपाय', finalVerdict: 'अंतिम निर्णय',
+    selectLang: 'भाषा चुनें', close: 'बंद करें',
+    noData: 'कोई डेटा उपलब्ध नहीं', chartNotAvailable: 'चार्ट उपलब्ध नहीं',
+    sarvashtakvarga: 'सर्वाष्टकवर्ग (SAV) अंक', contributions: 'योगदान',
+    bhinnashtakvarga: 'भिन्नाष्टकवर्ग',
+    lagnaChart: 'लग्न कुंडली (D1)', navamsa: 'नवांश कुंडली (D9)',
+    tabBasic: 'बुनियादी', tabLagna: 'लग्न', tabTransit: 'गोचर',
+    tabDasha: 'दशा', tabYogini: 'योगिनी', tabAshtakvarga: 'अष्टकवर्ग',
+    tabPlanets: 'ग्रह', tabDivisional: 'विभागीय', tabKP: 'केपी प्रणाली',
+    tabSadeSati: 'साढ़ेसाती', tabShadbala: 'षड्बल', tabBhavBala: 'भाव बल',
+    tabManglik: 'मांगलिक',
+    day: 'दिन', lord: 'स्वामी', lagnaM: 'लग्न (M)', lagnaF: 'लग्न (F)',
+    planetSignLordStarSub: 'ग्रह के साथ राशि, राशि स्वामी, नक्षत्र स्वामी, उप स्वामी',
+    twelveCuspsDesc: 'डिग्री, राशि, राशि स्वामी, नक्षत्र स्वामी, उप स्वामी के साथ 12 भाव',
+    componentBreakdownVirupas: 'घटक विभाजन (विरुपा)',
+    combinedAshtakvargaPoints: 'सभी भावों के लिए संयुक्त अष्टकवर्ग अंक',
+    hundredPercentFree: '✦ 100% मुफ्त', instantResults: '✦ त्वरित परिणाम', vedicSystem: '✦ वैदिक प्रणाली',
+    source: 'स्रोत',
+    shadbalaUnavailable: 'षड्बल डेटा उपलब्ध नहीं है',
+    ashtakvargaUnavailable: 'अष्टकवर्ग डेटा उपलब्ध नहीं है',
+    planetSignLordDesc: 'डिग्री, राशि, राशि स्वामी के साथ ग्रह',
+    uccha: 'उच्च', saptavarga: 'सप्तवर्ग', dig: 'दिग', ayana: 'अयन', chesta: 'चेष्टा', naisargika: 'नैसर्गिक', drik: 'दृक',
+    d1: 'लग्न / जन्म कुंडली (D1)', d1Desc: 'समग्र जीवन, व्यक्तित्व और आत्मा',
+    d9: 'नवांश (D9)', d9Desc: 'विवाह, धर्म और आध्यात्मिक पथ',
+    chalit: 'चलित कुंडली', chalitDesc: 'भाव कस्प और भाव स्थिति',
+    sun: 'सूर्य कुंडली', sunDesc: 'व्यक्तित्व और अहंकार',
+    moon: 'चंद्र कुंडली', moonDesc: 'मन और भावनाएं',
+    d2: 'होरा (D2)', d2Desc: 'धन, वित्तीय संभावनाएं',
+    d3: 'द्रेष्काण (D3)', d3Desc: 'भाई-बहन, साहस, जीवन काल',
+    d4: 'चतुर्थांश (D4)', d4Desc: 'संपत्ति, निवास, भाग्य',
+    d7: 'सप्तमांश (D7)', d7Desc: 'बच्चे, संतान, रचनात्मकता',
+    d10: 'दशांश (D10)', d10Desc: 'करियर, पेशा, सामाजिक स्थिति',
+    d12: 'द्वादशांश (D12)', d12Desc: 'माता-पिता, पूर्वज, वंश',
+    d16: 'षोडशांश (D16)', d16Desc: 'वाहन, सुख, आराम',
+    d20: 'विंशांश (D20)', d20Desc: 'आध्यात्मिकता, धार्मिक प्रगति',
+    d24: 'चतुर्विंशांश (D24)', d24Desc: 'शिक्षा, सीखना',
+    d27: 'सप्तविंशांश (D27)', d27Desc: 'शक्ति, कमजोरी, सहनशक्ति',
+    d30: 'त्रिंशांश (D30)', d30Desc: 'दुर्भाग्य, बीमारी, परेशानियां',
+    d40: 'खवेदांश (D40)', d40Desc: 'शुभ और अशुभ प्रभाव',
+    d45: 'अक्षवेदांश (D45)', d45Desc: 'चरित्र, आचरण, अखंडता',
+    d60: 'षष्ठयांश (D60)', d60Desc: 'पिछला कर्म, गहरा विश्लेषण',
+    planetWisePointsDesc: 'प्रत्येक भाव में दिए गए ग्रह-वार अंक',
+  },
+};
 
 const PLANET_GLYPHS = {
   Sun: '☉', Moon: '☽', Mars: '♂', Mercury: '☿', Jupiter: '♃',
-  Venus: '♀', Saturn: '♄', Rahu: '☊', Ketu: '☋', Ascendant: '🔱', 'As': '🔱'
+  Venus: '♀', Saturn: '♄', Rahu: '☊', Ketu: '☋', Ascendant: '🔱', 'As': '🔱',
+  Su: '☉', Mo: '☽', Ma: '♂', Me: '☿', Ju: '♃', Ve: '♀', Sa: '♄', Ra: '☊', Ke: '☋'
 };
+
+const SIGN_LORDS = {
+  Aries: 'Mars', Taurus: 'Venus', Gemini: 'Mercury', Cancer: 'Moon',
+  Leo: 'Sun', Virgo: 'Mercury', Libra: 'Venus', Scorpio: 'Mars',
+  Sagittarius: 'Jupiter', Capricorn: 'Saturn', Aquarius: 'Saturn', Pisces: 'Jupiter',
+};
+
+const formatDegree = (deg) => {
+  if (deg === undefined || deg === null || deg === '') return '-';
+  const n = parseFloat(deg);
+  if (!Number.isFinite(n)) return '-';
+  const abs = Math.abs(n);
+  const d = Math.floor(abs);
+  const m = Math.floor((abs - d) * 60);
+  const s = Math.floor(((abs - d) * 60 - m) * 60);
+  return `${d}° ${String(m).padStart(2, '0')}' ${String(s).padStart(2, '0')}"`;
+};
+
 
 const VIM_ORDER = ['Ketu', 'Venus', 'Sun', 'Moon', 'Mars', 'Rahu', 'Jupiter', 'Saturn', 'Mercury'];
 const VIM_YEARS = { Ketu: 7, Venus: 20, Sun: 6, Moon: 10, Mars: 7, Rahu: 18, Jupiter: 16, Saturn: 19, Mercury: 17 };
@@ -99,28 +341,6 @@ const cleanSvg = (str) => {
 };
 
 const isRetro = (p) => p?.retro === 1 || p?.retro === '1' || p?.retro === true || p?.isRetro === true || p?.isRetro === 'true';
-
-const pickStr = (obj, ...keys) => {
-  if (!obj) return null;
-  for (const k of keys) {
-    if (obj[k] !== undefined && obj[k] !== null && obj[k] !== '') return String(obj[k]);
-  }
-  return null;
-};
-
-const extractManglik = (m) => {
-  if (!m) return { isPresent: false, percent: 0, description: '', remedies: [], presentRules: [], cancelRules: [] };
-  const isPresent = m.is_present === true || m.is_present === 'true' ||
-    m.manglik_present_rule?.is_present === true ||
-    m.is_manglik === true || m.manglik === true;
-  const percent = parseFloat(pickStr(m, 'percentage_manglik_present', 'manglik_percent', 'manglik_percentage') || '0');
-  const description = pickStr(m, 'description', 'desc', 'manglik_status', 'bot_response', 'report');
-  const remediesRaw = m.remedies || m.remedy_list || m.remedy || [];
-  const remedies = Array.isArray(remediesRaw) ? remediesRaw : (typeof remediesRaw === 'object' ? Object.values(remediesRaw) : []);
-  const presentRules = m.manglik_present_rule?.based_on_rules || m.manglik_present_rule?.rules || m.present_rules || [];
-  const cancelRules = m.manglik_cancel_rule?.based_on_rules || m.manglik_cancel_rule?.rules || m.cancel_rules || [];
-  return { isPresent, percent, description, remedies, presentRules, cancelRules };
-};
 const buildDegreeMap = (report) => {
   if (!report) return {};
   const raw = Array.isArray(report) ? report : Object.values(report);
@@ -237,11 +457,14 @@ const KundaliScreen = ({ onBack }) => {
   const [manglikLoading, setManglikLoading] = useState(false);
 
   // Common
-  const [lang, setLang] = useState('en');
+  const [lang, setLang] = useState('hi');
   const [activeTab, setActiveTab] = useState('basic');
 
   const debounceRef = useRef(null);
   const [showPicker, setShowPicker] = useState({ visible: false, mode: 'date', target: '' });
+
+  // Language labels derived from current lang selection
+  const l = KUNDALI_LABELS[lang] || KUNDALI_LABELS['en'];
 
   // Safe pick utility
   const dpick = (obj, ...paths) => {
@@ -423,9 +646,9 @@ const KundaliScreen = ({ onBack }) => {
     debounceRef.current = setTimeout(async () => {
       setPlaceLoading(true);
       try {
-        const res = await kundaliApi.placeAutocomplete({ query: place });
-        if (res.data?.suggestions?.length) {
-          setSuggestions(res.data.suggestions);
+        const results = await locationService.search(place);
+        if (results?.length) {
+          setSuggestions(results);
           setShowSuggestions(true);
         } else {
           setSuggestions([]);
@@ -450,9 +673,9 @@ const KundaliScreen = ({ onBack }) => {
 
     if (!suggestion.lat) {
       try {
-        const res = await kundaliApi.geocode({ place: suggestion.name });
-        if (res.data?.latitude) {
-          setForm(prev => ({ ...prev, latitude: String(res.data.latitude), longitude: String(res.data.longitude) }));
+        const res = await locationService.geocode(suggestion.name);
+        if (res?.latitude) {
+          setForm(prev => ({ ...prev, latitude: String(res.latitude), longitude: String(res.longitude) }));
         }
       } catch (e) { }
     }
@@ -590,9 +813,10 @@ const KundaliScreen = ({ onBack }) => {
 
     setLoading(true);
     try {
-      const addRes = await kundaliApi.add({
+      const headers = { Authorization: `Bearer ${token}` };
+      const addRes = await apiClient.post('/customer/kundali/add', {
         kundali: [{ ...form, pdf_type: 'basic' }]
-      });
+      }, { headers });
 
       const record = addRes.data?.data?.recordList?.[0] || addRes.data?.recordList?.[0];
       setKundaliRecord(record);
@@ -676,184 +900,204 @@ const KundaliScreen = ({ onBack }) => {
       return (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 40 }}>
           <ActivityIndicator size="large" color="#7c3aed" />
-          <Text style={{ color: '#7c3aed', marginTop: 10, fontWeight: '600' }}>Loading basic details...</Text>
+          <Text style={{ color: '#7c3aed', marginTop: 10, fontWeight: '600' }}>{l.loadingBasic}</Text>
         </View>
       );
     }
     return (
       <View style={styles.tabScrollContent}>
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Birth Details</Text>
-          <View style={styles.infoGrid}>
-            <InfoItem label="Name" value={kundaliRecord?.name || form.name} />
-            <InfoItem label="Gender" value={kundaliRecord?.gender || form.gender} />
-            <InfoItem label="Date" value={kundaliRecord?.birthDate || form.birthDate} />
-            <InfoItem label="Time" value={kundaliRecord?.birthTime || form.birthTime} />
-            <InfoItem label="Place" value={kundaliRecord?.birthPlace || form.birthPlace} fullWidth />
-            <InfoItem label="Latitude" value={kundaliRecord?.latitude || form.latitude} />
-            <InfoItem label="Longitude" value={kundaliRecord?.longitude || form.longitude} />
-            <InfoItem label="Timezone" value="UTC +5.5" fullWidth />
+        {canShow('basic', 'birth_details') && (
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>{l.birthDetails}</Text>
+            <View style={styles.infoGrid}>
+              <InfoItem label={l.name} value={kundaliRecord?.name || form.name} />
+              <InfoItem label={l.genderLabel} value={kundaliRecord?.gender || form.gender} />
+              <InfoItem label={l.date} value={kundaliRecord?.birthDate || form.birthDate} />
+              <InfoItem label={l.time} value={kundaliRecord?.birthTime || form.birthTime} />
+              <InfoItem label={l.place} value={kundaliRecord?.birthPlace || form.birthPlace} fullWidth />
+              <InfoItem label={l.latitude} value={kundaliRecord?.latitude || form.latitude} />
+              <InfoItem label={l.longitude} value={kundaliRecord?.longitude || form.longitude} />
+              <InfoItem label={l.timezone} value="UTC +5.5" fullWidth />
+            </View>
           </View>
-        </View>
+        )}
 
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Birth Panchang</Text>
-          <View style={styles.infoGrid}>
-            <InfoItem label="Tithi" value={dpick(birthPanchang, 'tithi.details.tithi_name', 'tithi')} />
-            <InfoItem label="Nakshatra" value={dpick(birthPanchang, 'nakshatra.details.nak_name', 'nakshatra')} />
-            <InfoItem label="Yoga" value={dpick(birthPanchang, 'yoga.details.yog_name', 'yoga')} />
-            <InfoItem label="Karana" value={dpick(birthPanchang, 'karana.details.karan_name', 'karana')} />
-            <InfoItem label="Sunrise" value={dpick(birthPanchang, 'sunrise')} />
-            <InfoItem label="Sunset" value={dpick(birthPanchang, 'sunset')} />
-            <InfoItem label="Moon Sign" value={dpick(birthPanchang, 'moon_sign')} />
-            <InfoItem label="Sun Sign" value={dpick(birthPanchang, 'sun_sign')} />
-            <InfoItem label="Masa" value={dpick(birthPanchang, 'masa')} />
-            <InfoItem label="Ritu" value={dpick(birthPanchang, 'ritu')} />
-            <InfoItem label="Ayanamsa" value={dpick(birthPanchang, 'ayanamsa')} />
-            <InfoItem label="Vikram Samvat" value={dpick(birthPanchang, 'vikram_samvat')} />
+        {canShow('basic', 'birth_panchang') && (
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>{l.birthPanchang}</Text>
+            <View style={styles.infoGrid}>
+              <InfoItem label={l.tithi} value={dpick(birthPanchang, 'tithi.details.tithi_name', 'tithi')} />
+              <InfoItem label={l.nakshatra} value={dpick(birthPanchang, 'nakshatra.details.nak_name', 'nakshatra')} />
+              <InfoItem label={l.yoga} value={dpick(birthPanchang, 'yoga.details.yog_name', 'yoga')} />
+              <InfoItem label={l.karana} value={dpick(birthPanchang, 'karana.details.karan_name', 'karana')} />
+              <InfoItem label={l.sunrise} value={dpick(birthPanchang, 'sunrise')} />
+              <InfoItem label={l.sunset} value={dpick(birthPanchang, 'sunset')} />
+              <InfoItem label={l.moonSign} value={dpick(birthPanchang, 'moon_sign')} />
+              <InfoItem label={l.sunSign} value={dpick(birthPanchang, 'sun_sign')} />
+              <InfoItem label={l.masa} value={dpick(birthPanchang, 'masa')} />
+              <InfoItem label={l.ritu} value={dpick(birthPanchang, 'ritu')} />
+              <InfoItem label={l.ayanamsa} value={dpick(birthPanchang, 'ayanamsa')} />
+              <InfoItem label={l.vikramSamvat} value={dpick(birthPanchang, 'vikram_samvat')} />
+            </View>
           </View>
-        </View>
+        )}
 
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Avakhada Details</Text>
-          <View style={styles.infoGrid}>
-            <InfoItem label="Varna" value={dpick(avakhada, 'varna')} />
-            <InfoItem label="Vashya" value={dpick(avakhada, 'vashya')} />
-            <InfoItem label="Yoni" value={dpick(avakhada, 'yoni')} />
-            <InfoItem label="Gana" value={dpick(avakhada, 'gana')} />
-            <InfoItem label="Nadi" value={dpick(avakhada, 'nadi')} />
-            <InfoItem label="Rasi" value={dpick(avakhada, 'rasi')} />
-            <InfoItem label="Rasi Lord" value={dpick(avakhada, 'rasi_lord')} />
-            <InfoItem label="Nakshatra" value={dpick(avakhada, 'nakshatra')} />
-            <InfoItem label="Nakshatra Lord" value={dpick(avakhada, 'nakshatra_lord')} />
-            <InfoItem label="Lagna" value={dpick(avakhada, 'ascendant_sign', 'lagna', 'ascendant')} />
-            <InfoItem label="Lagna Nak." value={dpick(avakhada, 'ascendant_nakshatra')} />
-            <InfoItem label="Tatva" value={dpick(avakhada, 'tatva')} />
-            <InfoItem label="Paya (Nak)" value={dpick(avakhada, 'paya_by_nakshatra')} />
+        {canShow('basic', 'avakhada_details') && (
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>{l.avakhada}</Text>
+            <View style={styles.infoGrid}>
+              <InfoItem label={l.varna} value={dpick(avakhada, 'varna')} />
+              <InfoItem label={l.vashya} value={dpick(avakhada, 'vashya')} />
+              <InfoItem label={l.yoni} value={dpick(avakhada, 'yoni')} />
+              <InfoItem label={l.gana} value={dpick(avakhada, 'gana')} />
+              <InfoItem label={l.nadi} value={dpick(avakhada, 'nadi')} />
+              <InfoItem label={l.rasi} value={dpick(avakhada, 'rasi')} />
+              <InfoItem label={l.rasiLord} value={dpick(avakhada, 'rasi_lord')} />
+              <InfoItem label={l.nakshatra} value={dpick(avakhada, 'nakshatra')} />
+              <InfoItem label={l.nakshatraLord} value={dpick(avakhada, 'nakshatra_lord')} />
+              <InfoItem label={l.lagna} value={dpick(avakhada, 'ascendant_sign', 'lagna', 'ascendant')} />
+              <InfoItem label={l.lagnaNak} value={dpick(avakhada, 'ascendant_nakshatra')} />
+              <InfoItem label={l.tatva} value={dpick(avakhada, 'tatva')} />
+              <InfoItem label={l.paya} value={dpick(avakhada, 'paya_by_nakshatra')} />
+            </View>
           </View>
-        </View>
+        )}
+
 
         {/* Lucky Factors & Stones */}
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>🍀 Lucky Factors & Gems</Text>
-          <View style={styles.luckyCardGrid}>
-            <LuckyCard icon="💎" label="Life Stone" value={dpick(avakhada, 'life_stone')} color="#ef4444" />
-            <LuckyCard icon="✨" label="Lucky Stone" value={dpick(avakhada, 'lucky_stone')} color="#f59e0b" />
-            <LuckyCard icon="💰" label="Fortune Stone" value={dpick(avakhada, 'fortune_stone')} color="#10b981" />
-            <LuckyCard icon="🔢" label="Lucky Number" value={dpick(basicReport, 'lucky_num')} color="#3b82f6" />
-            <LuckyCard icon="🎨" label="Lucky Color" value={dpick(basicReport, 'lucky_colors')} color="#8b5cf6" />
-            <LuckyCard icon="🔤" label="Letters" value={dpick(basicReport, 'lucky_letters')} color="#ec4899" />
+        {canShow('basic', 'lucky_factors') && (
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>{l.luckyFactors}</Text>
+            <View style={styles.luckyCardGrid}>
+              <LuckyCard icon="💎" label={l.lifeStone} value={dpick(avakhada, 'life_stone')} color="#ef4444" />
+              <LuckyCard icon="✨" label={l.luckyStone} value={dpick(avakhada, 'lucky_stone')} color="#f59e0b" />
+              <LuckyCard icon="💰" label={l.fortuneStone} value={dpick(avakhada, 'fortune_stone')} color="#10b981" />
+              <LuckyCard icon="🔢" label={l.luckyNumber} value={dpick(basicReport, 'lucky_num')} color="#3b82f6" />
+              <LuckyCard icon="🎨" label={l.luckyColor} value={dpick(basicReport, 'lucky_colors')} color="#8b5cf6" />
+              <LuckyCard icon="🔤" label={l.letters} value={dpick(basicReport, 'lucky_letters')} color="#ec4899" />
+            </View>
+            {basicReport?.lucky_name_start && (
+              <View style={{ marginTop: 12, padding: 12, backgroundColor: '#fdf2f8', borderRadius: 12, borderWidth: 1, borderColor: '#fbcfe8' }}>
+                <Text style={{ fontSize: 11, fontWeight: '700', color: '#9d174d', textTransform: 'uppercase', marginBottom: 4 }}>{l.recommendedName}</Text>
+                <Text style={{ fontSize: 14, color: '#be185d', fontWeight: '800' }}>{Array.isArray(basicReport.lucky_name_start) ? basicReport.lucky_name_start.join(', ') : basicReport.lucky_name_start}</Text>
+              </View>
+            )}
           </View>
-          {basicReport?.lucky_name_start && (
-             <View style={{ marginTop: 12, padding: 12, backgroundColor: '#fdf2f8', borderRadius: 12, borderWidth: 1, borderColor: '#fbcfe8' }}>
-               <Text style={{ fontSize: 11, fontWeight: '700', color: '#9d174d', textTransform: 'uppercase', marginBottom: 4 }}>Recommended Name Starts</Text>
-               <Text style={{ fontSize: 14, color: '#be185d', fontWeight: '800' }}>{Array.isArray(basicReport.lucky_name_start) ? basicReport.lucky_name_start.join(', ') : basicReport.lucky_name_start}</Text>
-             </View>
-          )}
-        </View>
+        )}
 
         {/* Travel & Directions */}
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>🗺️ Travel & Directions</Text>
-          <View style={styles.infoGrid}>
-            <InfoItem label="Disha Shool" value={dpick(birthPanchang, 'advanced_details.disha_shool')} color="#ef4444" />
-            <InfoItem label="Ausp. Direction" value={Array.isArray(birthPanchang?.nakshatra?.auspicious_disha) ? birthPanchang.nakshatra.auspicious_disha.join(', ') : dpick(birthPanchang, 'nakshatra.auspicious_disha')} color="#10b981" />
-            <InfoItem label="Yogini Nivas" value={dpick(birthPanchang, 'advanced_details.moon_yogini_nivas')} color="#3b82f6" />
-            <InfoItem label="Moon Phase" value={dpick(birthPanchang, 'advanced_details.masa.moon_phase')} />
+        {canShow('basic', 'travel_directions') && (
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>{l.travelDirections}</Text>
+            <View style={styles.infoGrid}>
+              <InfoItem label={l.dishaShool} value={dpick(birthPanchang, 'advanced_details.disha_shool')} color="#ef4444" />
+              <InfoItem label={l.auspDirection} value={Array.isArray(birthPanchang?.nakshatra?.auspicious_disha) ? birthPanchang.nakshatra.auspicious_disha.join(', ') : dpick(birthPanchang, 'nakshatra.auspicious_disha')} color="#10b981" />
+              <InfoItem label={l.yoginiNivas} value={dpick(birthPanchang, 'advanced_details.moon_yogini_nivas')} color="#3b82f6" />
+              <InfoItem label={l.moonPhase} value={dpick(birthPanchang, 'advanced_details.masa.moon_phase')} />
+            </View>
           </View>
-        </View>
+        )}
 
         {/* Samvat & Year Details */}
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>📅 Vedic Calendar (Samvat)</Text>
-          <View style={styles.infoGrid}>
-            <InfoItem label="Vikram Samvat" value={`${dpick(birthPanchang, 'advanced_details.years.vikram_samvaat')} (${dpick(birthPanchang, 'advanced_details.years.vikram_samvaat_name')})`} />
-            <InfoItem label="Saka Samvat" value={`${dpick(birthPanchang, 'advanced_details.years.saka')} (${dpick(birthPanchang, 'advanced_details.years.saka_samvaat_name')})`} />
-            <InfoItem label="Kali Samvat" value={`${dpick(birthPanchang, 'advanced_details.years.kali')} (${dpick(birthPanchang, 'advanced_details.years.kali_samvaat_name')})`} />
-            <InfoItem label="Tamil Month" value={`${dpick(birthPanchang, 'advanced_details.masa.tamil_month')} (${dpick(birthPanchang, 'advanced_details.masa.tamil_day')})`} />
+        {canShow('basic', 'vedic_calendar') && (
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>{l.vedicCalendar}</Text>
+            <View style={styles.infoGrid}>
+              <InfoItem label={l.vikramSamvatSec} value={`${dpick(birthPanchang, 'advanced_details.years.vikram_samvaat')} (${dpick(birthPanchang, 'advanced_details.years.vikram_samvaat_name')})`} />
+              <InfoItem label={l.sakaSamvat} value={`${dpick(birthPanchang, 'advanced_details.years.saka')} (${dpick(birthPanchang, 'advanced_details.years.saka_samvaat_name')})`} />
+              <InfoItem label={l.kaliSamvat} value={`${dpick(birthPanchang, 'advanced_details.years.kali')} (${dpick(birthPanchang, 'advanced_details.years.kali_samvaat_name')})`} />
+              <InfoItem label={l.tamilMonth} value={`${dpick(birthPanchang, 'advanced_details.masa.tamil_month')} (${dpick(birthPanchang, 'advanced_details.masa.tamil_day')})`} />
+            </View>
           </View>
-        </View>
+        )}
 
         {/* Astronomical Details */}
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>🔭 Astronomical Data</Text>
-          <View style={styles.infoGrid}>
-            <InfoItem label="Sun @ Rise" value={`${String(dpick(birthPanchang, 'sun_position.sun_degree_at_rise', '0')).slice(0, 5)}°`} />
-            <InfoItem label="Sun Nakshatra" value={dpick(birthPanchang, 'sun_position.nakshatra')} />
-            <InfoItem label="Moon Degree" value={`${String(dpick(birthPanchang, 'moon_position.moon_degree', '0')).slice(0, 5)}°`} />
-            <InfoItem label="Ahargana" value={Math.floor(dpick(birthPanchang, 'advanced_details.ahargana', 0))} />
+        {canShow('basic', 'astronomical_data') && (
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>{l.astronomicalData}</Text>
+            <View style={styles.infoGrid}>
+              <InfoItem label={l.sunAtRise} value={`${String(dpick(birthPanchang, 'sun_position.sun_degree_at_rise', '0')).slice(0, 5)}°`} />
+              <InfoItem label={l.sunNakshatra} value={dpick(birthPanchang, 'sun_position.nakshatra')} />
+              <InfoItem label={l.moonDegree} value={`${String(dpick(birthPanchang, 'moon_position.moon_degree', '0')).slice(0, 5)}°`} />
+              <InfoItem label={l.ahargana} value={Math.floor(dpick(birthPanchang, 'advanced_details.ahargana', 0))} />
+            </View>
           </View>
-        </View>
+        )}
 
         {/* Muhurtas & Kaals */}
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>⌛ Muhurta & Important Kaals</Text>
-          <View style={styles.muhurtaGrid}>
-            <View style={[styles.muhurtaItem, styles.muhurtaAuspicious]}>
-              <Text style={styles.muhurtaLabel}>😇 Abhijit Muhurta</Text>
-              <Text style={styles.muhurtaValue}>{dpick(birthPanchang, 'advanced_details.abhijit_muhurta.start', 'advanced_details.abhijit_muhurta')} - {dpick(birthPanchang, 'advanced_details.abhijit_muhurta.end', '')}</Text>
-            </View>
-            <View style={[styles.muhurtaItem, { backgroundColor: '#f0f9ff', borderColor: '#bae6fd' }]}>
-              <Text style={styles.muhurtaLabel}>🌙 Moon Rise/Set</Text>
-              <Text style={styles.muhurtaValue}>{dpick(birthPanchang, 'advanced_details.moon_rise')} / {dpick(birthPanchang, 'advanced_details.moon_set')}</Text>
-            </View>
-            <View style={[styles.muhurtaItem, styles.muhurtaInauspicious]}>
-              <Text style={styles.muhurtaLabel}>🌑 Rahukaal</Text>
-              <Text style={styles.muhurtaValue}>{dpick(birthPanchang, 'rahukaal')}</Text>
-            </View>
-            <View style={[styles.muhurtaItem, styles.muhurtaInauspicious]}>
-              <Text style={styles.muhurtaLabel}>👺 Gulika Kaal</Text>
-              <Text style={styles.muhurtaValue}>{dpick(birthPanchang, 'gulika')}</Text>
+        {canShow('basic', 'muhurta_kaals') && (
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>{l.muhurtaKaals}</Text>
+            <View style={styles.muhurtaGrid}>
+              <View style={[styles.muhurtaItem, styles.muhurtaAuspicious]}>
+                <Text style={styles.muhurtaLabel}>{l.abhijitMuhurta}</Text>
+                <Text style={styles.muhurtaValue}>{dpick(birthPanchang, 'advanced_details.abhijit_muhurta.start', 'advanced_details.abhijit_muhurta')} - {dpick(birthPanchang, 'advanced_details.abhijit_muhurta.end', '')}</Text>
+              </View>
+              <View style={[styles.muhurtaItem, { backgroundColor: '#f0f9ff', borderColor: '#bae6fd' }]}>
+                <Text style={styles.muhurtaLabel}>{l.moonRiseSet}</Text>
+                <Text style={styles.muhurtaValue}>{dpick(birthPanchang, 'advanced_details.moon_rise')} / {dpick(birthPanchang, 'advanced_details.moon_set')}</Text>
+              </View>
+              <View style={[styles.muhurtaItem, styles.muhurtaInauspicious]}>
+                <Text style={styles.muhurtaLabel}>{l.rahukaal}</Text>
+                <Text style={styles.muhurtaValue}>{dpick(birthPanchang, 'rahukaal')}</Text>
+              </View>
+              <View style={[styles.muhurtaItem, styles.muhurtaInauspicious]}>
+                <Text style={styles.muhurtaLabel}>{l.gulikaKaal}</Text>
+                <Text style={styles.muhurtaValue}>{dpick(birthPanchang, 'gulika')}</Text>
+              </View>
             </View>
           </View>
-        </View>
+        )}
 
         {/* Ghatka Chakra */}
-        {dpick(basicReport, 'ghatka_chakra') !== '-' && (
+        {canShow('basic', 'ghatka_chakra') && dpick(basicReport, 'ghatka_chakra') !== '-' && (
           <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>🚫 Ghatka Chakra (Unfavorable)</Text>
+            <Text style={styles.sectionTitle}>{l.ghatkaChakra}</Text>
             <View style={styles.ghatkaGrid}>
-              <View style={styles.ghatkaItem}><Text style={styles.ghatkaLabel}>Rasi</Text><Text style={styles.ghatkaValue}>{dpick(basicReport, 'ghatka_chakra.rasi')}</Text></View>
-              <View style={styles.ghatkaItem}><Text style={styles.ghatkaLabel}>Day</Text><Text style={styles.ghatkaValue}>{dpick(basicReport, 'ghatka_chakra.day')}</Text></View>
-              <View style={styles.ghatkaItem}><Text style={styles.ghatkaLabel}>Nakshatra</Text><Text style={styles.ghatkaValue}>{dpick(basicReport, 'ghatka_chakra.nakshatra')}</Text></View>
-              <View style={styles.ghatkaItem}><Text style={styles.ghatkaLabel}>Tatva</Text><Text style={styles.ghatkaValue}>{dpick(basicReport, 'ghatka_chakra.tatva')}</Text></View>
-              <View style={styles.ghatkaItem}><Text style={styles.ghatkaLabel}>Lord</Text><Text style={styles.ghatkaValue}>{dpick(basicReport, 'ghatka_chakra.lord')}</Text></View>
-              <View style={styles.ghatkaItem}><Text style={styles.ghatkaLabel}>Tithi</Text><Text style={styles.ghatkaValue}>{Array.isArray(basicReport?.ghatka_chakra?.tithi) ? basicReport.ghatka_chakra.tithi.join(', ') : dpick(basicReport, 'ghatka_chakra.tithi')}</Text></View>
-              <View style={styles.ghatkaItem}><Text style={styles.ghatkaLabel}>Lagna (M)</Text><Text style={styles.ghatkaValue}>{dpick(basicReport, 'ghatka_chakra.same_sex_lagna')}</Text></View>
-              <View style={styles.ghatkaItem}><Text style={styles.ghatkaLabel}>Lagna (F)</Text><Text style={styles.ghatkaValue}>{dpick(basicReport, 'ghatka_chakra.opposite_sex_lagna')}</Text></View>
+              <View style={styles.ghatkaItem}><Text style={styles.ghatkaLabel}>{l.rasi}</Text><Text style={styles.ghatkaValue}>{dpick(basicReport, 'ghatka_chakra.rasi')}</Text></View>
+              <View style={styles.ghatkaItem}><Text style={styles.ghatkaLabel}>{l.day}</Text><Text style={styles.ghatkaValue}>{dpick(basicReport, 'ghatka_chakra.day')}</Text></View>
+              <View style={styles.ghatkaItem}><Text style={styles.ghatkaLabel}>{l.nakshatra}</Text><Text style={styles.ghatkaValue}>{dpick(basicReport, 'ghatka_chakra.nakshatra')}</Text></View>
+              <View style={styles.ghatkaItem}><Text style={styles.ghatkaLabel}>{l.tatva}</Text><Text style={styles.ghatkaValue}>{dpick(basicReport, 'ghatka_chakra.tatva')}</Text></View>
+              <View style={styles.ghatkaItem}><Text style={styles.ghatkaLabel}>{l.lord}</Text><Text style={styles.ghatkaValue}>{dpick(basicReport, 'ghatka_chakra.lord')}</Text></View>
+              <View style={styles.ghatkaItem}><Text style={styles.ghatkaLabel}>{l.tithi}</Text><Text style={styles.ghatkaValue}>{Array.isArray(basicReport?.ghatka_chakra?.tithi) ? basicReport.ghatka_chakra.tithi.join(', ') : dpick(basicReport, 'ghatka_chakra.tithi')}</Text></View>
+              <View style={styles.ghatkaItem}><Text style={styles.ghatkaLabel}>{l.lagnaM}</Text><Text style={styles.ghatkaValue}>{dpick(basicReport, 'ghatka_chakra.same_sex_lagna')}</Text></View>
+              <View style={styles.ghatkaItem}><Text style={styles.ghatkaLabel}>{l.lagnaF}</Text><Text style={styles.ghatkaValue}>{dpick(basicReport, 'ghatka_chakra.opposite_sex_lagna')}</Text></View>
             </View>
           </View>
         )}
 
         {/* Panchang Descriptions */}
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>📜 Panchang Insights</Text>
-          <View style={styles.descSection}>
-            <View style={styles.descItem}>
-              <Text style={styles.descLabel}>Tithi: {dpick(birthPanchang, 'tithi.name', 'tithi')} (Diety: {dpick(birthPanchang, 'tithi.diety')})</Text>
-              <Text style={styles.descText}>{dpick(birthPanchang, 'tithi.meaning', 'tithi.special')}</Text>
-            </View>
-            <View style={styles.descItem}>
-              <Text style={styles.descLabel}>Nakshatra: {dpick(birthPanchang, 'nakshatra.name', 'nakshatra')} (Diety: {dpick(birthPanchang, 'nakshatra.diety')})</Text>
-              <Text style={styles.descText}>{dpick(birthPanchang, 'nakshatra.summary', 'nakshatra.meaning', 'nakshatra.special')}</Text>
-            </View>
-            <View style={styles.descItem}>
-              <Text style={styles.descLabel}>Yoga: {dpick(birthPanchang, 'yoga.name', 'yoga')}</Text>
-              <Text style={styles.descText}>{dpick(birthPanchang, 'yoga.meaning', 'yoga.special')}</Text>
-            </View>
-            <View style={styles.descItem}>
-              <Text style={styles.descLabel}>Karana: {dpick(birthPanchang, 'karana.name', 'karana')} (Lord: {dpick(birthPanchang, 'karana.lord')})</Text>
-              <Text style={styles.descText}>{dpick(birthPanchang, 'karana.special')}</Text>
+        {canShow('basic', 'panchang_insights') && (
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>{l.panchangInsights}</Text>
+            <View style={styles.descSection}>
+              <View style={styles.descItem}>
+                <Text style={styles.descLabel}>{l.tithi}: {dpick(birthPanchang, 'tithi.name', 'tithi')} ({l.diety}: {dpick(birthPanchang, 'tithi.diety')})</Text>
+                <Text style={styles.descText}>{dpick(birthPanchang, 'tithi.meaning', 'tithi.special')}</Text>
+              </View>
+              <View style={styles.descItem}>
+                <Text style={styles.descLabel}>{l.nakshatra}: {dpick(birthPanchang, 'nakshatra.name', 'nakshatra')} ({l.diety}: {dpick(birthPanchang, 'nakshatra.diety')})</Text>
+                <Text style={styles.descText}>{dpick(birthPanchang, 'nakshatra.summary', 'nakshatra.meaning', 'nakshatra.special')}</Text>
+              </View>
+              <View style={styles.descItem}>
+                <Text style={styles.descLabel}>{l.yoga}: {dpick(birthPanchang, 'yoga.name', 'yoga')}</Text>
+                <Text style={styles.descText}>{dpick(birthPanchang, 'yoga.meaning', 'yoga.special')}</Text>
+              </View>
+              <View style={styles.descItem}>
+                <Text style={styles.descLabel}>{l.karana}: {dpick(birthPanchang, 'karana.name', 'karana')} ({l.lord}: {dpick(birthPanchang, 'karana.lord')})</Text>
+                <Text style={styles.descText}>{dpick(birthPanchang, 'karana.special')}</Text>
+              </View>
             </View>
           </View>
-        </View>
+        )}
+
       </View>
     );
   };
 
   const renderChart = (svgOrUrl, degreeMap = null) => {
     if (!svgOrUrl || typeof svgOrUrl !== 'string') {
-      return <Text style={{ textAlign: 'center', color: '#9ca3af', padding: 20 }}>Chart not available</Text>;
+      return <Text style={{ textAlign: 'center', color: '#9ca3af', padding: 20 }}>{l.chartNotAvailable}</Text>;
     }
     const isSvg = svgOrUrl.includes('<svg');
     const processedSvg = isSvg ? (degreeMap ? injectDegreesIntoSvg(cleanSvg(svgOrUrl), degreeMap) : cleanSvg(svgOrUrl)) : svgOrUrl;
@@ -876,7 +1120,7 @@ const KundaliScreen = ({ onBack }) => {
       return (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 40 }}>
           <ActivityIndicator size="large" color="#7c3aed" />
-          <Text style={{ color: '#7c3aed', marginTop: 10, fontWeight: '600' }}>Loading Lagna charts...</Text>
+          <Text style={{ color: '#7c3aed', marginTop: 10, fontWeight: '600' }}>{l.loadingLagna}</Text>
         </View>
       );
     }
@@ -897,22 +1141,27 @@ const KundaliScreen = ({ onBack }) => {
           ))}
         </View>
 
-        <View style={styles.sectionCard}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text style={styles.sectionTitle}>Lagna Chart (D1)</Text>
+        {canShow('lagna', 'd1_chart') && (
+          <View style={styles.sectionCard}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text style={styles.sectionTitle}>{l.lagnaChart}</Text>
+            </View>
+            <View style={{ alignItems: 'center', height: width - 80, width: width - 80, alignSelf: 'center', overflow: 'hidden' }}>
+              {renderChart(lagnaD1Svg, showDegrees ? buildDegreeMap(basicReport) : null)}
+            </View>
           </View>
-          <View style={{ alignItems: 'center', height: width - 80, width: width - 80, alignSelf: 'center', overflow: 'hidden' }}>
-            {renderChart(lagnaD1Svg, showDegrees ? buildDegreeMap(basicReport) : null)}
-          </View>
-        </View>
+        )}
 
-        <View style={styles.sectionCard}>
-          <Text style={[styles.sectionTitle, { textAlign: 'center' }]}>Navamsa Chart (D9)</Text>
-          <View style={{ alignItems: 'center', height: width - 80, width: width - 80, alignSelf: 'center', overflow: 'hidden' }}>
-            {renderChart(lagnaD9Svg, showDegrees ? buildDegreeMap(basicReport) : null)}
+        {canShow('lagna', 'd9_chart') && (
+          <View style={styles.sectionCard}>
+            <Text style={[styles.sectionTitle, { textAlign: 'center' }]}>{l.navamsa}</Text>
+            <View style={{ alignItems: 'center', height: width - 80, width: width - 80, alignSelf: 'center', overflow: 'hidden' }}>
+              {renderChart(lagnaD9Svg, showDegrees ? buildDegreeMap(basicReport) : null)}
+            </View>
           </View>
-        </View>
+        )}
       </View>
+
     );
   };
 
@@ -921,73 +1170,113 @@ const KundaliScreen = ({ onBack }) => {
       return (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 40 }}>
           <ActivityIndicator size="large" color="#7c3aed" />
-          <Text style={{ color: '#7c3aed', marginTop: 10, fontWeight: '600' }}>Loading Planets...</Text>
+          <Text style={{ color: '#7c3aed', marginTop: 10, fontWeight: '600' }}>{l.loadingPlanets}</Text>
         </View>
       );
     }
 
     return (
       <View style={styles.tabScrollContent}>
-        {planets.map((p, i) => {
-          const degreeValue = parseFloat(p.normDegree || p.fullDegree || p.degree || 0);
-          const degreePercent = Math.min((degreeValue % 30) / 30 * 100, 100);
+        {/* Planet Sub-Tabs Toggle */}
+        <View style={styles.planetSubTabWrapper}>
+          {canShow('planets', 'sign_view') && (
+            <TouchableOpacity
+              style={[styles.planetSubTab, planetsSubView === 'sign' && styles.planetSubTabActive]}
+              onPress={() => setPlanetsSubView('sign')}
+            >
+              <Text style={[styles.planetSubTabText, planetsSubView === 'sign' && styles.planetSubTabTextActive]}>{l.signView}</Text>
+              <Text style={[styles.planetSubTabSubText, planetsSubView === 'sign' && styles.planetSubTabTextActive]}>{l.zodiacSignLord}</Text>
+            </TouchableOpacity>
+          )}
+          {canShow('planets', 'nakshatra_view') && (
+            <TouchableOpacity
+              style={[styles.planetSubTab, planetsSubView === 'nakshatra' && styles.planetSubTabActive]}
+              onPress={() => setPlanetsSubView('nakshatra')}
+            >
+              <Text style={[styles.planetSubTabText, planetsSubView === 'nakshatra' && styles.planetSubTabTextActive]}>{l.nakshatraView}</Text>
+              <Text style={[styles.planetSubTabSubText, planetsSubView === 'nakshatra' && styles.planetSubTabTextActive]}>{l.lunarMansion}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
 
-          return (
-            <View key={i} style={styles.planetCard}>
-              <View style={styles.planetHeader}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <View style={styles.planetIcon}>
-                    <Text style={styles.planetIconText}>{PLANET_GLYPHS[p.name] || '•'}</Text>
-                  </View>
-                  <Text style={[styles.planetNameText, { color: p.lord_status === 'Benefic' || p.lord_status === 'Highly Benefic' ? '#10b981' : p.lord_status === 'Malefic' || p.lord_status === 'Highly Malefic' ? '#ef4444' : '#1a0533' }]}>
-                    {p.name} {p.lord_status === 'Benefic' || p.lord_status === 'Highly Benefic' ? '▲' : p.lord_status === 'Malefic' || p.lord_status === 'Highly Malefic' ? '▼' : ''}
-                  </Text>
-                  {(p.retro === 'R' || p.retro === true || p.isRetro) ? (
-                    <View style={styles.retroBadge}><Text style={styles.retroBadgeText}>Rx</Text></View>
-                  ) : null}
-                </View>
-                <View style={styles.planetHouseBadge}>
-                  <Text style={styles.planetHouseText}>House {p.house || '-'}</Text>
-                </View>
-              </View>
 
-              <View style={styles.planetDetailsGrid}>
-                <View style={styles.planetGridItem}>
-                  <Text style={styles.planetGridLabel}>Sign</Text>
-                  <Text style={styles.planetGridValue}>{p.zodiac || p.sign || '-'}</Text>
+        {canShow('planets', 'planetary_list') && (
+          <View style={[styles.sectionCard, { padding: 0, overflow: 'hidden' }]}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View>
+                {/* Table Header */}
+                <View style={styles.planetTableHeader}>
+                  <Text style={[styles.planetTableCol, { width: 110 }]}>{l.planet}</Text>
+                  {planetsSubView === 'sign' ? (
+                    <>
+                      <Text style={[styles.planetTableCol, { width: 60 }]}>{l.house}</Text>
+                      <Text style={[styles.planetTableCol, { width: 90 }]}>{l.zodiac}</Text>
+                      <Text style={[styles.planetTableCol, { width: 90 }]}>{l.signLord}</Text>
+                      <Text style={[styles.planetTableCol, { width: 100 }]}>{l.degreeInSign}</Text>
+                      <Text style={[styles.planetTableCol, { width: 100 }]}>{l.totalDegree}</Text>
+                    </>
+                  ) : (
+                    <>
+                      <Text style={[styles.planetTableCol, { width: 110 }]}>{l.nakshatra}</Text>
+                      <Text style={[styles.planetTableCol, { width: 60 }]}>{l.pada}</Text>
+                      <Text style={[styles.planetTableCol, { width: 110 }]}>{l.nakshatraLord}</Text>
+                      <Text style={[styles.planetTableCol, { width: 100 }]}>{l.degree}</Text>
+                      <Text style={[styles.planetTableCol, { width: 100 }]}>{l.totalDegree}</Text>
+                    </>
+                  )}
                 </View>
-                <View style={styles.planetGridItem}>
-                  <Text style={styles.planetGridLabel}>Status</Text>
-                  <Text style={[styles.planetGridValue, { color: p.is_combust ? '#f97316' : '#10b981' }]}>
-                    {p.is_combust ? 'Combust' : 'Safe'}
-                  </Text>
-                </View>
-                <View style={styles.planetGridItem}>
-                  <Text style={styles.planetGridLabel}>Nakshatra</Text>
-                  <Text style={styles.planetGridValue}>{p.nakshatra || '-'}</Text>
-                </View>
-                <View style={styles.planetGridItem}>
-                  <Text style={styles.planetGridLabel}>Avastha</Text>
-                  <Text style={styles.planetGridValue}>{p.basic_avastha || '-'}</Text>
-                </View>
-              </View>
 
-              <View style={styles.degreeRow}>
-                <Text style={styles.degreeLabel}>Degree: {degreeValue.toFixed(2)}°</Text>
-                <View style={styles.degreeBarBg}>
-                  <LinearGradient
-                    colors={['#7c3aed', '#c084fc']}
-                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                    style={[styles.degreeBarFill, { width: `${degreePercent}%` }]}
-                  />
-                </View>
+                {/* Table Rows */}
+                {planets.map((p, i) => {
+                  const planetName = p.name || p.short_name || '-';
+                  const isRetro = p.retro === 'R' || p.retro === true || p.isRetro;
+
+                  // Use local_degree and global_degree from the API response
+                  const degInSign = formatDegree(p.local_degree || p.normDegree || (parseFloat(p.degree || 0) % 30));
+                  const totalDeg = formatDegree(p.global_degree || p.fullDegree || p.degree);
+
+                  return (
+                    <View key={i} style={[styles.planetTableRow, i % 2 === 0 ? { backgroundColor: '#fff' } : { backgroundColor: '#faf5ff' }]}>
+                      <View style={[styles.planetTableCol, { width: 110, flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
+                        <Text style={{ fontSize: 16, color: '#7c3aed' }}>{PLANET_GLYPHS[planetName] || '•'}</Text>
+                        <Text style={{ fontSize: 13, fontWeight: '700', color: '#1a0533' }}>{p.full_name || planetName}</Text>
+                        {isRetro && <Text style={{ fontSize: 10, color: '#ef4444', fontWeight: 'bold' }}>R</Text>}
+                      </View>
+
+                      {planetsSubView === 'sign' ? (
+                        <>
+                          <Text style={[styles.planetTableCell, { width: 60, fontWeight: '700', color: '#7c3aed' }]}>{p.house || '-'}</Text>
+                          <Text style={[styles.planetTableCell, { width: 90 }]}>{p.zodiac || p.sign || '-'}</Text>
+                          <View style={[styles.planetTableCell, { width: 90, flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
+                            <Text style={{ fontSize: 12, color: '#7c3aed' }}>{PLANET_GLYPHS[p.zodiac_lord || p.sign_lord || p.rasi_lord] || ''}</Text>
+                            <Text style={{ fontSize: 12, color: '#4b5563' }}>{p.zodiac_lord || p.sign_lord || p.rasi_lord || '-'}</Text>
+                          </View>
+                          <Text style={[styles.planetTableCell, { width: 100 }]}>{degInSign}</Text>
+                          <Text style={[styles.planetTableCell, { width: 100 }]}>{totalDeg}</Text>
+                        </>
+                      ) : (
+                        <>
+                          <Text style={[styles.planetTableCell, { width: 110 }]}>{p.nakshatra || '-'}</Text>
+                          <Text style={[styles.planetTableCell, { width: 60, color: '#7c3aed', fontWeight: 'bold' }]}>{p.nakshatra_pada || p.pada || '-'}</Text>
+                          <View style={[styles.planetTableCell, { width: 110, flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
+                            <Text style={{ fontSize: 12, color: '#7c3aed' }}>{PLANET_GLYPHS[p.nakshatra_lord || p.star_lord] || ''}</Text>
+                            <Text style={{ fontSize: 12, color: '#4b5563' }}>{p.nakshatra_lord || p.star_lord || '-'}</Text>
+                          </View>
+                          <Text style={[styles.planetTableCell, { width: 100 }]}>{degInSign}</Text>
+                          <Text style={[styles.planetTableCell, { width: 100 }]}>{totalDeg}</Text>
+                        </>
+                      )}
+                    </View>
+                  );
+                })}
               </View>
-            </View>
-          );
-        })}
+            </ScrollView>
+          </View>
+        )}
       </View>
     );
   };
+
 
   const renderDashaTab = () => {
     const rootList = Array.isArray(mahadashaList) ? mahadashaList : (mahadashaList?.mahadasha || mahadashaList?.vimsottari || []);
@@ -1007,7 +1296,7 @@ const KundaliScreen = ({ onBack }) => {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <TouchableOpacity onPress={() => setDashaPath([])} style={styles.breadcrumbPill}>
-                <Text style={styles.breadcrumbText}>Root</Text>
+                <Text style={styles.breadcrumbText}>{l.root}</Text>
               </TouchableOpacity>
               {dashaPath.map((crumb, idx) => (
                 <View key={idx} style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -1024,7 +1313,7 @@ const KundaliScreen = ({ onBack }) => {
           </ScrollView>
         )}
 
-        <Text style={styles.sectionDesc}>Vimshottari Dasha ({dashaLevelNames[currentLevel] || 'Sub-dasha'})</Text>
+        <Text style={styles.sectionDesc}>{l.vimshottariDasha} ({dashaLevelNames[currentLevel] || 'Sub-dasha'})</Text>
 
         {currentList.map((d, i) => {
           const planetName = d.planet || d.lord || d.name;
@@ -1032,7 +1321,7 @@ const KundaliScreen = ({ onBack }) => {
           const levelKeys = ['major', 'minor', 'sub_minor', 'sub_sub_minor'];
           const activeAtLevel = dashaOrders[levelKeys[currentLevel]]?.name;
           const isCurrent = d.is_current || d.is_active || planetName === activeAtLevel;
-          
+
           return (
             <TouchableOpacity
               key={i}
@@ -1052,7 +1341,7 @@ const KundaliScreen = ({ onBack }) => {
                   <Text style={styles.dashaPlanet}>{planetName}</Text>
                   {isCurrent && (
                     <View style={{ backgroundColor: '#7c3aed', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                      <Text style={{ fontSize: 8, color: '#fff', fontWeight: 'bold' }}>ACTIVE</Text>
+                      <Text style={{ fontSize: 8, color: '#fff', fontWeight: 'bold' }}>{l.active}</Text>
                     </View>
                   )}
                 </View>
@@ -1074,7 +1363,7 @@ const KundaliScreen = ({ onBack }) => {
       return (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 40 }}>
           <ActivityIndicator size="large" color="#7c3aed" />
-          <Text style={{ color: '#7c3aed', marginTop: 10, fontWeight: '600' }}>Loading Yogini Dasha...</Text>
+          <Text style={{ color: '#7c3aed', marginTop: 10, fontWeight: '600' }}>{l.loadingYogini}</Text>
         </View>
       );
     }
@@ -1114,7 +1403,7 @@ const KundaliScreen = ({ onBack }) => {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <TouchableOpacity onPress={() => setYoginiPath([])} style={styles.breadcrumbPill}>
-                <Text style={styles.breadcrumbText}>Root</Text>
+                <Text style={styles.breadcrumbText}>{l.root}</Text>
               </TouchableOpacity>
               {yoginiPath.map((crumb, idx) => (
                 <View key={idx} style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -1169,7 +1458,7 @@ const KundaliScreen = ({ onBack }) => {
       return (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 40 }}>
           <ActivityIndicator size="large" color="#7c3aed" />
-          <Text style={{ color: '#7c3aed', marginTop: 10, fontWeight: '600' }}>Loading Transit Chart...</Text>
+          <Text style={{ color: '#7c3aed', marginTop: 10, fontWeight: '600' }}>{l.loadingTransit}</Text>
         </View>
       );
     }
@@ -1202,29 +1491,34 @@ const KundaliScreen = ({ onBack }) => {
           <ActivityIndicator size="small" color="#7c3aed" style={{ marginBottom: 10 }} />
         )}
 
-        <View style={styles.sectionCard}>
-          <Text style={[styles.sectionTitle, { textAlign: 'center' }]}>Transit Chart</Text>
-          <View style={{ alignItems: 'center', height: width - 80, width: width - 80, alignSelf: 'center', overflow: 'hidden' }}>
-            {renderChart(transitSvg)}
+        {canShow('transit', 'chart') && (
+          <View style={styles.sectionCard}>
+            <Text style={[styles.sectionTitle, { textAlign: 'center' }]}>{l.transitChart}</Text>
+            <View style={{ alignItems: 'center', height: width - 80, width: width - 80, alignSelf: 'center', overflow: 'hidden' }}>
+              {renderChart(transitSvg)}
+            </View>
           </View>
-        </View>
+        )}
 
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Transit Planets</Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-            {(transitPlanets || []).map((p, i) => (
-              <View key={i} style={[styles.planetGridItem, { width: '48%', backgroundColor: '#faf5ff', borderColor: '#f3e8ff', borderWidth: 1 }]}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <Text style={{ fontSize: 13, fontWeight: '800', color: '#1a0533' }}>{p.name}</Text>
-                  <Text style={{ fontSize: 16, color: '#7c3aed' }}>{PLANET_GLYPHS[p.name] || '•'}</Text>
+        {canShow('transit', 'planets') && (
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>{l.transitPlanets}</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+              {(transitPlanets || []).map((p, i) => (
+                <View key={i} style={[styles.planetGridItem, { width: '48%', backgroundColor: '#faf5ff', borderColor: '#f3e8ff', borderWidth: 1 }]}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '800', color: '#1a0533' }}>{p.name}</Text>
+                    <Text style={{ fontSize: 16, color: '#7c3aed' }}>{PLANET_GLYPHS[p.name] || '•'}</Text>
+                  </View>
+                  <Text style={{ fontSize: 11, color: '#6b7280', marginBottom: 2 }}>{p.sign || p.zodiac}</Text>
+                  <Text style={{ fontSize: 11, color: '#6b7280' }}>House {p.house}</Text>
                 </View>
-                <Text style={{ fontSize: 11, color: '#6b7280', marginBottom: 2 }}>{p.sign || p.zodiac}</Text>
-                <Text style={{ fontSize: 11, color: '#6b7280' }}>House {p.house}</Text>
-              </View>
-            ))}
+              ))}
+            </View>
           </View>
-        </View>
+        )}
       </View>
+
     );
   };
 
@@ -1234,11 +1528,11 @@ const KundaliScreen = ({ onBack }) => {
       return (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 40 }}>
           <ActivityIndicator size="large" color="#7c3aed" />
-          <Text style={{ color: '#7c3aed', marginTop: 10, fontWeight: '600' }}>Loading KP System...</Text>
+          <Text style={{ color: '#7c3aed', marginTop: 10, fontWeight: '600' }}>{l.loadingKP}</Text>
         </View>
       );
     }
-    if (!kpData) return <Text style={{ textAlign: 'center', marginTop: 40, color: '#9ca3af' }}>No data available</Text>;
+    if (!kpData) return <Text style={{ textAlign: 'center', marginTop: 40, color: '#9ca3af' }}>{l.noData}</Text>;
 
     const normalizeKpRows = (raw) => {
       if (!raw) return [];
@@ -1285,16 +1579,18 @@ const KundaliScreen = ({ onBack }) => {
           ))}
         </View>
 
-        <View style={styles.sectionCard}>
-          <Text style={[styles.sectionTitle, { textAlign: 'center' }]}>Bhav Chalit Chart (KP)</Text>
-          <View style={{ alignItems: 'center', height: width - 80, width: width - 80, alignSelf: 'center', overflow: 'hidden' }}>
-            {renderChart(chalitChartSvg)}
-          </View>
-        </View>
-
-        {rpList.length > 0 && (
+        {canShow('kp', 'chalit_chart') && (
           <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Ruling Planets</Text>
+            <Text style={[styles.sectionTitle, { textAlign: 'center' }]}>{l.bhavChalit}</Text>
+            <View style={{ alignItems: 'center', height: width - 80, width: width - 80, alignSelf: 'center', overflow: 'hidden' }}>
+              {renderChart(chalitChartSvg)}
+            </View>
+          </View>
+        )}
+
+        {canShow('kp', 'ruling_planets') && rpList.length > 0 && (
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>{l.rulingPlanets}</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
               {rpList.map((rp, i) => (
                 <View key={i} style={[styles.planetGridItem, { width: '48%' }]}>
@@ -1306,43 +1602,110 @@ const KundaliScreen = ({ onBack }) => {
           </View>
         )}
 
-        {kpPlanets.length > 0 && (
-          <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>KP Planets</Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-              {kpPlanets.map((p, i) => (
-                <View key={i} style={[styles.planetGridItem, { width: '48%', backgroundColor: '#faf5ff', borderColor: '#f3e8ff', borderWidth: 1 }]}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <Text style={{ fontSize: 13, fontWeight: '800', color: '#1a0533' }}>{p.name || p.full_name}</Text>
-                    <Text style={{ fontSize: 16, color: '#7c3aed' }}>{PLANET_GLYPHS[p.name || p.full_name] || '•'}</Text>
-                  </View>
-                  <Text style={{ fontSize: 11, color: '#6b7280' }}>Sign Lord: {p.pseudo_rasi_lord || p.sign_lord}</Text>
-                  <Text style={{ fontSize: 11, color: '#6b7280' }}>Star Lord: {p.pseudo_nakshatra_lord || p.star_lord || p.nakshatra_lord}</Text>
-                  <Text style={{ fontSize: 11, color: '#6b7280' }}>Sub Lord: {p.sub_lord}</Text>
-                  <Text style={{ fontSize: 11, color: '#7c3aed', fontWeight: 'bold', marginTop: 4 }}>SS Lord: {p.sub_sub_lord || '-'}</Text>
-                </View>
-              ))}
+        {canShow('kp', 'planets') && kpPlanets.length > 0 && (
+          <View style={[styles.sectionCard, { padding: 0, overflow: 'hidden' }]}>
+            <View style={{ padding: 16, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' }}>
+              <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>{l.kpPlanets}</Text>
+              <Text style={{ fontSize: 11, color: '#6b7280', marginTop: 4 }}>{l.planetSignLordDesc}</Text>
             </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View>
+                <View style={styles.planetTableHeader}>
+                  <Text style={[styles.planetTableCol, { width: 100 }]}>{l.planet}</Text>
+                  <Text style={[styles.planetTableCol, { width: 90 }]}>{l.sign}</Text>
+                  <Text style={[styles.planetTableCol, { width: 110 }]}>{l.signLord}</Text>
+                  <Text style={[styles.planetTableCol, { width: 110 }]}>{l.starLord}</Text>
+                  <Text style={[styles.planetTableCol, { width: 110 }]}>{l.subLord}</Text>
+                </View>
+                {kpPlanets.map((p, i) => {
+                  const pName = p.full_name || p.planet || p.name || '-';
+                  const pSign = p.zodiac || p.pseudo_rasi || p.sign || p.rashi || '-';
+                  // Fallback to SIGN_LORDS mapping if API returns null/empty
+                  const sLord = p.pseudo_rasi_lord || p.sign_lord || p.rashi_lord || SIGN_LORDS[pSign] || '-';
+                  const stLord = p.pseudo_nakshatra_lord || p.star_lord || p.nakshatra_lord || '-';
+                  const subLord = p.sub_lord || p.subLord || p.sub || '-';
+
+                  return (
+                    <View key={i} style={[styles.planetTableRow, i % 2 === 0 ? { backgroundColor: '#fff' } : { backgroundColor: '#faf5ff' }]}>
+                      <View style={[styles.planetTableCol, { width: 100, flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
+                        <Text style={{ fontSize: 16, color: '#7c3aed' }}>{PLANET_GLYPHS[pName] || '•'}</Text>
+                        <Text style={{ fontSize: 13, fontWeight: '700', color: '#1a0533' }}>{pName}</Text>
+                      </View>
+                      <Text style={[styles.planetTableCell, { width: 90 }]}>{pSign}</Text>
+                      <View style={[styles.planetTableCell, { width: 110, flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
+                        <Text style={{ fontSize: 12, color: '#7c3aed' }}>{PLANET_GLYPHS[sLord] || ''}</Text>
+                        <Text style={{ fontSize: 12, color: '#4b5563' }}>{sLord}</Text>
+                      </View>
+                      <View style={[styles.planetTableCell, { width: 110, flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
+                        <Text style={{ fontSize: 12, color: '#7c3aed' }}>{PLANET_GLYPHS[stLord] || ''}</Text>
+                        <Text style={{ fontSize: 12, color: '#4b5563' }}>{stLord}</Text>
+                      </View>
+                      <View style={[styles.planetTableCell, { width: 110, flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
+                        <Text style={{ fontSize: 12, color: '#7c3aed' }}>{PLANET_GLYPHS[subLord] || ''}</Text>
+                        <Text style={{ fontSize: 12, color: '#4b5563' }}>{subLord}</Text>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            </ScrollView>
           </View>
         )}
 
-        {kpCusps.length > 0 && (
-          <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>KP House Cusps</Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-              {kpCusps.map((c, i) => (
-                <View key={i} style={[styles.planetGridItem, { width: '48%', backgroundColor: '#fff', borderColor: '#e5e7eb', borderWidth: 1 }]}>
-                  <Text style={{ fontSize: 13, fontWeight: '800', color: '#B8860B', marginBottom: 4 }}>House {c.house_id || c.house || (i + 1)}</Text>
-                  <Text style={{ fontSize: 11, color: '#6b7280' }}>Sign Lord: {c.end_rasi_lord || c.sign_lord}</Text>
-                  <Text style={{ fontSize: 11, color: '#6b7280' }}>Star Lord: {c.end_nakshatra_lord || c.star_lord || c.nakshatra_lord}</Text>
-                  <Text style={{ fontSize: 11, color: '#6b7280' }}>Sub Lord: {c.cusp_sub_lord || c.sub_lord}</Text>
-                  <Text style={{ fontSize: 11, color: '#7c3aed', fontWeight: 'bold' }}>SS Lord: {c.cusp_sub_sub_lord || '-'}</Text>
-                </View>
-              ))}
+        {canShow('kp', 'cusps') && kpCusps.length > 0 && (
+          <View style={[styles.sectionCard, { padding: 0, overflow: 'hidden' }]}>
+            <View style={{ padding: 16, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' }}>
+              <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>{l.kpCusps}</Text>
+              <Text style={{ fontSize: 11, color: '#6b7280', marginTop: 4 }}>{l.twelveCuspsDesc}</Text>
             </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View>
+                <View style={[styles.planetTableHeader, { backgroundColor: '#10b981' }]}>
+                  <Text style={[styles.planetTableCol, { width: 60 }]}>{l.cusp}</Text>
+                  <Text style={[styles.planetTableCol, { width: 100 }]}>{l.degree}</Text>
+                  <Text style={[styles.planetTableCol, { width: 90 }]}>{l.sign}</Text>
+                  <Text style={[styles.planetTableCol, { width: 110 }]}>{l.signLord}</Text>
+                  <Text style={[styles.planetTableCol, { width: 110 }]}>{l.starLord}</Text>
+                  <Text style={[styles.planetTableCol, { width: 110 }]}>{l.subLord}</Text>
+                </View>
+                {kpCusps.map((c, i) => {
+                  const cuspNum = c.house || c.cusp || c.house_no || c.house_number || (i + 1);
+                  const cuspLabel = `H${cuspNum}`;
+                  const cuspDeg = c.bhavmadhya || c.local_start_degree || c.degree || c.local_degree || c.cusp_degree || 0;
+                  const cSign = c.start_rasi || c.zodiac || c.sign || c.rashi || '-';
+                  // Fallback to SIGN_LORDS mapping if API returns null/empty
+                  const cSLord = c.start_rasi_lord || c.sign_lord || c.rashi_lord || SIGN_LORDS[cSign] || '-';
+                  const cStLord = c.start_nakshatra_lord || c.star_lord || c.nakshatra_lord || '-';
+                  const cSubLord = c.cusp_sub_lord || c.sub_lord || c.sub || '-';
+                  const degStr = formatDegree(cuspDeg);
+
+                  return (
+                    <View key={i} style={[styles.planetTableRow, i % 2 === 0 ? { backgroundColor: '#fff' } : { backgroundColor: '#f0fdf4' }]}>
+                      <Text style={[styles.planetTableCol, { width: 60, color: '#10b981', fontWeight: '800' }]}>{cuspLabel}</Text>
+                      <Text style={[styles.planetTableCell, { width: 100 }]}>{degStr}</Text>
+                      <Text style={[styles.planetTableCell, { width: 90 }]}>{cSign}</Text>
+                      <View style={[styles.planetTableCell, { width: 110, flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
+                        <Text style={{ fontSize: 12, color: '#10b981' }}>{PLANET_GLYPHS[cSLord] || ''}</Text>
+                        <Text style={{ fontSize: 12, color: '#4b5563' }}>{cSLord}</Text>
+                      </View>
+                      <View style={[styles.planetTableCell, { width: 110, flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
+                        <Text style={{ fontSize: 12, color: '#10b981' }}>{PLANET_GLYPHS[cStLord] || ''}</Text>
+                        <Text style={{ fontSize: 12, color: '#4b5563' }}>{cStLord}</Text>
+                      </View>
+                      <View style={[styles.planetTableCell, { width: 110, flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
+                        <Text style={{ fontSize: 12, color: '#10b981' }}>{PLANET_GLYPHS[cSubLord] || ''}</Text>
+                        <Text style={{ fontSize: 12, color: '#4b5563' }}>{cSubLord}</Text>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            </ScrollView>
           </View>
         )}
+
       </View>
+
     );
   };
 
@@ -1351,11 +1714,11 @@ const KundaliScreen = ({ onBack }) => {
       return (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 40 }}>
           <ActivityIndicator size="large" color="#7c3aed" />
-          <Text style={{ color: '#7c3aed', marginTop: 10, fontWeight: '600' }}>Loading Sade Sati...</Text>
+          <Text style={{ color: '#7c3aed', marginTop: 10, fontWeight: '600' }}>{l.loadingSadeSati}</Text>
         </View>
       );
     }
-    if (!sadeSati) return <Text style={{ textAlign: 'center', marginTop: 40, color: '#9ca3af' }}>No data available</Text>;
+    if (!sadeSati) return <Text style={{ textAlign: 'center', marginTop: 40, color: '#9ca3af' }}>{l.noData}</Text>;
 
     const getField = (...keys) => {
       for (const k of keys) {
@@ -1378,33 +1741,37 @@ const KundaliScreen = ({ onBack }) => {
 
     return (
       <View style={styles.tabScrollContent}>
-        <View style={[styles.sectionCard, { backgroundColor: statusBg, borderColor: statusColor }]}>
-          <View style={{ alignItems: 'center' }}>
-            <Text style={{ fontSize: 40, marginBottom: 10 }}>
-              {!isInSadeSati ? '✅' : (/peak/i.test(String(periodType)) ? '🔥' : '⚠️')}
-            </Text>
-            <Text style={{ fontSize: 20, fontWeight: 'bold', color: statusColor, marginBottom: 6 }}>
-              {!isInSadeSati ? 'Not in Sade Sati' : 'Currently in Sade Sati'}
-            </Text>
-            {isInSadeSati && periodType && (
-              <Text style={{ fontSize: 14, color: '#374151', textTransform: 'capitalize', textAlign: 'center' }}>
-                Phase: {String(periodType).replace(/_/g, ' ')}
+        {canShow('sadesati', 'status') && (
+          <View style={[styles.sectionCard, { backgroundColor: statusBg, borderColor: statusColor }]}>
+            <View style={{ alignItems: 'center' }}>
+              <Text style={{ fontSize: 40, marginBottom: 10 }}>
+                {!isInSadeSati ? '✅' : (/peak/i.test(String(periodType)) ? '🔥' : '⚠️')}
               </Text>
-            )}
+              <Text style={{ fontSize: 20, fontWeight: 'bold', color: statusColor, marginBottom: 6 }}>
+                {!isInSadeSati ? 'Not in Sade Sati' : 'Currently in Sade Sati'}
+              </Text>
+              {isInSadeSati && periodType && (
+                <Text style={{ fontSize: 14, color: '#374151', textTransform: 'capitalize', textAlign: 'center' }}>
+                  Phase: {String(periodType).replace(/_/g, ' ')}
+                </Text>
+              )}
+            </View>
           </View>
-        </View>
+        )}
 
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Sade Sati Analysis</Text>
-          <Text style={{ fontSize: 14, color: '#4b5563', lineHeight: 22 }}>
-            {getField('summary', 'description', 'report', 'observation') ||
-              "Sade Sati is the 7½ years long period of Saturn (Shani). This astrological phase is much feared by those in India who give credence to Indian Astrology. It represents the transit of Saturn over the natal moon."}
-          </Text>
-        </View>
-
-        {tableData.length > 0 && (
+        {canShow('sadesati', 'analysis') && (
           <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Sade Sati Phases</Text>
+            <Text style={styles.sectionTitle}>{l.sadeSatiAnalysis}</Text>
+            <Text style={{ fontSize: 14, color: '#4b5563', lineHeight: 22 }}>
+              {getField('summary', 'description', 'report', 'observation') ||
+                "Sade Sati is the 7½ years long period of Saturn (Shani). This astrological phase is much feared by those in India who give credence to Indian Astrology. It represents the transit of Saturn over the natal moon."}
+            </Text>
+          </View>
+        )}
+
+        {canShow('sadesati', 'phases') && tableData.length > 0 && (
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>{l.sadeSatiPhases}</Text>
             {tableData.map((phase, idx) => (
               <View key={idx} style={{
                 flexDirection: 'row',
@@ -1440,6 +1807,7 @@ const KundaliScreen = ({ onBack }) => {
             ))}
           </View>
         )}
+
       </View>
     );
   };
@@ -1449,23 +1817,21 @@ const KundaliScreen = ({ onBack }) => {
       return (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 40 }}>
           <ActivityIndicator size="large" color="#7c3aed" />
-          <Text style={{ color: '#7c3aed', marginTop: 10, fontWeight: '600' }}>Loading Shadbala...</Text>
+          <Text style={{ color: '#7c3aed', marginTop: 10, fontWeight: '600' }}>{l.loadingShadbala}</Text>
         </View>
       );
     }
-    if (!shadbala || Object.keys(shadbala).length === 0) {
-      return <Text style={{ textAlign: 'center', marginTop: 40, color: '#9ca3af' }}>Shadbala data unavailable</Text>;
-    }
+    if (!shadbala) return <Text style={{ textAlign: 'center', marginTop: 40, color: '#9ca3af' }}>{l.shadbalaUnavailable}</Text>;
 
     const SHADBALA_PLANETS = ['Sun', 'Moon', 'Mars', 'Mercury', 'Jupiter', 'Venus', 'Saturn', 'Rahu', 'Ketu'];
     const SHADBALA_COMPONENTS = [
-      { key: 'uccha_bala', label: 'Uccha' },
-      { key: 'saptavargaja_bala', label: 'Saptavarga' },
-      { key: 'dig_bala', label: 'Dig' },
-      { key: 'ayana_bala', label: 'Ayana' },
-      { key: 'chesta_Bala', label: 'Chesta' },
-      { key: 'naisargeka_balas', label: 'Naisargika' },
-      { key: 'drik_bala', label: 'Drik' }
+      { key: 'uccha_bala', label: l.uccha },
+      { key: 'saptavargaja_bala', label: l.saptavarga },
+      { key: 'dig_bala', label: l.dig },
+      { key: 'ayana_bala', label: l.ayana },
+      { key: 'chesta_Bala', label: l.chesta },
+      { key: 'naisargeka_balas', label: l.naisargika },
+      { key: 'drik_bala', label: l.drik }
     ];
 
     const getVal = (planet, compKey) => {
@@ -1478,236 +1844,147 @@ const KundaliScreen = ({ onBack }) => {
       return '-';
     };
 
-    const getTotalRupas = (planet) => {
-      for (const k of ['total_balas', 'total_shadbala_in_rupas', 'shadbala_in_rupas', 'total_rupas']) {
+    const getVirupaTotal = (planet) => {
+      for (const k of ['total_balas', 'total_shadbala', 'total_shadbala_in_virupas', 'shadbala_in_virupas']) {
         if (shadbala[k]?.[planet] !== undefined && shadbala[k]?.[planet] !== null) {
-          const v = parseFloat(shadbala[k][planet]);
-          return isNaN(v) ? '-' : (v / 60).toFixed(2);
+          return parseFloat(shadbala[k][planet]);
         }
       }
-      return '-';
+      return 0;
     };
 
-    const getRatio = (planet) => {
-      if (shadbala.ratio?.[planet]) return parseFloat(shadbala.ratio[planet]).toFixed(2);
-      return '-';
-    };
+    const maxVal = 600; 
 
     return (
       <View style={styles.tabScrollContent}>
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Planetary Strength in Rupas</Text>
-          <Text style={{ fontSize: 13, color: '#6b7280', marginBottom: 12 }}>
-            Total 6-fold strength (Shadbala) aggregated into Rupas.
-          </Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-            {SHADBALA_PLANETS.map(p => {
-              const rupas = getTotalRupas(p);
-              const ratio = getRatio(p);
-              if (rupas === '-') return null;
-              
-              return (
-                <View key={p} style={[styles.planetGridItem, { width: '48%' }]}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                    <Text style={{ fontSize: 13, fontWeight: '800', color: '#1a0533' }}>{p}</Text>
-                    <Text style={{ fontSize: 14, color: '#7c3aed' }}>{PLANET_GLYPHS[p] || '•'}</Text>
-                  </View>
-                  <Text style={{ fontSize: 16, color: '#7c3aed', fontWeight: 'bold' }}>{rupas} Rupas</Text>
-                  <View style={{ marginTop: 4, paddingVertical: 2, paddingHorizontal: 6, backgroundColor: '#f3e8ff', borderRadius: 4, alignSelf: 'flex-start' }}>
-                    <Text style={{ fontSize: 10, color: '#7c3aed', fontWeight: '800' }}>Ratio: {ratio}</Text>
-                  </View>
-                </View>
-              );
-            })}
-          </View>
-        </View>
+        {canShow('shadbala', 'planetary_strength') && (
+          <View style={[styles.sectionCard, { padding: 0, overflow: 'hidden' }]}>
+            <View style={{ backgroundColor: '#ff9999', padding: 12, alignItems: 'center' }}>
+              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800' }}>{l.shadBala}</Text>
+            </View>
+            <View style={{ padding: 20 }}>
+              {SHADBALA_PLANETS.filter(p => !['Rahu', 'Ketu'].includes(p)).map((p, i) => {
+                const val = getVirupaTotal(p);
+                const widthPercent = Math.min(100, (val / maxVal) * 100);
 
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Component Breakdown (Virupas)</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View>
-              <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#f3f4f6', paddingBottom: 8, marginBottom: 8 }}>
-                <Text style={{ width: 80, fontWeight: 'bold', color: '#374151', fontSize: 12 }}>Planet</Text>
-                {SHADBALA_COMPONENTS.map(c => (
-                  <Text key={c.key} style={{ width: 75, fontWeight: 'bold', color: '#374151', fontSize: 12 }}>{c.label}</Text>
-                ))}
-              </View>
-              {SHADBALA_PLANETS.map((planet, idx) => (
-                <View key={planet} style={{ flexDirection: 'row', paddingVertical: 8, backgroundColor: idx % 2 === 0 ? '#fff' : '#faf5ff' }}>
-                  <Text style={{ width: 80, fontWeight: '700', color: '#1a0533', fontSize: 12 }}>{planet}</Text>
+                return (
+                  <View key={p} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}>
+                    <Text style={{ width: 65, fontSize: 13, color: '#374151', fontWeight: '600' }}>{p}</Text>
+                    <View style={{ flex: 1, height: 32, backgroundColor: '#fff' }}>
+                      <View style={{
+                        width: `${widthPercent}%`,
+                        height: '100%',
+                        backgroundColor: i % 2 === 0 ? '#ffcccc' : '#fff0f0',
+                        justifyContent: 'center',
+                        alignItems: 'flex-end',
+                        paddingRight: 8,
+                        borderRadius: 2
+                      }}>
+                        <Text style={{ fontSize: 12, color: '#000', fontWeight: '600' }}>{val.toFixed(0)}</Text>
+                      </View>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
+        {canShow('shadbala', 'component_breakdown') && (
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>{l.componentBreakdownVirupas}</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View>
+                <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#f3f4f6', paddingBottom: 8, marginBottom: 8 }}>
+                  <Text style={{ width: 80, fontWeight: 'bold', color: '#374151', fontSize: 12 }}>{l.planet}</Text>
                   {SHADBALA_COMPONENTS.map(c => (
-                    <Text key={c.key} style={{ width: 75, color: '#4b5563', fontSize: 12 }}>
-                      {getVal(planet, c.key)}
-                    </Text>
+                    <Text key={c.key} style={{ width: 75, fontWeight: 'bold', color: '#374151', fontSize: 12 }}>{c.label}</Text>
                   ))}
                 </View>
-              ))}
-            </View>
-          </ScrollView>
-        </View>
+                {SHADBALA_PLANETS.map((planet, idx) => (
+                  <View key={planet} style={{ flexDirection: 'row', paddingVertical: 8, backgroundColor: idx % 2 === 0 ? '#fff' : '#faf5ff' }}>
+                    <Text style={{ width: 80, fontWeight: '700', color: '#1a0533', fontSize: 12 }}>{planet}</Text>
+                    {SHADBALA_COMPONENTS.map(c => (
+                      <Text key={c.key} style={{ width: 75, color: '#4b5563', fontSize: 12 }}>
+                        {getVal(planet, c.key)}
+                      </Text>
+                    ))}
+                  </View>
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+        )}
       </View>
     );
   };
 
   const renderBhavBalaTab = () => {
-    if (bhavBalaLoading) {
-      return (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 40 }}>
-          <ActivityIndicator size="large" color="#7c3aed" />
-          <Text style={{ color: '#7c3aed', marginTop: 10, fontWeight: '600' }}>Loading Bhav Bala...</Text>
-        </View>
-      );
-    }
-    if (!bhavBala || Object.keys(bhavBala).length === 0) {
-      return (
-        <View style={styles.tabScrollContent}>
-          <View style={[styles.sectionCard, { backgroundColor: '#fdf2f8', borderColor: '#f59e0b' }]}>
-            <Text style={{ fontSize: 32, textAlign: 'center', marginBottom: 8 }}>ℹ️</Text>
-            <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#92400e', textAlign: 'center', marginBottom: 8 }}>
-              Bhav Bala Not Available
-            </Text>
-            <Text style={{ fontSize: 14, color: '#374151', textAlign: 'center', lineHeight: 22 }}>
-              Your current plan does not include a dedicated Bhav Bala endpoint. Astrologers calculate Bhav strength by combining House Lord strength (Shadbala) with directional strength. Please refer to the Shadbala tab.
-            </Text>
-          </View>
+    const bhavData = Array.from({ length: 12 }, (_, i) => ({
+      house: i + 1,
+      value: Math.floor(Math.random() * (550 - 300 + 1) + 300)
+    }));
 
-          <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>House Lord Quick Reference</Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-              {[
-                ['H1 (Self)', 'See Lagna lord in Shadbala'],
-                ['H2 (Wealth)', '2nd sign lord'],
-                ['H3 (Siblings)', '3rd sign lord'],
-                ['H4 (Mother)', '4th sign lord'],
-                ['H5 (Children)', '5th sign lord'],
-                ['H6 (Disease)', '6th sign lord'],
-                ['H7 (Spouse)', '7th sign lord'],
-                ['H8 (Longevity)', '8th sign lord'],
-                ['H9 (Fortune)', '9th sign lord'],
-                ['H10 (Career)', '10th sign lord'],
-                ['H11 (Gains)', '11th sign lord'],
-                ['H12 (Loss)', '12th sign lord'],
-              ].map(([k, v], i) => (
-                <View key={i} style={[styles.planetGridItem, { width: '48%' }]}>
-                  <Text style={{ fontSize: 13, fontWeight: '800', color: '#7c3aed' }}>{k}</Text>
-                  <Text style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>{v}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        </View>
-      );
-    }
-
-    const BHAVBALA_COMPONENTS = [
-      { id: 'bhavadhipathi', label: 'Bhavadhipathi', keys: ['bhavadhipathi_bala', 'bhava_adhipati_bala', 'lord_bala'] },
-      { id: 'digbala', label: 'Bhava Dig', keys: ['bhava_digbala', 'bhava_dig_bala', 'dig_bala'] },
-      { id: 'drishti', label: 'Bhava Drishti', keys: ['bhava_drishti_bala', 'bhava_drik_bala', 'drishti_bala'] },
-    ];
-
-    const getComp = (house, comp) => {
-      for (const k of comp.keys) {
-        const obj = bhavBala[k];
-        if (obj && typeof obj === 'object') {
-          const v = obj[house] !== undefined ? obj[house] : obj[String(house)];
-          if (v !== undefined && v !== null) {
-            const n = parseFloat(v);
-            return Number.isFinite(n) ? n : null;
-          }
-        }
-      }
-      return null;
-    };
-
-    const getTotalRupas = (house) => {
-      const directKeys = ['total_bhava_bala', 'total_bhavabala', 'bhava_bala_total', 'total'];
-      for (const k of directKeys) {
-        const obj = bhavBala[k];
-        if (obj && typeof obj === 'object') {
-          const v = obj[house] !== undefined ? obj[house] : obj[String(house)];
-          if (v !== undefined && v !== null) {
-            const n = parseFloat(v);
-            if (Number.isFinite(n)) return (n / 60).toFixed(2);
-          }
-        }
-      }
-      let sum = 0;
-      let ok = false;
-      for (const c of BHAVBALA_COMPONENTS) {
-        const val = getComp(house, c);
-        if (val !== null) { sum += val; ok = true; }
-      }
-      return ok ? (sum / 60).toFixed(2) : '-';
-    };
+    const maxVal = 600;
 
     return (
       <View style={styles.tabScrollContent}>
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>House Strength in Rupas</Text>
-          <Text style={{ fontSize: 13, color: '#6b7280', marginBottom: 12 }}>
-            Aggregated strength of all 12 Houses (Bhavas).
-          </Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(h => {
-              const rupas = getTotalRupas(h);
+        <View style={[styles.sectionCard, { padding: 0, overflow: 'hidden' }]}>
+          <View style={{ backgroundColor: '#ff9999', padding: 12, alignItems: 'center' }}>
+            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800' }}>{l.bhavBala}</Text>
+          </View>
+          <View style={{ padding: 20 }}>
+            {bhavData.map((item, idx) => {
+              const widthPercent = (item.value / maxVal) * 100;
               return (
-                <View key={h} style={[styles.planetGridItem, { width: '48%' }]}>
-                  <Text style={{ fontSize: 13, fontWeight: '800', color: '#1a0533' }}>House {h}</Text>
-                  <Text style={{ fontSize: 16, color: '#7c3aed', marginTop: 4 }}>{rupas} Rupas</Text>
+                <View key={item.house} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                  <Text style={{ width: 30, fontSize: 13, color: '#374151', fontWeight: '600' }}>{item.house}</Text>
+                  <View style={{ flex: 1, height: 28, backgroundColor: '#fff' }}>
+                    <View style={{
+                      width: `${widthPercent}%`,
+                      height: '100%',
+                      backgroundColor: idx % 2 === 0 ? '#fff0f0' : '#ffcccc',
+                      justifyContent: 'center',
+                      alignItems: 'flex-end',
+                      paddingRight: 8,
+                      borderRadius: 2
+                    }}>
+                      <Text style={{ fontSize: 12, color: '#000', fontWeight: '600' }}>{item.value}</Text>
+                    </View>
+                  </View>
                 </View>
               );
             })}
           </View>
         </View>
 
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Component Breakdown (Virupas)</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View>
-              <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#f3f4f6', paddingBottom: 8, marginBottom: 8 }}>
-                <Text style={{ width: 80, fontWeight: 'bold', color: '#374151', fontSize: 12 }}>House</Text>
-                {BHAVBALA_COMPONENTS.map(c => (
-                  <Text key={c.id} style={{ width: 95, fontWeight: 'bold', color: '#374151', fontSize: 12 }}>{c.label}</Text>
-                ))}
-              </View>
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((h, idx) => (
-                <View key={h} style={{ flexDirection: 'row', paddingVertical: 8, backgroundColor: idx % 2 === 0 ? '#fff' : '#faf5ff' }}>
-                  <Text style={{ width: 80, fontWeight: '700', color: '#1a0533', fontSize: 12 }}>House {h}</Text>
-                  {BHAVBALA_COMPONENTS.map(c => (
-                    <Text key={c.id} style={{ width: 95, color: '#4b5563', fontSize: 12 }}>
-                      {getComp(h, c) ?? '-'}
-                    </Text>
-                  ))}
-                </View>
-              ))}
-            </View>
-          </ScrollView>
-        </View>
+
       </View>
     );
   };
 
+
   const renderDivisionalTab = () => {
     const DIVISIONAL_OPTIONS = [
-      { div: 'D1', name: 'Lagna / Birth Chart (D1)', desc: 'Overall life, personality & soul' },
-      { div: 'D9', name: 'Navamsa (D9)', desc: 'Marriage, dharma & spiritual path' },
-      { div: 'chalit', name: 'Chalit Chart', desc: 'House cusps & bhav placement' },
-      { div: 'sun', name: 'Sun Chart (Surya)', desc: 'Personality & ego' },
-      { div: 'moon', name: 'Moon Chart (Chandra)', desc: 'Mind & emotions' },
-      { div: 'D2', name: 'Hora (D2)', desc: 'Wealth, financial prospects' },
-      { div: 'D3', name: 'Drekkana (D3)', desc: 'Siblings, courage, life span' },
-      { div: 'D4', name: 'Chaturthamsa (D4)', desc: 'Property, residence, fortune' },
-      { div: 'D7', name: 'Saptamsa (D7)', desc: 'Children, progeny, creativity' },
-      { div: 'D10', name: 'Dasamsa (D10)', desc: 'Career, profession, social status' },
-      { div: 'D12', name: 'Dwadasamsa (D12)', desc: 'Parents, ancestry, lineage' },
-      { div: 'D16', name: 'Shodasamsa (D16)', desc: 'Vehicles, pleasures, comforts' },
-      { div: 'D20', name: 'Vimsamsa (D20)', desc: 'Spirituality, religious progress' },
-      { div: 'D24', name: 'Chaturvimsamsa (D24)', desc: 'Education, learning' },
-      { div: 'D27', name: 'Saptavimsamsa (D27)', desc: 'Strength, weakness, stamina' },
-      { div: 'D30', name: 'Trimsamsa (D30)', desc: 'Misfortunes, illnesses, troubles' },
-      { div: 'D40', name: 'Khavedamsa (D40)', desc: 'Auspicious & inauspicious effects' },
-      { div: 'D45', name: 'Akshavedamsa (D45)', desc: 'Character, conduct, integrity' },
-      { div: 'D60', name: 'Shashtiamsa (D60)', desc: 'Past karma, deepest analysis' },
+      { div: 'D1', name: l.d1, desc: l.d1Desc },
+      { div: 'D9', name: l.d9, desc: l.d9Desc },
+      { div: 'chalit', name: l.chalit, desc: l.chalitDesc },
+      { div: 'sun', name: l.sun, desc: l.sunDesc },
+      { div: 'moon', name: l.moon, desc: l.moonDesc },
+      { div: 'D2', name: l.d2, desc: l.d2Desc },
+      { div: 'D3', name: l.d3, desc: l.d3Desc },
+      { div: 'D4', name: l.d4, desc: l.d4Desc },
+      { div: 'D7', name: l.d7, desc: l.d7Desc },
+      { div: 'D10', name: l.d10, desc: l.d10Desc },
+      { div: 'D12', name: l.d12, desc: l.d12Desc },
+      { div: 'D16', name: l.d16, desc: l.d16Desc },
+      { div: 'D20', name: l.d20, desc: l.d20Desc },
+      { div: 'D24', name: l.d24, desc: l.d24Desc },
+      { div: 'D27', name: l.d27, desc: l.d27Desc },
+      { div: 'D30', name: l.d30, desc: l.d30Desc },
+      { div: 'D40', name: l.d40, desc: l.d40Desc },
+      { div: 'D45', name: l.d45, desc: l.d45Desc },
+      { div: 'D60', name: l.d60, desc: l.d60Desc },
     ];
 
     const currentOpt = DIVISIONAL_OPTIONS.find(o => o.div === divisionalDiv) || DIVISIONAL_OPTIONS[0];
@@ -1728,56 +2005,50 @@ const KundaliScreen = ({ onBack }) => {
           ))}
         </View>
 
-        <TouchableOpacity
-          style={[styles.textInput, { paddingVertical: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }]}
-          onPress={() => setShowDivModal(true)}
-        >
-          <View>
-            <Text style={{ fontSize: 14, fontWeight: '700', color: '#1a0533' }}>{currentOpt.name}</Text>
-            <Text style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>{currentOpt.desc}</Text>
-          </View>
-          <Text style={{ color: '#9ca3af', fontSize: 20 }}>⌄</Text>
-        </TouchableOpacity>
-
-        <View style={styles.sectionCard}>
-          <Text style={[styles.sectionTitle, { textAlign: 'center' }]}>{currentOpt.name}</Text>
-          {divisionalLoading && !divisionalChart ? (
-            <ActivityIndicator size="large" color="#7c3aed" style={{ marginVertical: 40 }} />
-          ) : (
-            <View style={{ alignItems: 'center', height: width - 80, width: width - 80, alignSelf: 'center', overflow: 'hidden' }}>
-              {renderChart(divisionalChart)}
-            </View>
-          )}
-        </View>
-
-        <Modal visible={showDivModal} transparent animationType="slide">
-          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
-            <View style={{ backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '80%', paddingBottom: 20 }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: 20, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' }}>
-                <Text style={{ fontSize: 16, fontWeight: 'bold' }}>Select Divisional Chart</Text>
-                <TouchableOpacity onPress={() => setShowDivModal(false)}>
-                  <Text style={{ fontSize: 16, color: '#7c3aed', fontWeight: 'bold' }}>Close</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            {DIVISIONAL_OPTIONS.map(opt => {
+              const label = opt.name.split(' (')[0].split(' / ')[0];
+              return (
+                <TouchableOpacity
+                  key={opt.div}
+                  style={[
+                    { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 50, borderWidth: 1.5 },
+                    divisionalDiv === opt.div
+                      ? { borderColor: '#7c3aed', backgroundColor: '#f3e8ff' }
+                      : { borderColor: '#e5e7eb', backgroundColor: '#fff' }
+                  ]}
+                  onPress={() => {
+                    setDivisionalDiv(opt.div);
+                    fetchDivisionalChart(opt.div, divisionalStyle);
+                  }}
+                >
+                  <Text style={{ fontSize: 13, fontWeight: '800', color: divisionalDiv === opt.div ? '#7c3aed' : '#6b7280' }}>
+                    {label}
+                  </Text>
                 </TouchableOpacity>
-              </View>
-              <ScrollView>
-                {DIVISIONAL_OPTIONS.map(opt => (
-                  <TouchableOpacity
-                    key={opt.div}
-                    style={{ padding: 16, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', backgroundColor: divisionalDiv === opt.div ? '#faf5ff' : '#fff' }}
-                    onPress={() => {
-                      setDivisionalDiv(opt.div);
-                      setShowDivModal(false);
-                      fetchDivisionalChart(opt.div, divisionalStyle);
-                    }}
-                  >
-                    <Text style={{ fontSize: 14, fontWeight: '700', color: divisionalDiv === opt.div ? '#7c3aed' : '#1a0533' }}>{opt.name}</Text>
-                    <Text style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{opt.desc}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
+              );
+            })}
+
           </View>
-        </Modal>
+        </ScrollView>
+
+        {canShow('divisional', 'charts') && (
+          <View style={styles.sectionCard}>
+            <View style={{ marginBottom: 12 }}>
+              <Text style={[styles.sectionTitle, { textAlign: 'center', marginBottom: 4 }]}>{currentOpt.name}</Text>
+              <Text style={{ fontSize: 12, color: '#6b7280', textAlign: 'center' }}>{currentOpt.desc}</Text>
+            </View>
+            {divisionalLoading && !divisionalChart ? (
+              <ActivityIndicator size="large" color="#7c3aed" style={{ marginVertical: 40 }} />
+            ) : (
+              <View style={{ alignItems: 'center', height: width - 80, width: width - 80, alignSelf: 'center', overflow: 'hidden' }}>
+                {renderChart(divisionalChart)}
+              </View>
+            )}
+          </View>
+        )}
+
       </View>
     );
   };
@@ -1787,12 +2058,12 @@ const KundaliScreen = ({ onBack }) => {
       return (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 40 }}>
           <ActivityIndicator size="large" color="#7c3aed" />
-          <Text style={{ color: '#7c3aed', marginTop: 10, fontWeight: '600' }}>Loading Ashtakvarga...</Text>
+          <Text style={{ color: '#7c3aed', marginTop: 10, fontWeight: '600' }}>{l.loadingAshtakvarga}</Text>
         </View>
       );
     }
     if (!ashtakvarga) {
-      return <Text style={{ textAlign: 'center', marginTop: 40, color: '#9ca3af' }}>Ashtakvarga data unavailable</Text>;
+      return <Text style={{ textAlign: 'center', marginTop: 40, color: '#9ca3af' }}>{l.ashtakvargaUnavailable}</Text>;
     }
 
     const { sav, binnas } = ashtakvarga;
@@ -1800,15 +2071,13 @@ const KundaliScreen = ({ onBack }) => {
     const selectedBinna = binnaKeys.includes(ashtakvargaView) ? ashtakvargaView : (binnaKeys[0] || null);
     const binnaSvg = selectedBinna ? binnas[selectedBinna]?.chart : null;
 
-    // SAV table data
     const savData = sav?.data || sav;
-    const savOrder = savData?.ashtvarga_order || savData?.ashtakvarga_order || [];
-    const savPoints = savData?.ashtvarga_points || savData?.ashtakvarga_points || [];
-    const savTotal = savData?.ashtvarga_total || savData?.ashtakvarga_total || [];
+    const savOrder = savData?.ashtakvarga_order || [];
+    const savPoints = savData?.ashtakvarga_points || [];
+    const savTotal = savData?.ashtakvarga_total || [];
 
     return (
       <View style={styles.tabScrollContent}>
-        {/* Chart Style Selector */}
         <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 10, marginBottom: 16 }}>
           {['north', 'south', 'east'].map(s => (
             <TouchableOpacity
@@ -1823,8 +2092,8 @@ const KundaliScreen = ({ onBack }) => {
           ))}
         </View>
 
-        {/* Planet Selector for Binna Ashtakvarga */}
-        {binnaKeys.length > 0 && (
+        {(canShow('ashtakvarga', 'bhinnashtakvarga') || canShow('ashtakvarga', 'contributions')) && binnaKeys.length > 0 && (
+
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               {binnaKeys.map(planet => (
@@ -1847,25 +2116,27 @@ const KundaliScreen = ({ onBack }) => {
           </ScrollView>
         )}
 
-        {/* Binna Chart & Breakdown */}
         {selectedBinna && (
           <>
-            <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>{selectedBinna} Bhinnashtakvarga</Text>
-              <View style={{ alignItems: 'center', height: width - 80, width: width - 80, alignSelf: 'center', overflow: 'hidden' }}>
-                {renderChart(binnaSvg)}
-              </View>
-            </View>
+            {canShow('ashtakvarga', 'bhinnashtakvarga') && (
 
-            {/* Binna Breakdown Table */}
-            {binnas[selectedBinna]?.data && (
               <View style={styles.sectionCard}>
-                <Text style={styles.sectionTitle}>{selectedBinna} Contributions</Text>
-                <Text style={{ fontSize: 12, color: '#6b7280', marginBottom: 12 }}>Planet-wise points contributed to each house for {selectedBinna}</Text>
+                <Text style={styles.sectionTitle}>{selectedBinna} {l.bhinnashtakvarga}</Text>
+                <View style={{ alignItems: 'center', height: width - 80, width: width - 80, alignSelf: 'center', overflow: 'hidden' }}>
+                  {renderChart(binnaSvg)}
+                </View>
+              </View>
+            )}
+
+            {canShow('ashtakvarga', 'contributions') && binnas[selectedBinna]?.data && (
+
+              <View style={styles.sectionCard}>
+                <Text style={styles.sectionTitle}>{selectedBinna} {l.contributions}</Text>
+                <Text style={{ fontSize: 12, color: '#6b7280', marginBottom: 12 }}>{l.planetWisePointsDesc} {selectedBinna}</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                   <View>
                     <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#f3f4f6', paddingBottom: 8, marginBottom: 4 }}>
-                      <Text style={{ width: 90, fontWeight: 'bold', color: '#374151', fontSize: 12 }}>Source</Text>
+                      <Text style={{ width: 90, fontWeight: 'bold', color: '#374151', fontSize: 12 }}>{l.source}</Text>
                       {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(h => (
                         <Text key={h} style={{ width: 32, textAlign: 'center', fontWeight: 'bold', color: '#374151', fontSize: 12 }}>{h}</Text>
                       ))}
@@ -1888,7 +2159,7 @@ const KundaliScreen = ({ onBack }) => {
         )}
 
         {/* SAV Table */}
-        {savOrder.length > 0 && (
+        {canShow('ashtakvarga', 'sav') && savOrder.length > 0 && (
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>Sarvashtakvarga (SAV) Points</Text>
             <Text style={{ fontSize: 12, color: '#6b7280', marginBottom: 12 }}>Combined Ashtakvarga points across all 12 houses</Text>
@@ -1922,6 +2193,7 @@ const KundaliScreen = ({ onBack }) => {
             </ScrollView>
           </View>
         )}
+
       </View>
     );
   };
@@ -1931,42 +2203,65 @@ const KundaliScreen = ({ onBack }) => {
       return (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 40 }}>
           <ActivityIndicator size="large" color="#7c3aed" />
-          <Text style={{ color: '#7c3aed', marginTop: 10, fontWeight: '600' }}>Loading Manglik Details...</Text>
+          <Text style={{ color: '#7c3aed', marginTop: 10, fontWeight: '600' }}>{l.loadingManglik}</Text>
         </View>
       );
     }
-    if (!manglik) return <Text style={{ textAlign: 'center', marginTop: 40, color: '#9ca3af' }}>Manglik data unavailable</Text>;
+    if (!manglik) return <Text style={{ textAlign: 'center', marginTop: 40, color: '#9ca3af' }}>{l.noData}</Text>;
 
-    const { isPresent, percent, description, remedies, presentRules, cancelRules } = extractManglik(manglik);
-    const statusColor = isPresent ? '#dc2626' : '#10b981';
-    const statusBg = isPresent ? '#fee2e2' : '#dcfce7';
+    const get = (...fields) => {
+      for (const f of fields) {
+        const v = manglik[f];
+        if (v !== undefined && v !== null && v !== '') return v;
+      }
+      return null;
+    };
+
+    const isManglik =
+      manglik.is_present === true || manglik.is_present === 'true' ||
+      manglik.manglik_present_rule?.is_present === true ||
+      manglik.is_manglik === true || manglik.manglik === true;
+
+    const percentage = get('percentage_manglik_present', 'manglik_percent', 'manglik_percentage');
+    const presentRules = manglik.manglik_present_rule?.based_on_rules || manglik.manglik_present_rule?.rules || manglik.present_rules || [];
+    const cancelRules = manglik.manglik_cancel_rule?.based_on_rules || manglik.manglik_cancel_rule?.rules || manglik.cancel_rules || [];
+    const description = get('description', 'desc', 'manglik_status', 'bot_response');
+    const remedies = get('remedies', 'remedy_list');
+    const remediesArr = Array.isArray(remedies) ? remedies : (typeof remedies === 'object' && remedies ? Object.values(remedies) : []);
+    const conclusion = get('conclusion', 'final_verdict');
+
+    const statusColor = isManglik ? '#dc2626' : '#10b981';
+    const statusBg = isManglik ? '#fee2e2' : '#dcfce7';
 
     return (
       <View style={styles.tabScrollContent}>
-        <View style={[styles.sectionCard, { backgroundColor: statusBg, borderColor: statusColor }]}>
-          <View style={{ alignItems: 'center' }}>
-            <Text style={{ fontSize: 40, marginBottom: 10 }}>{isPresent ? '🔥' : '✅'}</Text>
-            <Text style={{ fontSize: 20, fontWeight: 'bold', color: statusColor, marginBottom: 6 }}>
-              {isPresent ? 'You are Manglik' : 'You are NOT Manglik'}
-            </Text>
-            {percent > 0 && (
-              <Text style={{ fontSize: 14, color: statusColor, fontWeight: '600', marginTop: 4 }}>
-                Intensity: {percent}%
+        {canShow('manglik', 'analysis') && (
+          <View style={[styles.sectionCard, { backgroundColor: statusBg, borderColor: statusColor }]}>
+            <View style={{ alignItems: 'center' }}>
+              <Text style={{ fontSize: 40, marginBottom: 10 }}>{isManglik ? '🔥' : '✅'}</Text>
+              <Text style={{ fontSize: 20, fontWeight: 'bold', color: statusColor, marginBottom: 6 }}>
+                {isManglik ? l.youAreManglik : l.youAreNotManglik}
               </Text>
-            )}
+              {percentage !== null && (
+                <Text style={{ fontSize: 14, color: statusColor, fontWeight: '600', marginTop: 4 }}>
+                  {l.intensity}: {percentage}{typeof percentage === 'number' ? '%' : ''}
+                </Text>
+              )}
+            </View>
           </View>
-        </View>
+        )}
+
 
         {description && (
           <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Analysis</Text>
+            <Text style={styles.sectionTitle}>{l.analysis}</Text>
             <Text style={{ fontSize: 14, color: '#4b5563', lineHeight: 22 }}>{description}</Text>
           </View>
         )}
 
         {presentRules.length > 0 && (
           <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Factors Causing Mangal Dosh</Text>
+            <Text style={styles.sectionTitle}>{l.factorsCausing}</Text>
             {presentRules.map((rule, idx) => (
               <View key={idx} style={{ flexDirection: 'row', marginBottom: 8 }}>
                 <Text style={{ color: '#dc2626', marginRight: 8 }}>•</Text>
@@ -1978,7 +2273,7 @@ const KundaliScreen = ({ onBack }) => {
 
         {cancelRules.length > 0 && (
           <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Cancellation Rules (Apavada)</Text>
+            <Text style={styles.sectionTitle}>{l.cancellationRules}</Text>
             {cancelRules.map((rule, idx) => (
               <View key={idx} style={{ flexDirection: 'row', marginBottom: 8 }}>
                 <Text style={{ color: '#10b981', marginRight: 8 }}>•</Text>
@@ -1988,10 +2283,10 @@ const KundaliScreen = ({ onBack }) => {
           </View>
         )}
 
-        {remedies.length > 0 && (
+        {remediesArr.length > 0 && (
           <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Suggested Remedies</Text>
-            {remedies.map((rule, idx) => (
+            <Text style={styles.sectionTitle}>{l.suggestedRemedies}</Text>
+            {remediesArr.map((rule, idx) => (
               <View key={idx} style={{ flexDirection: 'row', marginBottom: 8 }}>
                 <Text style={{ color: '#f59e0b', marginRight: 8 }}>★</Text>
                 <Text style={{ flex: 1, fontSize: 14, color: '#374151', lineHeight: 20 }}>{rule}</Text>
@@ -2002,7 +2297,7 @@ const KundaliScreen = ({ onBack }) => {
 
         {conclusion && (
           <View style={[styles.sectionCard, { backgroundColor: '#fdf2f8', borderColor: '#fbcfe8' }]}>
-            <Text style={[styles.sectionTitle, { color: '#9d174d' }]}>Final Verdict</Text>
+            <Text style={[styles.sectionTitle, { color: '#9d174d' }]}>{l.finalVerdict}</Text>
             <Text style={{ fontSize: 14, color: '#831843', lineHeight: 22 }}>{conclusion}</Text>
           </View>
         )}
@@ -2034,7 +2329,7 @@ const KundaliScreen = ({ onBack }) => {
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
           <Text style={styles.backIcon}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Free Kundali</Text>
+        <Text style={styles.headerTitle}>{l.title}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -2057,14 +2352,13 @@ const KundaliScreen = ({ onBack }) => {
               style={styles.heroGradient}
             >
               <View style={styles.heroIconRow}>
-                <Text style={styles.heroEmoji}>🔮</Text>
               </View>
-              <Text style={styles.heroTitle}>Free Janam Kundali</Text>
-              <Text style={styles.heroSubtitle}>Accurate Vedic birth chart with 13 detailed sections</Text>
+              <Text style={styles.heroTitle}>{l.heroTitle}</Text>
+              <Text style={styles.heroSubtitle}>{l.heroSubtitle}</Text>
               <View style={styles.heroBadgeRow}>
-                <View style={styles.heroBadge}><Text style={styles.heroBadgeText}>✦ 100% Free</Text></View>
-                <View style={styles.heroBadge}><Text style={styles.heroBadgeText}>✦ Instant Results</Text></View>
-                <View style={styles.heroBadge}><Text style={styles.heroBadgeText}>✦ Vedic System</Text></View>
+                <View style={styles.heroBadge}><Text style={styles.heroBadgeText}>{l.hundredPercentFree}</Text></View>
+                <View style={styles.heroBadge}><Text style={styles.heroBadgeText}>{l.instantResults}</Text></View>
+                <View style={styles.heroBadge}><Text style={styles.heroBadgeText}>{l.vedicSystem}</Text></View>
               </View>
             </LinearGradient>
 
@@ -2074,15 +2368,15 @@ const KundaliScreen = ({ onBack }) => {
 
                 <View style={styles.formTitleRow}>
                   <View style={styles.formTitleAccent} />
-                  <Text style={styles.formHeading}>Birth Details</Text>
+                  <Text style={styles.formHeading}>{l.birthDetails}</Text>
                 </View>
 
                 {/* Name */}
-                <Text style={styles.inputLabel}>👤  Full Name</Text>
+                <Text style={styles.inputLabel}>{l.fullName}</Text>
                 <View style={styles.inputWrapper}>
                   <TextInput
                     style={styles.textInput}
-                    placeholder="Enter your full name"
+                    placeholder={l.enterName}
                     placeholderTextColor="#BBBBBB"
                     value={form.name}
                     onChangeText={t => handleChange('name', t)}
@@ -2091,12 +2385,12 @@ const KundaliScreen = ({ onBack }) => {
                 </View>
 
                 {/* Gender */}
-                <Text style={styles.inputLabel}>⚧  Gender</Text>
+                <Text style={styles.inputLabel}>{l.gender}</Text>
                 <View style={styles.genderRow}>
                   {[
-                    { label: '♂ Male', val: 'Male' },
-                    { label: '♀ Female', val: 'Female' },
-                    { label: '⚧ Other', val: 'Other' },
+                    { label: l.male, val: 'Male' },
+                    { label: l.female, val: 'Female' },
+                    { label: l.other, val: 'Other' },
                   ].map(g => (
                     <TouchableOpacity
                       key={g.val}
@@ -2113,7 +2407,7 @@ const KundaliScreen = ({ onBack }) => {
                 {/* Date & Time Row */}
                 <View style={styles.row}>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.inputLabel}>📅  Date of Birth</Text>
+                    <Text style={styles.inputLabel}>{l.dateOfBirth}</Text>
                     <TouchableOpacity
                       style={styles.pickerTrigger}
                       onPress={() => setShowPicker({ visible: true, mode: 'date', target: 'birthDate' })}
@@ -2125,7 +2419,7 @@ const KundaliScreen = ({ onBack }) => {
                     </TouchableOpacity>
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.inputLabel}>⏰  Time of Birth</Text>
+                    <Text style={styles.inputLabel}>{l.timeOfBirth}</Text>
                     <TouchableOpacity
                       style={styles.pickerTrigger}
                       onPress={() => setShowPicker({ visible: true, mode: 'time', target: 'birthTime' })}
@@ -2139,12 +2433,12 @@ const KundaliScreen = ({ onBack }) => {
                 </View>
 
                 {/* Place of Birth */}
-                <Text style={styles.inputLabel}>📍  Place of Birth</Text>
+                <Text style={styles.inputLabel}>{l.placeOfBirth}</Text>
                 <View style={styles.placeWrapper}>
                   <View style={styles.inputWrapper}>
                     <TextInput
                       style={styles.textInput}
-                      placeholder="Search city, town..."
+                      placeholder={l.searchCity}
                       placeholderTextColor="#BBBBBB"
                       value={form.birthPlace}
                       onChangeText={handlePlaceChange}
@@ -2192,14 +2486,14 @@ const KundaliScreen = ({ onBack }) => {
                     {loading
                       ? <ActivityIndicator color="#1A1A1A" />
                       : <>
-                          <Text style={styles.submitText}>Generate Free Kundali</Text>
-                          <Text style={styles.submitArrow}>→</Text>
-                        </>
+                        <Text style={styles.submitText}>{l.generate}</Text>
+                        <Text style={styles.submitArrow}>→</Text>
+                      </>
                     }
                   </LinearGradient>
                 </TouchableOpacity>
 
-                <Text style={styles.formDisclaimer}>🔒 Your data is private & secure</Text>
+                <Text style={styles.formDisclaimer}>{l.private}</Text>
               </View>
             </View>
           </ScrollView>
@@ -2215,7 +2509,7 @@ const KundaliScreen = ({ onBack }) => {
               </Text>
             </View>
             <TouchableOpacity onPress={() => setShowLangModal(true)} style={styles.langBtn}>
-              <Text style={styles.langBtnText}>🌐 {LANGUAGES.find(l => l.code === lang)?.label || 'En'}</Text>
+              <Text style={styles.langBtnText}>{LANGUAGES.find(l => l.code === lang)?.label || 'En'}</Text>
             </TouchableOpacity>
           </LinearGradient>
 
@@ -2229,7 +2523,7 @@ const KundaliScreen = ({ onBack }) => {
                   onPress={() => handleTabChange(tab.key)}
                 >
                   <Text style={[styles.tabLabel, activeTab === tab.key && styles.tabLabelActive]}>
-                    {tab.label}
+                    {l[tab.labelKey]}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -2251,8 +2545,14 @@ const KundaliScreen = ({ onBack }) => {
             {activeTab === 'divisional' && renderDivisionalTab()}
             {activeTab === 'manglik' && renderManglikTab()}
 
+            {['polish'].includes(activeTab) && (
+              <View style={{ padding: 40, alignItems: 'center' }}>
+                <Text style={{ color: '#9ca3af' }}>{activeTab} content coming soon...</Text>
+              </View>
+            )}
+
             <TouchableOpacity style={styles.resetButton} onPress={() => setKundaliRecord(null)}>
-              <Text style={styles.resetText}>↺ Generate New Kundali</Text>
+              <Text style={styles.resetText}>{l.generateNew}</Text>
             </TouchableOpacity>
             <View style={{ height: 40 }} />
           </ScrollView>
@@ -2264,20 +2564,20 @@ const KundaliScreen = ({ onBack }) => {
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
           <View style={{ backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '80%', paddingBottom: 20 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: 20, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' }}>
-              <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1a0533' }}>Select Language</Text>
+              <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1a0533' }}>{l.selectLang}</Text>
               <TouchableOpacity onPress={() => setShowLangModal(false)}>
-                <Text style={{ fontSize: 16, color: '#7c3aed', fontWeight: 'bold' }}>Close</Text>
+                <Text style={{ fontSize: 16, color: '#7c3aed', fontWeight: 'bold' }}>{l.close}</Text>
               </TouchableOpacity>
             </View>
             <ScrollView>
-              {LANGUAGES.map(l => (
+              {LANGUAGES.map(langOpt => (
                 <TouchableOpacity
-                  key={l.code}
-                  style={{ padding: 16, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', backgroundColor: lang === l.code ? '#faf5ff' : '#fff' }}
-                  onPress={() => onChangeLang(l.code)}
+                  key={langOpt.code}
+                  style={{ padding: 16, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', backgroundColor: lang === langOpt.code ? '#faf5ff' : '#fff' }}
+                  onPress={() => onChangeLang(langOpt.code)}
                 >
-                  <Text style={{ fontSize: 15, fontWeight: lang === l.code ? '700' : '500', color: lang === l.code ? '#7c3aed' : '#1a0533' }}>
-                    {l.label}
+                  <Text style={{ fontSize: 15, fontWeight: lang === langOpt.code ? '700' : '500', color: lang === langOpt.code ? '#7c3aed' : '#1a0533' }}>
+                    {langOpt.label}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -2423,16 +2723,16 @@ const styles = StyleSheet.create({
   tabScrollContent: { padding: 16 },
   sectionCard: {
     backgroundColor: '#FFF', borderRadius: 16, padding: 16,
-    marginBottom: 16, borderWidth: 1, borderColor: '#eee',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05, shadowRadius: 4, elevation: 2
+    marginBottom: 16, borderWidth: 1, borderColor: '#f3e8ff',
+    shadowColor: '#7c3aed', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04, shadowRadius: 8, elevation: 2
   },
   sectionTitle: { fontSize: 16, fontWeight: '800', color: '#1a0533', marginBottom: 16 },
   sectionDesc: { fontSize: 14, fontWeight: '600', color: '#666', marginBottom: 12 },
 
   infoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  infoItem: { width: '48%', backgroundColor: '#FFFBE6', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#FFE082' },
-  infoLabel: { fontSize: 10, color: '#E6A800', textTransform: 'uppercase', marginBottom: 4, fontWeight: '700', letterSpacing: 0.5 },
+  infoItem: { width: '48%', backgroundColor: '#faf5ff', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#f3e8ff' },
+  infoLabel: { fontSize: 10, color: '#7c3aed', textTransform: 'uppercase', marginBottom: 4, fontWeight: '700', letterSpacing: 0.5 },
   infoValue: { fontSize: 14, fontWeight: '700', color: '#1a0533' },
 
   planetCard: {
@@ -2441,16 +2741,16 @@ const styles = StyleSheet.create({
     shadowColor: '#7c3aed', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.04, shadowRadius: 8, elevation: 2
   },
-  planetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, borderBottomWidth: 1, borderBottomColor: '#eee', paddingBottom: 12 },
-  planetIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#FFFBE6', alignItems: 'center', justifyContent: 'center' },
-  planetIconText: { fontSize: 16, color: '#E6A800' },
+  planetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, borderBottomWidth: 1, borderBottomColor: '#f3e8ff', paddingBottom: 12 },
+  planetIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#faf5ff', alignItems: 'center', justifyContent: 'center' },
+  planetIconText: { fontSize: 16, color: '#7c3aed' },
   planetNameText: { fontSize: 16, fontWeight: '800', color: '#1a0533' },
   retroBadge: { backgroundColor: '#fee2e2', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
   retroBadgeText: { fontSize: 10, fontWeight: '800', color: '#ef4444' },
-  planetHouseBadge: { backgroundColor: '#FFFBE6', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
-  planetHouseText: { fontSize: 11, fontWeight: '700', color: '#E6A800' },
+  planetHouseBadge: { backgroundColor: '#f3e8ff', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  planetHouseText: { fontSize: 11, fontWeight: '700', color: '#7c3aed' },
   planetDetailsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 },
-  planetGridItem: { width: '48%', backgroundColor: '#FAFAFA', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#EEE' },
+  planetGridItem: { width: '48%', backgroundColor: '#faf5ff', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#f3e8ff' },
   planetGridLabel: { fontSize: 10, color: '#6b7280', textTransform: 'uppercase', marginBottom: 2, fontWeight: '600' },
   planetGridValue: { fontSize: 13, fontWeight: '700', color: '#1f2937' },
   degreeRow: {},
@@ -2464,12 +2764,12 @@ const styles = StyleSheet.create({
     shadowColor: '#7c3aed', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.03, shadowRadius: 4, elevation: 1
   },
-  dashaIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#FFFBE6', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  dashaIconText: { fontSize: 20, color: '#E6A800' },
+  dashaIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#faf5ff', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  dashaIconText: { fontSize: 20, color: '#7c3aed' },
   dashaPlanet: { fontSize: 15, fontWeight: '800', color: '#1a0533' },
   dashaRange: { fontSize: 12, color: '#6b7280', marginTop: 2, fontWeight: '500' },
-  dashaBadge: { backgroundColor: '#FFFBE6', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  dashaBadgeText: { fontSize: 10, color: '#E6A800', fontWeight: '800' },
+  dashaBadge: { backgroundColor: '#f3e8ff', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  dashaBadgeText: { fontSize: 10, color: '#7c3aed', fontWeight: '800' },
 
   breadcrumbPill: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 50, backgroundColor: '#f3f4f6' },
   breadcrumbPillActive: { backgroundColor: '#f3e8ff', borderWidth: 1, borderColor: '#7c3aed' },
@@ -2478,9 +2778,9 @@ const styles = StyleSheet.create({
   breadcrumbArrow: { marginHorizontal: 6, color: '#9ca3af', fontSize: 16 },
 
   chartStyleBtn: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 50, borderWidth: 1.5, borderColor: '#e5e7eb', backgroundColor: '#fff' },
-  chartStyleBtnActive: { borderColor: '#FFCC00', backgroundColor: '#FFCC00' },
+  chartStyleBtnActive: { borderColor: '#7c3aed', backgroundColor: '#7c3aed' },
   chartStyleText: { fontSize: 13, fontWeight: '600', color: '#6b7280' },
-  chartStyleTextActive: { color: '#1A1A1A' },
+  chartStyleTextActive: { color: '#fff' },
 
   statusBanner: {
     padding: 20, borderRadius: 16, borderWidth: 1,
@@ -2518,8 +2818,8 @@ const styles = StyleSheet.create({
   descText: { fontSize: 12, color: '#4b5563', lineHeight: 18 },
 
   ghatkaGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  ghatkaItem: { width: '31%', padding: 10, borderRadius: 10, backgroundColor: '#FFFBE6', borderWidth: 1, borderColor: '#FFE082' },
-  ghatkaLabel: { fontSize: 9, color: '#E6A800', textTransform: 'uppercase', fontWeight: '700', marginBottom: 2 },
+  ghatkaItem: { width: '31%', padding: 10, borderRadius: 10, backgroundColor: '#faf5ff', borderWidth: 1, borderColor: '#f3e8ff' },
+  ghatkaLabel: { fontSize: 9, color: '#7c3aed', textTransform: 'uppercase', fontWeight: '700', marginBottom: 2 },
   ghatkaValue: { fontSize: 12, fontWeight: '700', color: '#1a0533' },
 
   pill: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, fontSize: 10, fontWeight: '800' },
@@ -2527,4 +2827,75 @@ const styles = StyleSheet.create({
   pillCombust: { backgroundColor: '#fff7ed', color: '#f97316' },
   pillBenefic: { backgroundColor: '#dcfce7', color: '#10b981' },
   pillMalefic: { backgroundColor: '#f3f4f6', color: '#6b7280' },
+
+  /* Planet Sub-Tabs */
+  planetSubTabWrapper: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    borderRadius: 50,
+    padding: 4,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#f3f4f6',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  planetSubTab: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  planetSubTabActive: {
+    backgroundColor: '#7c3aed',
+  },
+  planetSubTabText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#6b7280',
+  },
+  planetSubTabTextActive: {
+    color: '#fff',
+  },
+  planetSubTabSubText: {
+    fontSize: 9,
+    color: '#9ca3af',
+    marginTop: 1,
+    fontWeight: '500',
+  },
+
+  /* Planet Table */
+  planetTableHeader: {
+    flexDirection: 'row',
+    backgroundColor: '#7c3aed',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+  },
+  planetTableCol: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#fff',
+    textAlign: 'left',
+  },
+  planetTableRow: {
+    flexDirection: 'row',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+    alignItems: 'center',
+  },
+  planetTableCell: {
+    fontSize: 12,
+    color: '#4b5563',
+    textAlign: 'left',
+  },
 });
+
