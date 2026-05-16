@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
   StyleSheet, StatusBar, ActivityIndicator, Alert, Dimensions,
@@ -381,7 +381,7 @@ const injectDegreesIntoSvg = (svgStr, degreeMap) => {
 };
 
 const KundaliScreen = ({ onBack }) => {
-  const { token } = useSelector(s => s.auth);
+  const { token, globalLang } = useSelector(s => s.auth);
   const [form, setForm] = useState({
     name: '', gender: 'Male', birthDate: '', birthTime: '',
     birthPlace: '', latitude: '', longitude: ''
@@ -457,8 +457,14 @@ const KundaliScreen = ({ onBack }) => {
   const [manglikLoading, setManglikLoading] = useState(false);
 
   // Common
-  const [lang, setLang] = useState('hi');
+  const [lang, setLang] = useState(globalLang || 'hi');
   const [activeTab, setActiveTab] = useState('basic');
+
+  useEffect(() => {
+    if (globalLang && globalLang !== lang) {
+      onChangeLang(globalLang);
+    }
+  }, [globalLang]);
 
   const debounceRef = useRef(null);
   const [showPicker, setShowPicker] = useState({ visible: false, mode: 'date', target: '' });

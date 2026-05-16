@@ -6,29 +6,30 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme/colors';
 import ScreenHeader from '../components/ScreenHeader';
 import usePermissions from '../hooks/usePermissions';
+import useTranslation from '../hooks/useTranslation';
 
 const ALL_MENU_ITEMS = [
   {
-    section: 'Consultations', items: [
-      { icon: '💬', label: 'Chat History', key: 'ChatHistory', permKey: 'chat' },
-      { icon: '📞', label: 'Call History', key: 'CallHistory', permKey: 'call' },
-      { icon: '📅', label: 'Appointments', key: 'Appointments', permKey: 'appointments' },
+    sectionKey: 'consultations', items: [
+      { icon: '💬', labelKey: 'chat_history', key: 'ChatHistory', permKey: 'chat' },
+      { icon: '📞', labelKey: 'call_history', key: 'CallHistory', permKey: 'call' },
+      { icon: '📅', labelKey: 'appointments', key: 'Appointments', permKey: 'appointments' },
     ]
   },
   {
-    section: 'Puja Services', items: [
-      { icon: '🪔', label: 'My Pujas', key: 'Pujas', permKey: 'puja' },
-      { icon: '📦', label: 'Puja Orders', key: 'PujaOrders', permKey: 'puja' },
+    sectionKey: 'puja_services', items: [
+      { icon: '🪔', labelKey: 'my_pujas', key: 'Pujas', permKey: 'puja' },
+      { icon: '📦', labelKey: 'puja_orders', key: 'PujaOrders', permKey: 'puja' },
     ]
   },
   {
-    section: 'Reports & Tools', items: [
-      { icon: '📋', label: 'Report Requests', key: 'Reports', permKey: 'reports' },
-      { icon: '⭐', label: 'User Reviews', key: 'Reviews', permKey: 'reviews' },
-      { icon: '👥', label: 'Followers', key: 'Followers', permKey: 'followers' },
-      { icon: '🔔', label: 'Notifications', key: 'Notifications', permKey: 'notifications' },
-      { icon: '📜', label: 'Check Kundali', key: 'Kundali', permKey: 'kundali' },
-      { icon: '💖', label: 'Match Kundali', key: 'KundaliMatching', permKey: 'kundali_matching' },
+    sectionKey: 'reports_tools', items: [
+      { icon: '📋', labelKey: 'report_requests', key: 'Reports', permKey: 'reports' },
+      { icon: '⭐', labelKey: 'user_reviews', key: 'Reviews', permKey: 'reviews' },
+      { icon: '👥', labelKey: 'followers', key: 'Followers', permKey: 'followers' },
+      { icon: '🔔', labelKey: 'notifications', key: 'Notifications', permKey: 'notifications' },
+      { icon: '📜', labelKey: 'check_kundali', key: 'Kundali', permKey: 'kundali' },
+      { icon: '💖', labelKey: 'match_kundali', key: 'KundaliMatching', permKey: 'kundali_matching' },
     ]
   },
 ];
@@ -36,6 +37,7 @@ const ALL_MENU_ITEMS = [
 const MoreScreen = ({ onOpenSubScreen }) => {
   const insets = useSafeAreaInsets();
   const { can } = usePermissions();
+  const { t } = useTranslation();
 
   // Filter sections and items by permissions
   const MENU_ITEMS = ALL_MENU_ITEMS
@@ -46,12 +48,12 @@ const MoreScreen = ({ onOpenSubScreen }) => {
     .filter(section => section.items.length > 0);
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <ScreenHeader title="More" subtitle="Features & Tools" />
+    <View style={styles.container}>
+      <ScreenHeader title={t('more')} subtitle={t('features_tools')} />
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
         {MENU_ITEMS.map(section => (
-          <View key={section.section} style={styles.section}>
-            <Text style={styles.sectionTitle}>{section.section}</Text>
+          <View key={section.sectionKey} style={styles.section}>
+            <Text style={styles.sectionTitle}>{t(section.sectionKey)}</Text>
             <View style={styles.sectionCard}>
               {section.items.map((item, idx) => (
                 <TouchableOpacity
@@ -61,7 +63,7 @@ const MoreScreen = ({ onOpenSubScreen }) => {
                   activeOpacity={0.7}
                 >
                   <Text style={styles.menuItemIcon}>{item.icon}</Text>
-                  <Text style={styles.menuItemLabel}>{item.label}</Text>
+                  <Text style={styles.menuItemLabel}>{t(item.labelKey)}</Text>
                   <Text style={styles.menuItemArrow}>›</Text>
                 </TouchableOpacity>
               ))}
@@ -71,7 +73,7 @@ const MoreScreen = ({ onOpenSubScreen }) => {
 
         <View style={styles.versionCard}>
           <Text style={styles.versionText}>🔮 AstroVell Astrologer</Text>
-          <Text style={styles.versionSub}>Version 1.0.0 • Powered by AstroVell</Text>
+          <Text style={styles.versionSub}>{t('version')} 1.0.0 • {t('powered_by')}</Text>
         </View>
       </ScrollView>
     </View>

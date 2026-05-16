@@ -28,7 +28,8 @@ const authSlice = createSlice({
     profileComplete: false,
     chatStatus: 'Offline',
     callStatus: 'Offline',
-    globalLang: 'en',
+    globalLang: 'hi',
+    setupCompleted: false,
   },
   reducers: {
     loginSuccess: (state, action) => {
@@ -46,6 +47,7 @@ const authSlice = createSlice({
       state.profileComplete = false;
       state.chatStatus = 'Offline';
       state.callStatus = 'Offline';
+      state.setupCompleted = false;
       AsyncStorage.removeItem('astrologerToken');
     },
     updateAstrologer: (state, action) => {
@@ -62,6 +64,9 @@ const authSlice = createSlice({
     },
     setGlobalLang: (state, action) => {
       state.globalLang = action.payload;
+    },
+    completeSetup: (state) => {
+      state.setupCompleted = true;
     },
   },
   extraReducers: (builder) => {
@@ -80,5 +85,9 @@ const authSlice = createSlice({
   },
 });
 
-export const { loginSuccess, logout, updateAstrologer, setChatStatus, setCallStatus, setGlobalLang } = authSlice.actions;
+export const { 
+  loginSuccess, logout, updateAstrologer, 
+  setChatStatus, setCallStatus, setGlobalLang,
+  completeSetup 
+} = authSlice.actions;
 export default authSlice.reducer;

@@ -22,11 +22,17 @@ import PanchangScreen     from '../screens/PanchangScreen';
 import BottomTabBar       from '../components/BottomTabBar';
 import { colors }         from '../theme/colors';
 import usePermissions     from '../hooks/usePermissions';
+import { useNavigation }  from '@react-navigation/native';
+import useActiveSession   from '../hooks/useActiveSession';
+import { Text, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 const MainTabNavigator = () => {
   const [activeTab, setActiveTab]         = useState('Dashboard');
   const [activeSubScreen, setActiveSubScreen] = useState(null);
   const { can } = usePermissions();
+  const navigation = useNavigation();
+  const activeSession = useActiveSession();
   
   // ── Hardware Back Button Handling ─────────────────────────────────────────
   useEffect(() => {
@@ -52,19 +58,20 @@ const MainTabNavigator = () => {
   const openSubScreen = (name) => {
     // Guard: only open sub-screen if permission allows
     const subPermMap = {
-      ChatHistory:   'chat',
-      CallHistory:   'call',
+      ChatHistory:   'chat_history',
+      CallHistory:   'call_history',
       Reviews:       'reviews',
       Reports:       'reports',
       Appointments:  'appointments',
       Pujas:         'puja',
-      PujaOrders:    'puja',
+      PujaOrders:    'puja_orders',
       Followers:     'followers',
       Notifications: 'notifications',
       Kundali:       'kundali',
       KundaliMatching: 'kundali_matching',
       Horoscope:     'horoscope',
       Panchang:      'panchang',
+      Wallet:        'wallet',
     };
     const permKey = subPermMap[name];
     if (permKey && !can(permKey)) return; // blocked
@@ -87,6 +94,7 @@ const MainTabNavigator = () => {
   if (activeSubScreen === 'KundaliMatching')return <KundaliMatchingScreen onBack={closeSubScreen} />;
   if (activeSubScreen === 'Horoscope')      return <HoroscopeScreen onBack={closeSubScreen} />;
   if (activeSubScreen === 'Panchang')       return <PanchangScreen onBack={closeSubScreen} />;
+  if (activeSubScreen === 'Wallet')         return <WalletScreen onBack={closeSubScreen} />;
 
   const renderScreen = () => {
     switch (activeTab) {
@@ -103,6 +111,30 @@ const MainTabNavigator = () => {
 
   return (
     <View style={styles.container}>
+      {activeSession && (
+        <TouchableOpacity
+          style={styles.activeSessionBanner}
+          activeOpacity={0.9}
+          onPress={() => {
+            if (activeSession.type === 'chat') {
+              navigation.navigate('ChatRoom', { chatId: activeSession.id });
+            } else {
+              navigation.navigate('CallRoom', { callId: activeSession.id, isAccepted: true });
+            }
+          }}
+        >
+          <View style={styles.bannerContent}>
+            <View style={styles.bannerDot} />
+            <Text style={styles.bannerText}>
+              Active {activeSession.type === 'chat' ? 'Chat' : 'Call'} with {activeSession.name} ({activeSession.status})
+            </Text>
+          </View>
+          <View style={styles.resumeBadge}>
+            <Text style={styles.resumeText}>Resume</Text>
+            <Ionicons name="arrow-forward" size={14} color={colors.white} />
+          </View>
+        </TouchableOpacity>
+      )}
       <View style={styles.screenArea}>{renderScreen()}</View>
       <BottomTabBar activeTab={activeTab} onTabPress={setActiveTab} />
     </View>
@@ -114,4 +146,49 @@ export default MainTabNavigator;
 const styles = StyleSheet.create({
   container:  { flex: 1, backgroundColor: colors.primary },
   screenArea: { flex: 1 },
+  activeSessionBanner: {
+    backgroundColor: '#10b981',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.2)',
+  },
+  bannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  bannerDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.white,
+    marginRight: 10,
+    // Note: React Native doesn't support keyframe animations in StyleSheet easily
+    // but we can add a simple pulse or just leave it solid for now.
+  },
+  bannerText: {
+    color: colors.white,
+    fontSize: 12,
+    fontWeight: '700',
+    flex: 1,
+  },
+  resumeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginLeft: 10,
+  },
+  resumeText: {
+    color: colors.white,
+    fontSize: 11,
+    fontWeight: '800',
+    marginRight: 4,
+  },
 });

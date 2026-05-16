@@ -8,9 +8,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { notificationApi } from '../api/services';
 import { colors } from '../theme/colors';
 import ScreenHeader from '../components/ScreenHeader';
+import useTranslation from '../hooks/useTranslation';
 
 const NotificationsScreen = ({ onBack }) => {
   const { astrologer } = useSelector(s => s.auth);
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [items,      setItems]      = useState([]);
   const [loading,    setLoading]    = useState(true);
@@ -44,7 +46,7 @@ const NotificationsScreen = ({ onBack }) => {
         <Text style={{ fontSize: 22 }}>{getNotifIcon(item.notificationType)}</Text>
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={styles.notifTitle}>{item.title || item.message || 'Notification'}</Text>
+<Text style={styles.notifTitle}>{item.title || item.message || t('notifications')}</Text>
         {item.body && item.body !== item.title ? (
           <Text style={styles.notifBody} numberOfLines={2}>{item.body}</Text>
         ) : null}
@@ -56,8 +58,8 @@ const NotificationsScreen = ({ onBack }) => {
   );
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <ScreenHeader title="Notifications" onBack={onBack} />
+    <View style={styles.container}>
+      <ScreenHeader title={t('notifications')} onBack={onBack} />
       {loading ? (
         <ActivityIndicator color={colors.secondary} style={{ margin: 40 }} />
       ) : (
@@ -70,7 +72,7 @@ const NotificationsScreen = ({ onBack }) => {
           ListEmptyComponent={
             <View style={styles.empty}>
               <Text style={styles.emptyIcon}>🔔</Text>
-              <Text style={styles.emptyText}>No notifications</Text>
+              <Text style={styles.emptyText}>{t('no_notifications')}</Text>
             </View>
           }
         />

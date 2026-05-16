@@ -8,9 +8,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { reportApi } from '../api/services';
 import { colors } from '../theme/colors';
 import ScreenHeader from '../components/ScreenHeader';
+import useTranslation from '../hooks/useTranslation';
 
 const ReportsScreen = ({ onBack }) => {
   const { astrologer } = useSelector(s => s.auth);
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [reports,    setReports]    = useState([]);
   const [loading,    setLoading]    = useState(true);
@@ -37,7 +39,7 @@ const ReportsScreen = ({ onBack }) => {
       <View style={[styles.reportCard, { borderLeftColor: isCompleted ? colors.success : colors.warning }]}>
         <View style={styles.reportHeader}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.reportUser}>{item.firstName || 'User'} {item.lastName || ''}</Text>
+            <Text style={styles.reportUser}>{item.firstName || t('user')} {item.lastName || ''}</Text>
             <Text style={styles.reportMeta}>
               {item.reportType || 'Report'} • ₹{parseFloat(item.reportRate || 0).toFixed(0)} • {item.created_at ? new Date(item.created_at).toLocaleDateString('en-IN') : ''}
             </Text>
@@ -45,7 +47,7 @@ const ReportsScreen = ({ onBack }) => {
           <View style={styles.reportRight}>
             <View style={[styles.reportBadge, { backgroundColor: isCompleted ? colors.success + '20' : colors.warning + '20' }]}>
               <Text style={[styles.reportBadgeText, { color: isCompleted ? colors.success : colors.warning }]}>
-                {isCompleted ? 'Done' : 'Pending'}
+                {isCompleted ? t('done') : t('pending')}
               </Text>
             </View>
             <TouchableOpacity onPress={() => setExpandedId(isExpanded ? null : item.id)}>
@@ -57,12 +59,12 @@ const ReportsScreen = ({ onBack }) => {
         {isExpanded && (
           <View style={styles.reportDetails}>
             {[
-              ['Gender', item.gender],
-              ['Birth Date', item.birthDate],
-              ['Birth Time', item.birthTime],
-              ['Birth Place', item.birthPlace],
-              ['Marital Status', item.maritalStatus],
-              ['Occupation', item.occupation],
+              [t('gender'), item.gender ? (item.gender === 'Male' ? t('male') : item.gender === 'Female' ? t('female') : t('other')) : null],
+              [t('dob'), item.birthDate],
+              [t('tob'), item.birthTime],
+              [t('pob'), item.birthPlace],
+              [t('marital_status') || 'Marital Status', item.maritalStatus],
+              [t('occupation') || 'Occupation', item.occupation],
             ].filter(([, v]) => v).map(([k, v]) => (
               <View key={k} style={styles.detailRow}>
                 <Text style={styles.detailKey}>{k}:</Text>
@@ -78,10 +80,10 @@ const ReportsScreen = ({ onBack }) => {
                 style={styles.uploadBtn}
                 onPress={() => Alert.alert('Info', 'File picker would open here to upload PDF report')}
               >
-                <Text style={styles.uploadBtnText}>📄 Upload Report PDF</Text>
+                <Text style={styles.uploadBtnText}>📄 {t('upload_report') || 'Upload Report PDF'}</Text>
               </TouchableOpacity>
             ) : (
-              <Text style={styles.reportUploaded}>✅ Report uploaded</Text>
+              <Text style={styles.reportUploaded}>✅ {t('report_uploaded') || 'Report uploaded'}</Text>
             )}
           </View>
         )}
@@ -90,8 +92,8 @@ const ReportsScreen = ({ onBack }) => {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <ScreenHeader title="Report Requests" subtitle="Upload reports for customers" onBack={onBack} />
+    <View style={styles.container}>
+      <ScreenHeader title={t('report_requests')} subtitle={t('report_requests_desc') || 'Upload reports for customers'} onBack={onBack} />
       {loading ? (
         <ActivityIndicator color={colors.secondary} style={{ margin: 40 }} />
       ) : (
@@ -104,7 +106,7 @@ const ReportsScreen = ({ onBack }) => {
           ListEmptyComponent={
             <View style={styles.empty}>
               <Text style={styles.emptyIcon}>📋</Text>
-              <Text style={styles.emptyText}>No report requests</Text>
+              <Text style={styles.emptyText}>{t('no_reports')}</Text>
             </View>
           }
         />

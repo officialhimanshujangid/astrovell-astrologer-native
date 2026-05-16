@@ -4,17 +4,19 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import usePermissions from '../hooks/usePermissions';
+import useTranslation from '../hooks/useTranslation';
 
 const ALL_TABS = [
-  { name: 'Dashboard', icon: 'home', iconOutline: 'home-outline', label: 'Home', permKey: 'tab_dashboard' },
-  { name: 'Wallet',    icon: 'wallet', iconOutline: 'wallet-outline', label: 'Wallet', permKey: 'tab_wallet' },
-  { name: 'Profile',   icon: 'person', iconOutline: 'person-outline', label: 'Profile', permKey: 'tab_profile' },
-  { name: 'More',      icon: 'grid', iconOutline: 'grid-outline', label: 'Menu', permKey: 'tab_more' },
+  { name: 'Dashboard', icon: 'home', iconOutline: 'home-outline', labelKey: 'home', permKey: 'tab_dashboard' },
+  { name: 'Wallet',    icon: 'wallet', iconOutline: 'wallet-outline', labelKey: 'wallet', permKey: 'tab_wallet' },
+  { name: 'Profile',   icon: 'person', iconOutline: 'person-outline', labelKey: 'profile', permKey: 'tab_profile' },
+  { name: 'More',      icon: 'grid', iconOutline: 'grid-outline', labelKey: 'more', permKey: 'tab_more' },
 ];
 
 const BottomTabBar = ({ activeTab, onTabPress }) => {
   const insets = useSafeAreaInsets();
   const { can } = usePermissions();
+  const { t } = useTranslation();
 
   const TABS = ALL_TABS.filter(t => can(t.permKey));
 
@@ -38,7 +40,7 @@ const BottomTabBar = ({ activeTab, onTabPress }) => {
               {isActive && <View style={styles.activeDot} />}
             </View>
             <Text style={[styles.label, isActive && styles.labelActive]}>
-              {tab.label}
+              {t(tab.labelKey)}
             </Text>
           </TouchableOpacity>
         );

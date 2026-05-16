@@ -7,11 +7,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { followerApi } from '../api/services';
 import { colors } from '../theme/colors';
 import ScreenHeader from '../components/ScreenHeader';
+import useTranslation from '../hooks/useTranslation';
 
 const BASE_IMG = 'https://astrology-i7c9.onrender.com/';
 
 const FollowersScreen = ({ onBack }) => {
   const { astrologer } = useSelector(s => s.auth);
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [followers,  setFollowers]  = useState([]);
   const [loading,    setLoading]    = useState(true);
@@ -39,21 +41,21 @@ const FollowersScreen = ({ onBack }) => {
         <Image source={{ uri: getImg(item.profileImage) }} style={styles.avatar} />
       ) : (
         <View style={styles.avatarPlaceholder}>
-          <Text style={styles.avatarLetter}>{(item.name || item.firstName || 'U')[0].toUpperCase()}</Text>
+          <Text style={styles.avatarLetter}>{(item.name || item.firstName || t('user')[0] || 'U')[0].toUpperCase()}</Text>
         </View>
       )}
       <View>
-        <Text style={styles.name}>{item.name || `${item.firstName || ''} ${item.lastName || ''}`.trim() || 'User'}</Text>
+        <Text style={styles.name}>{item.name || `${item.firstName || ''} ${item.lastName || ''}`.trim() || t('user')}</Text>
         <Text style={styles.meta}>
-          {item.created_at ? `Followed on ${new Date(item.created_at).toLocaleDateString('en-IN')}` : ''}
+          {item.created_at ? `${t('followed_on') || 'Followed on'} ${new Date(item.created_at).toLocaleDateString('en-IN')}` : ''}
         </Text>
       </View>
     </View>
   );
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <ScreenHeader title="Followers" subtitle={`${followers.length} followers`} onBack={onBack} />
+    <View style={styles.container}>
+      <ScreenHeader title={t('followers')} subtitle={`${followers.length} ${t('followers').toLowerCase()}`} onBack={onBack} />
       {loading ? (
         <ActivityIndicator color={colors.secondary} style={{ margin: 40 }} />
       ) : (
@@ -66,8 +68,8 @@ const FollowersScreen = ({ onBack }) => {
           ListEmptyComponent={
             <View style={styles.empty}>
               <Text style={styles.emptyIcon}>👥</Text>
-              <Text style={styles.emptyText}>No followers yet</Text>
-              <Text style={styles.emptyHint}>Build your reputation to gain followers!</Text>
+              <Text style={styles.emptyText}>{t('no_followers')}</Text>
+              <Text style={styles.emptyHint}>{t('followers_desc')}</Text>
             </View>
           }
         />

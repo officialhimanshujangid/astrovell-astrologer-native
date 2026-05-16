@@ -33,6 +33,15 @@ export const colors = {
   online: '#4CAF50',         // Online dot color
   offline: '#999999',        // Offline dot color
 
+  // ── Grid Icon Backgrounds (Astrotalk Style) ──────────────────────────────
+  iconPink: '#FFF0F3',
+  iconPurple: '#F3E8FF',
+  iconGreen: '#E6FFFA',
+  iconBlue: '#EBF8FF',
+  iconYellow: '#FEFCBF',
+  iconOrange: '#FFFAF0',
+  iconTeal: '#E6FFFA',
+
   // ── Borders ──────────────────────────────────────────────────────────────
   border: '#EEEEEE',
   borderGold: 'rgba(255,204,0,0.40)',

@@ -81,7 +81,7 @@ const PujaOrdersScreen = ({ onBack }) => {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={styles.container}>
       <ScreenHeader title="Puja Orders" subtitle="Customer puja bookings" onBack={onBack} />
       {loading ? (
         <ActivityIndicator color={colors.secondary} style={{ margin: 40 }} />

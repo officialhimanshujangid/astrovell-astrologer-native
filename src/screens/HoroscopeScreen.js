@@ -90,7 +90,10 @@ const HoroscopeScreen = ({ initialSign, onBack }) => {
   const dispatch = useDispatch();
 
   const { horoscopeSigns, signsLoad } = useSelector((s) => s.home);
+  const { globalLang } = useSelector((s) => s.auth);
   const { languages, daily, dailyLoad, selectedLang, selectedSignId } = useSelector((s) => s.horoscope);
+
+  const lang = globalLang || selectedLang || 'hi';
 
   // Use initialSign ID if passed, otherwise fallback to existing selection or signs[0]
   const currentSignId = selectedSignId || initialSign?.id || horoscopeSigns[0]?.id;
@@ -106,10 +109,10 @@ const HoroscopeScreen = ({ initialSign, onBack }) => {
   }, []);
 
   useEffect(() => {
-    if (currentSignId && selectedLang) {
-      dispatch(fetchDailyHoroscope({ horoscopeSignId: currentSignId, langcode: selectedLang }));
+    if (currentSignId && lang) {
+      dispatch(fetchDailyHoroscope({ horoscopeSignId: currentSignId, langcode: lang }));
     }
-  }, [currentSignId, selectedLang]);
+  }, [currentSignId, lang]);
 
   const onSelectSign = (id) => {
     dispatch(setSign(id));
@@ -121,7 +124,7 @@ const HoroscopeScreen = ({ initialSign, onBack }) => {
     career, family, finances, friends, health, physique, relationship, status, travel
   } = todayData;
 
-  const l = LABELS[selectedLang] || LABELS.en;
+  const l = LABELS[lang] || LABELS.en;
 
   return (
     <View style={styles.root}>

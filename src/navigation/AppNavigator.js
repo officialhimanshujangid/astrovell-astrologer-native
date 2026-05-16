@@ -9,6 +9,7 @@ import RegisterScreen    from '../screens/RegisterScreen';
 import MainTabNavigator  from './MainTabNavigator';
 import ChatRoomScreen    from '../screens/ChatRoomScreen';
 import CallRoomScreen    from '../screens/CallRoomScreen';
+import SetupPreferenceScreen from '../screens/SetupPreferenceScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -22,7 +23,9 @@ const LoadingScreen = () => (
 );
 
 const AppNavigator = () => {
-  const { isLoggedIn, profileCheckLoading } = useSelector((s) => s.auth);
+  const { isLoggedIn, setupCompleted, profileCheckLoading } = useSelector((s) => s.auth);
+
+  console.log('[AppNavigator] Flow Check:', { isLoggedIn, setupCompleted, profileCheckLoading });
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -33,6 +36,8 @@ const AppNavigator = () => {
         </>
       ) : profileCheckLoading ? (
         <Stack.Screen name="Loading" component={LoadingScreen} />
+      ) : !setupCompleted ? (
+        <Stack.Screen name="SetupPreference" component={SetupPreferenceScreen} />
       ) : (
         <>
           <Stack.Screen name="Main"     component={MainTabNavigator} />

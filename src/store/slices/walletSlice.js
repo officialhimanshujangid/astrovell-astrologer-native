@@ -7,7 +7,7 @@ export const fetchWalletData = createAsyncThunk(
     try {
       const [balRes, txRes, wdRes] = await Promise.allSettled([
         walletApi.getBalance(),
-        walletApi.getTransactions({ startIndex: 0, fetchRecord: 50 }),
+        walletApi.getTransactions({ startIndex: 0, fetchRecord: 100 }),
         walletApi.getWithdrawRequests({ astrologerId }),
       ]);
 
@@ -16,20 +16,32 @@ export const fetchWalletData = createAsyncThunk(
 
       if (balRes.status === 'fulfilled') {
         const d = balRes.value.data;
-        balance = parseFloat(d?.recordList?.amount || d?.data?.amount || 0);
+        // Handling { recordList: { amount: 4310, ... } }
+        const balData = d?.recordList || d?.data || {};
+        balance = parseFloat(balData.amount || 0);
       }
+
       if (txRes.status === 'fulfilled') {
         const d = txRes.value.data;
-        transactions = d?.recordList || d?.data || [];
+        // Handling { recordList: [ ... ], totalCount: 58 }
+        transactions = Array.isArray(d?.recordList) ? d.recordList : (Array.isArray(d?.data) ? d.data : []);
+        
+        // Calculate total earning from credits if not provided by other APIs
+        totalEarning = transactions.reduce((acc, tx) => acc + (tx.isCredit == 1 ? parseFloat(tx.amount || 0) : 0), 0);
       }
+
       if (wdRes.status === 'fulfilled') {
         const d = wdRes.value.data;
         const record = d?.recordList || d?.data || {};
-        withdrawals = Array.isArray(record) ? record : record.withdrawl || [];
-        if (record.walletAmount !== undefined) balance = parseFloat(record.walletAmount) || 0;
-        totalEarning = parseFloat(record.totalEarning) || 0;
-        totalPending = parseFloat(record.totalPending) || 0;
-        totalWithdrawn = parseFloat(record.withdrawAmount) || 0;
+        withdrawals = Array.isArray(record) ? record : (record.withdrawl || []);
+        
+        // If the summary object exists, use it
+        if (!Array.isArray(record)) {
+          if (record.walletAmount !== undefined) balance = parseFloat(record.walletAmount) || balance;
+          if (record.totalEarning !== undefined) totalEarning = parseFloat(record.totalEarning) || totalEarning;
+          totalPending = parseFloat(record.totalPending || 0);
+          totalWithdrawn = parseFloat(record.withdrawAmount || 0);
+        }
       }
 
       return { balance, totalEarning, totalPending, totalWithdrawn, transactions, withdrawals };

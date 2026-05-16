@@ -15,36 +15,36 @@ import { SOCKET_BASE, BASE_IMG } from '../api/apiClient';
 import usePermissions from '../hooks/usePermissions';
 
 const ChatRoomScreen = ({ route, navigation }) => {
-  const { chatId } = route.params;
+  const { chatId } = route?.params || {};
   const { astrologer, token } = useSelector(s => s.auth);
   const insets = useSafeAreaInsets();
   const { can } = usePermissions();
 
-  const [chatDetail, setChatDetail]     = useState(null);
-  const [messages, setMessages]         = useState([]);
-  const [newMsg, setNewMsg]             = useState('');
-  const [loading, setLoading]           = useState(true);
-  const [sending, setSending]           = useState(false);
-  const [timeElapsed, setTimeElapsed]   = useState(0);
-  const [typing, setTyping]             = useState(false);
+  const [chatDetail, setChatDetail] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [newMsg, setNewMsg] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [timeElapsed, setTimeElapsed] = useState(0);
+  const [typing, setTyping] = useState(false);
   const [showPujaModal, setShowPujaModal] = useState(false);
-  const [myPujas, setMyPujas]           = useState([]);
-  const [recId, setRecId]               = useState(null); // recommending puja id
+  const [myPujas, setMyPujas] = useState([]);
+  const [recId, setRecId] = useState(null); // recommending puja id
 
   // ── Astro Tools State ──────────────────────────────────────────────────────
   const [showAstroTools, setShowAstroTools] = useState(false);
-  const [activeTool, setActiveTool]         = useState('Kundali'); 
-  const [kundaliSubTab, setKundaliSubTab]   = useState('Basic'); // 'Basic' | 'Planets' | 'Dasha'
-  const [astroLoading, setAstroLoading]     = useState(false);
-  const [kundaliData, setKundaliData]       = useState(null);
-  const [matchResult, setMatchResult]       = useState(null);
-  const [dailyHoro, setDailyHoro]           = useState(null);
-  const [matchForm, setMatchForm]           = useState({ name: '', dob: '', time: '', place: '' });
+  const [activeTool, setActiveTool] = useState('Kundali');
+  const [kundaliSubTab, setKundaliSubTab] = useState('Basic'); // 'Basic' | 'Planets' | 'Dasha'
+  const [astroLoading, setAstroLoading] = useState(false);
+  const [kundaliData, setKundaliData] = useState(null);
+  const [matchResult, setMatchResult] = useState(null);
+  const [dailyHoro, setDailyHoro] = useState(null);
+  const [matchForm, setMatchForm] = useState({ name: '', dob: '', time: '', place: '' });
 
-  const socketRef    = useRef(null);
-  const timerRef     = useRef(null);
+  const socketRef = useRef(null);
+  const timerRef = useRef(null);
   const typingTimeout = useRef(null);
-  const flatListRef  = useRef(null);
+  const flatListRef = useRef(null);
 
   const formatTimer = (s) =>
     `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
@@ -75,7 +75,7 @@ const ChatRoomScreen = ({ route, navigation }) => {
       // Start elapsed timer
       timerRef.current = setInterval(() => setTimeElapsed(p => p + 1), 1000);
       connectSocket();
-    } catch (_) {}
+    } catch (_) { }
     setLoading(false);
   }, [chatId]);
 
@@ -101,7 +101,7 @@ const ChatRoomScreen = ({ route, navigation }) => {
         if (Array.isArray(msgs) && msgs.length > 0) {
           setMessages(msgs);
         }
-      }).catch(() => {});
+      }).catch(() => { });
     });
 
     // ── New message ──────────────────────────────────────────────────────────
@@ -233,7 +233,7 @@ const ChatRoomScreen = ({ route, navigation }) => {
     try {
       const res = await pujaApi.getList({ astrologerId: astrologer?.id });
       setMyPujas(res.data?.recordList || []);
-    } catch (_) {}
+    } catch (_) { }
     setShowPujaModal(true);
   };
 
@@ -279,8 +279,8 @@ const ChatRoomScreen = ({ route, navigation }) => {
         kundaliApi.getBirthPanchang(payload)
       ]);
 
-      setKundaliData({ 
-        basic: basicRes.data?.data || basicRes.data, 
+      setKundaliData({
+        basic: basicRes.data?.data || basicRes.data,
         planets: planetRes.data?.recordList || planetRes.data?.data || [],
         dasha: dashaRes.data?.recordList || dashaRes.data?.data || [],
         panchang: panchangRes.data?.data || panchangRes.data,
@@ -299,11 +299,11 @@ const ChatRoomScreen = ({ route, navigation }) => {
     try {
       const signsRes = await horoscopeApi.getSigns();
       const signs = signsRes.data?.recordList || [];
-      
+
       // Try to find matching sign
       const target = signName?.toLowerCase();
-      const matchedSign = signs.find(s => s.signName?.toLowerCase() === target || s.signName_hi?.toLowerCase() === target) 
-                          || signs[0];
+      const matchedSign = signs.find(s => s.signName?.toLowerCase() === target || s.signName_hi?.toLowerCase() === target)
+        || signs[0];
 
       if (matchedSign) {
         const daily = await horoscopeApi.getDaily({ sign: matchedSign.signName });
@@ -434,7 +434,7 @@ const ChatRoomScreen = ({ route, navigation }) => {
               </Text>
             </View>
           )}
-          {!isDone && (
+          {/* {!isDone && (
             <TouchableOpacity 
               style={styles.astroToolBtn} 
               onPress={() => {
@@ -449,7 +449,7 @@ const ChatRoomScreen = ({ route, navigation }) => {
             <TouchableOpacity style={styles.pujaBtn} onPress={loadPujas} activeOpacity={0.8}>
               <Text style={styles.pujaBtnText}>🙏</Text>
             </TouchableOpacity>
-          )}
+          )} */}
           {can('chat') && !isDone && (
             <TouchableOpacity style={styles.endBtn} onPress={handleEndChat} activeOpacity={0.8}>
               <Text style={styles.endBtnText}>End</Text>
@@ -508,8 +508,8 @@ const ChatRoomScreen = ({ route, navigation }) => {
                       <View>
                         <View style={styles.kundaliSubTabs}>
                           {['Basic', 'Planets', 'Dasha'].map(st => (
-                            <TouchableOpacity 
-                              key={st} 
+                            <TouchableOpacity
+                              key={st}
                               style={[styles.kundaliSubTab, kundaliSubTab === st && styles.kundaliSubTabActive]}
                               onPress={() => setKundaliSubTab(st)}
                             >
@@ -538,36 +538,36 @@ const ChatRoomScreen = ({ route, navigation }) => {
 
                           {kundaliSubTab === 'Planets' && (
                             <View>
-                               <Text style={styles.astroCardTitleMini}>Planet Positions</Text>
-                               <View style={styles.planetsTable}>
-                                  {kundaliData?.planets?.slice(0, 10).map((p, idx) => (
-                                    <View key={idx} style={styles.planetRow}>
-                                       <Text style={styles.planetName}>{p.name}</Text>
-                                       <Text style={styles.planetDegree}>{p.fullDegree?.toFixed(2)}°</Text>
-                                       <Text style={styles.planetRashi}>{p.rasi?.substring(0,3)}</Text>
-                                    </View>
-                                  ))}
-                               </View>
-                               <TouchableOpacity style={styles.shareReportBtnMini} onPress={() => shareToChat(`I've checked your planet positions. Your Moon is at ${kundaliData?.planets?.find(p=>p.name==='Moon')?.fullDegree?.toFixed(2)}° in ${kundaliData?.rashi}.`)}>
-                                 <Text style={styles.shareReportTextMini}>Share Planet Summary</Text>
-                               </TouchableOpacity>
+                              <Text style={styles.astroCardTitleMini}>Planet Positions</Text>
+                              <View style={styles.planetsTable}>
+                                {kundaliData?.planets?.slice(0, 10).map((p, idx) => (
+                                  <View key={idx} style={styles.planetRow}>
+                                    <Text style={styles.planetName}>{p.name}</Text>
+                                    <Text style={styles.planetDegree}>{p.fullDegree?.toFixed(2)}°</Text>
+                                    <Text style={styles.planetRashi}>{p.rasi?.substring(0, 3)}</Text>
+                                  </View>
+                                ))}
+                              </View>
+                              <TouchableOpacity style={styles.shareReportBtnMini} onPress={() => shareToChat(`I've checked your planet positions. Your Moon is at ${kundaliData?.planets?.find(p => p.name === 'Moon')?.fullDegree?.toFixed(2)}° in ${kundaliData?.rashi}.`)}>
+                                <Text style={styles.shareReportTextMini}>Share Planet Summary</Text>
+                              </TouchableOpacity>
                             </View>
                           )}
 
                           {kundaliSubTab === 'Dasha' && (
                             <View>
-                               <Text style={styles.astroCardTitleMini}>Vimshottari Mahadasha</Text>
-                               <View style={styles.dashaList}>
-                                  {kundaliData?.dasha?.slice(0, 5).map((d, idx) => (
-                                    <View key={idx} style={styles.dashaRow}>
-                                       <Text style={styles.dashaLord}>{d.planet}</Text>
-                                       <Text style={styles.dashaDate}>{formatDashaDate(d.start)} - {formatDashaDate(d.end)}</Text>
-                                    </View>
-                                  ))}
-                               </View>
-                               <TouchableOpacity style={styles.shareReportBtnMini} onPress={() => shareToChat(`Current Dasha Analysis: You are currently in ${kundaliData?.dasha?.[0]?.planet} Mahadasha until ${formatDashaDate(kundaliData?.dasha?.[0]?.end)}.`)}>
-                                 <Text style={styles.shareReportTextMini}>Share Dasha Detail</Text>
-                               </TouchableOpacity>
+                              <Text style={styles.astroCardTitleMini}>Vimshottari Mahadasha</Text>
+                              <View style={styles.dashaList}>
+                                {kundaliData?.dasha?.slice(0, 5).map((d, idx) => (
+                                  <View key={idx} style={styles.dashaRow}>
+                                    <Text style={styles.dashaLord}>{d.planet}</Text>
+                                    <Text style={styles.dashaDate}>{formatDashaDate(d.start)} - {formatDashaDate(d.end)}</Text>
+                                  </View>
+                                ))}
+                              </View>
+                              <TouchableOpacity style={styles.shareReportBtnMini} onPress={() => shareToChat(`Current Dasha Analysis: You are currently in ${kundaliData?.dasha?.[0]?.planet} Mahadasha until ${formatDashaDate(kundaliData?.dasha?.[0]?.end)}.`)}>
+                                <Text style={styles.shareReportTextMini}>Share Dasha Detail</Text>
+                              </TouchableOpacity>
                             </View>
                           )}
                         </View>
@@ -579,44 +579,44 @@ const ChatRoomScreen = ({ route, navigation }) => {
                         {!matchResult ? (
                           <View>
                             <Text style={styles.toolSubTitle}>Enter Partner Details</Text>
-                            <TextInput 
-                              style={styles.astroInputMini} 
-                              placeholder="Name" 
-                              value={matchForm.name} 
-                              onChangeText={v => setMatchForm(p => ({ ...p, name: v }))} 
+                            <TextInput
+                              style={styles.astroInputMini}
+                              placeholder="Name"
+                              value={matchForm.name}
+                              onChangeText={v => setMatchForm(p => ({ ...p, name: v }))}
                             />
-                            <TextInput 
-                              style={styles.astroInputMini} 
-                              placeholder="DOB (YYYY-MM-DD)" 
-                              value={matchForm.dob} 
-                              onChangeText={v => setMatchForm(p => ({ ...p, dob: v }))} 
+                            <TextInput
+                              style={styles.astroInputMini}
+                              placeholder="DOB (YYYY-MM-DD)"
+                              value={matchForm.dob}
+                              onChangeText={v => setMatchForm(p => ({ ...p, dob: v }))}
                             />
-                            <TextInput 
-                              style={styles.astroInputMini} 
-                              placeholder="Time (HH:MM:SS)" 
-                              value={matchForm.time} 
-                              onChangeText={v => setMatchForm(p => ({ ...p, time: v }))} 
+                            <TextInput
+                              style={styles.astroInputMini}
+                              placeholder="Time (HH:MM:SS)"
+                              value={matchForm.time}
+                              onChangeText={v => setMatchForm(p => ({ ...p, time: v }))}
                             />
                             <TouchableOpacity style={styles.matchSubmitBtnMini} onPress={handleMatch}>
-                               <Text style={styles.matchSubmitTextMini}>Calculate Match Score</Text>
+                              <Text style={styles.matchSubmitTextMini}>Calculate Match Score</Text>
                             </TouchableOpacity>
                           </View>
                         ) : (
                           <View>
-                             <View style={styles.matchResultHeader}>
-                               <Text style={styles.matchScoreTextMini}>{matchResult.totalPoints || 0} / 36</Text>
-                               <Text style={styles.matchPointsLabel}>Guna Milan Points</Text>
-                             </View>
-                             <Text style={styles.matchConclusionMini}>{matchResult.conclusion || 'Compatibility analysis complete.'}</Text>
-                             <TouchableOpacity 
-                                style={styles.shareReportBtnMini} 
-                                onPress={() => shareToChat(`Kundali Matching Report:\n❤️ Compatibility Score: ${matchResult.totalPoints}/36\n📝 Conclusion: ${matchResult.conclusion}\nThis score reflects your overall Guna Milan compatibility.`)}
-                             >
-                               <Text style={styles.shareReportTextMini}>📤 Share Match Result</Text>
-                             </TouchableOpacity>
-                             <TouchableOpacity onPress={() => setMatchResult(null)} style={{ marginTop: 12 }}>
-                               <Text style={{ color: colors.goldDark, textAlign: 'center', fontSize: 12, fontWeight: '700' }}>Reset & Try Another</Text>
-                             </TouchableOpacity>
+                            <View style={styles.matchResultHeader}>
+                              <Text style={styles.matchScoreTextMini}>{matchResult.totalPoints || 0} / 36</Text>
+                              <Text style={styles.matchPointsLabel}>Guna Milan Points</Text>
+                            </View>
+                            <Text style={styles.matchConclusionMini}>{matchResult.conclusion || 'Compatibility analysis complete.'}</Text>
+                            <TouchableOpacity
+                              style={styles.shareReportBtnMini}
+                              onPress={() => shareToChat(`Kundali Matching Report:\n❤️ Compatibility Score: ${matchResult.totalPoints}/36\n📝 Conclusion: ${matchResult.conclusion}\nThis score reflects your overall Guna Milan compatibility.`)}
+                            >
+                              <Text style={styles.shareReportTextMini}>📤 Share Match Result</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={() => setMatchResult(null)} style={{ marginTop: 12 }}>
+                              <Text style={{ color: colors.goldDark, textAlign: 'center', fontSize: 12, fontWeight: '700' }}>Reset & Try Another</Text>
+                            </TouchableOpacity>
                           </View>
                         )}
                       </View>
@@ -624,20 +624,20 @@ const ChatRoomScreen = ({ route, navigation }) => {
 
                     {activeTool === 'Horoscope' && (
                       <View style={{ padding: 12 }}>
-                         <Text style={styles.astroCardTitleMini}>Daily Horoscope: {dailyHoro?.signName || 'Rashi'}</Text>
-                         {dailyHoro ? (
-                           <>
-                             <Text style={styles.horoTextMini}>{dailyHoro.prediction || dailyHoro.horoscope || 'Prediction loading...'}</Text>
-                             <TouchableOpacity 
-                               style={styles.shareReportBtnMini} 
-                               onPress={() => shareToChat(`Daily Horoscope for ${dailyHoro.signName}:\n🔮 Insight: ${dailyHoro.prediction || dailyHoro.horoscope}\nHave a blessed day!`)}
-                             >
-                               <Text style={styles.shareReportTextMini}>📤 Share Horoscope</Text>
-                             </TouchableOpacity>
-                           </>
-                         ) : (
-                           <Text style={styles.emptyAstroText}>No prediction data available.</Text>
-                         )}
+                        <Text style={styles.astroCardTitleMini}>Daily Horoscope: {dailyHoro?.signName || 'Rashi'}</Text>
+                        {dailyHoro ? (
+                          <>
+                            <Text style={styles.horoTextMini}>{dailyHoro.prediction || dailyHoro.horoscope || 'Prediction loading...'}</Text>
+                            <TouchableOpacity
+                              style={styles.shareReportBtnMini}
+                              onPress={() => shareToChat(`Daily Horoscope for ${dailyHoro.signName}:\n🔮 Insight: ${dailyHoro.prediction || dailyHoro.horoscope}\nHave a blessed day!`)}
+                            >
+                              <Text style={styles.shareReportTextMini}>📤 Share Horoscope</Text>
+                            </TouchableOpacity>
+                          </>
+                        ) : (
+                          <Text style={styles.emptyAstroText}>No prediction data available.</Text>
+                        )}
                       </View>
                     )}
                   </ScrollView>
@@ -676,8 +676,8 @@ const ChatRoomScreen = ({ route, navigation }) => {
                 <View style={styles.astroToolBar}>
                   <View style={styles.toolTabsMini}>
                     {['Kundali', 'Matching', 'Horoscope'].map(t => (
-                      <TouchableOpacity 
-                        key={t} 
+                      <TouchableOpacity
+                        key={t}
                         style={[styles.toolTabMini, activeTool === t && styles.toolTabActiveMini]}
                         onPress={() => {
                           setActiveTool(t);
@@ -758,17 +758,17 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   backBtn: { marginRight: 12, padding: 4 },
-  headerUser:              { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  headerAvatar:            { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.border },
+  headerUser: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  headerAvatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.border },
   headerAvatarPlaceholder: {
     width: 42, height: 42, borderRadius: 21,
     backgroundColor: colors.secondary + '25',
     alignItems: 'center', justifyContent: 'center',
   },
   headerAvatarLetter: { color: colors.secondary, fontSize: 18, fontWeight: '800' },
-  headerName:         { color: colors.text, fontSize: 15, fontWeight: '700' },
-  headerStatus:       { fontSize: 11, fontWeight: '600' },
-  headerRight:        { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  headerName: { color: colors.text, fontSize: 15, fontWeight: '700' },
+  headerStatus: { fontSize: 11, fontWeight: '600' },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
 
   timerWrap: {
     borderRadius: 8, borderWidth: 1, borderColor: colors.border,
@@ -790,7 +790,7 @@ const styles = StyleSheet.create({
   },
   endBtnText: { color: colors.danger, fontSize: 12, fontWeight: '800' },
 
-  loadingWrap:  { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   messagesList: { padding: 14, paddingBottom: 8 },
 
   bubble: {
@@ -812,11 +812,11 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 4,
     borderWidth: 1, borderColor: colors.border,
   },
-  bubbleText:         { color: colors.text, fontSize: 14 },
+  bubbleText: { color: colors.text, fontSize: 14 },
   bubbleTextReceived: { color: colors.text },
-  bubbleFooter:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 4, gap: 3 },
-  bubbleTime:         { color: colors.textSecondary, fontSize: 10, opacity: 0.7 },
-  tickText:           { fontSize: 11, fontWeight: '700', letterSpacing: -1 },
+  bubbleFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 4, gap: 3 },
+  bubbleTime: { color: colors.textSecondary, fontSize: 10, opacity: 0.7 },
+  tickText: { fontSize: 11, fontWeight: '700', letterSpacing: -1 },
 
   pujaCard: {
     backgroundColor: colors.success + '15',
@@ -831,7 +831,7 @@ const styles = StyleSheet.create({
   },
   pujaCardTitle: { color: colors.text, fontSize: 15, fontWeight: '800', marginBottom: 4 },
   pujaCardPrice: { color: colors.accent, fontSize: 16, fontWeight: '900', marginBottom: 4 },
-  pujaCardHint:  { color: colors.textMuted, fontSize: 11 },
+  pujaCardHint: { color: colors.textMuted, fontSize: 11 },
 
   typingIndicator: {
     color: colors.textMuted, fontSize: 12,
@@ -846,7 +846,7 @@ const styles = StyleSheet.create({
   },
   systemBannerText: { color: '#ef4444', fontSize: 13, fontStyle: 'italic' },
 
-  emptyMsgs:     { alignItems: 'center', marginTop: 60, padding: 20 },
+  emptyMsgs: { alignItems: 'center', marginTop: 60, padding: 20 },
   emptyMsgsText: { color: colors.textMuted, fontSize: 14, textAlign: 'center' },
 
   inputRow: {
@@ -895,10 +895,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: colors.border,
     paddingVertical: 12,
   },
-  pujaItemTitle:    { color: colors.text, fontSize: 14, fontWeight: '700' },
-  pujaItemPrice:    { color: colors.accent, fontSize: 13, marginTop: 2 },
-  pujaItemBtn:      { backgroundColor: colors.gold, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 7 },
-  pujaItemBtnText:  { color: colors.text, fontWeight: '700', fontSize: 13 },
+  pujaItemTitle: { color: colors.text, fontSize: 14, fontWeight: '700' },
+  pujaItemPrice: { color: colors.accent, fontSize: 13, marginTop: 2 },
+  pujaItemBtn: { backgroundColor: colors.gold, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 7 },
+  pujaItemBtnText: { color: colors.text, fontWeight: '700', fontSize: 13 },
   modalClose: {
     marginTop: 16, backgroundColor: colors.surface,
     borderRadius: 12, paddingVertical: 12, alignItems: 'center',
@@ -983,7 +983,7 @@ const styles = StyleSheet.create({
   toolTabTextMini: { color: colors.textSecondary, fontSize: 13, fontWeight: '700' },
   toolTabTextActiveMini: { color: colors.goldDark },
   closeToolBtn: { padding: 4 },
-  
+
   astroCardTitleMini: { color: colors.text, fontSize: 13, fontWeight: '800', marginBottom: 8 },
   chartPlaceholderMini: { height: 70, backgroundColor: colors.surface, borderRadius: 8, alignItems: 'center', justifyContent: 'center', marginBottom: 8, borderStyle: 'dashed', borderWidth: 1, borderColor: colors.border },
   quickStatsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },

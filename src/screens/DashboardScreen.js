@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity,
+  View, Text, StyleSheet, TouchableOpacity,
   RefreshControl, Alert, ScrollView, Switch,
   Image, ActivityIndicator, Modal,
 } from 'react-native';
@@ -9,6 +9,7 @@ import { useNavigation } from '@react-navigation/native';
 import { io } from 'socket.io-client';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import { colors } from '../theme/colors';
 import { chatApi, callApi, boostApi } from '../api/services';
@@ -20,62 +21,11 @@ import {
 } from '../store/slices/dashboardSlice';
 import { setChatStatus, setCallStatus, setGlobalLang } from '../store/slices/authSlice';
 import usePermissions from '../hooks/usePermissions';
+import useActiveSession from '../hooks/useActiveSession';
+import useTranslation from '../hooks/useTranslation';
 
 const BASE_IMG = 'https://astrology-i7c9.onrender.com/';
 
-// ── Translations ─────────────────────────────────────────────────────────────
-const translations = {
-  en: {
-    greet: 'Hello',
-    welcome: 'Welcome 🙏',
-    dashboard: 'Astrologer Dashboard',
-    chat: 'Chat',
-    call: 'Call',
-    boostTitle: 'Boost Your Profile',
-    boostSub: 'Appear on top of the list',
-    boostActive: 'Profile Boosted!',
-    boostActiveSub: 'You appear on top for 24 hours',
-    boostBtn: 'Boost',
-    chats: 'Chats',
-    calls: 'Calls',
-    reviews: 'Reviews',
-    schedule: 'Schedule',
-    freeKundali: 'Free Kundali',
-    matching: 'Matching',
-    horoscope: 'Horoscope',
-    panchang: 'Panchang',
-    chatRequests: 'Chat Requests',
-    callRequests: 'Call Requests',
-    noRequests: 'No pending requests',
-    accept: 'Accept',
-    reject: 'Reject',
-  },
-  hi: {
-    greet: 'नमस्ते',
-    welcome: 'स्वागत है 🙏',
-    dashboard: 'ज्योतिषी डैशबोर्ड',
-    chat: 'चैट',
-    call: 'कॉल',
-    boostTitle: 'अपनी प्रोफाइल बूस्ट करें',
-    boostSub: 'लिस्ट में सबसे ऊपर दिखें',
-    boostActive: 'प्रोफ़ाइल बूस्ट हो गई!',
-    boostActiveSub: 'आप 24 घंटे तक सबसे ऊपर दिखेंगे',
-    boostBtn: 'बूस्ट',
-    chats: 'चैट्स',
-    calls: 'कॉल्स',
-    reviews: 'समीक्षाएं',
-    schedule: 'अनुसूची',
-    freeKundali: 'फ्री कुंडली',
-    matching: 'मिलान',
-    horoscope: 'राशिफल',
-    panchang: 'पंचांग',
-    chatRequests: 'चैट अनुरोध',
-    callRequests: 'कॉल अनुरोध',
-    noRequests: 'कोई लंबित अनुरोध नहीं',
-    accept: 'स्वीकार करें',
-    reject: 'अस्वीकार करें',
-  }
-};
 
 const DashboardScreen = ({ onOpenSubScreen }) => {
   const dispatch = useDispatch();
@@ -84,14 +34,15 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
   const { astrologer, token, chatStatus, callStatus, globalLang } = useSelector(s => s.auth);
   const { chatRequests, callRequests, boostInfo, loading } = useSelector(s => s.dashboard);
   const { can } = usePermissions();
-
-  const t = translations[globalLang || 'en'];
+  const activeSession = useActiveSession();
+  const { t } = useTranslation();
 
   const socketRef = useRef(null);
   const pollRef = useRef(null);
   const [refreshing, setRefreshing] = useState(false);
   const [boosting, setBoosting] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
+  const [showLangModal, setShowLangModal] = useState(false);
 
   // ── Fetch requests ────────────────────────────────────────────────────────
   const fetchRequests = useCallback(async () => {
@@ -186,6 +137,7 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
   // ── Accept / Reject ───────────────────────────────────────────────────────
   const handleAcceptChat = async (req) => {
     try {
+      if (!can('chat_accept')) return Alert.alert('Permission Denied', 'You do not have permission to accept chats.');
       if (socketRef.current?.connected) {
         socketRef.current.emit('join-chat', { chatRequestId: req.id });
         socketRef.current.emit('accept-chat', { chatRequestId: req.id });
@@ -200,6 +152,7 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
   };
 
   const handleRejectChat = async (req) => {
+    if (!can('chat_reject')) return Alert.alert('Permission Denied', 'You do not have permission to reject chats.');
     Alert.alert('Reject Chat', 'Are you sure you want to reject this chat?', [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -227,10 +180,10 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
       }
       dispatch(removeCallRequest(req.id));
       // Navigate to CallRoom
-      navigation.navigate('CallRoom', { 
-        callId: req.id, 
-        isAccepted: true, 
-        initialData: req 
+      navigation.navigate('CallRoom', {
+        callId: req.id,
+        isAccepted: true,
+        initialData: req
       });
     } catch (err) {
       Alert.alert('Error', err.response?.data?.message || 'Failed to accept call');
@@ -238,6 +191,7 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
   };
 
   const handleRejectCall = async (req) => {
+    if (!can('call_reject')) return Alert.alert('Permission Denied', 'You do not have permission to reject calls.');
     Alert.alert('Reject Call', 'Are you sure?', [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -256,6 +210,7 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
   };
 
   const handleBoost = async () => {
+    if (!can('dashboard_boost')) return;
     Alert.alert('Boost Profile', 'Boost your profile for 24 hours?', [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -285,10 +240,12 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
 
   // ── Request Card ──────────────────────────────────────────────────────────
   const ChatRequestCard = ({ item }) => (
-    <TouchableOpacity 
-      style={styles.requestCard} 
+    <TouchableOpacity
+      style={styles.requestCard}
       activeOpacity={0.9}
-      onPress={() => setSelectedRequest({ ...item, type: 'Chat' })}
+      onPress={() => {
+        if (can('chat_intake_details')) setSelectedRequest({ ...item, type: 'Chat' });
+      }}
     >
       <View style={styles.requestCardLeft}>
         <View style={styles.avatarWrap}>
@@ -315,10 +272,10 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
       </View>
       <View style={styles.requestActions}>
         <TouchableOpacity style={styles.acceptBtn} onPress={() => handleAcceptChat(item)} activeOpacity={0.8}>
-          <Text style={styles.acceptBtnText}>{t.accept}</Text>
+          <Text style={styles.acceptBtnText}>{t('accept')}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.rejectBtn} onPress={() => handleRejectChat(item)} activeOpacity={0.8}>
-          <Text style={styles.rejectBtnText}>{t.reject}</Text>
+          <Text style={styles.rejectBtnText}>{t('reject')}</Text>
         </TouchableOpacity>
       </View>
     </TouchableOpacity>
@@ -327,10 +284,12 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
   const CallRequestCard = ({ item }) => {
     const isVideo = item.call_type == 11;
     return (
-      <TouchableOpacity 
-        style={[styles.requestCard, { borderLeftColor: isVideo ? colors.accentTeal : '#3b82f6', borderLeftWidth: 5 }]} 
+      <TouchableOpacity
+        style={[styles.requestCard, { borderLeftColor: isVideo ? colors.accentTeal : '#3b82f6', borderLeftWidth: 5 }]}
         activeOpacity={0.9}
-        onPress={() => setSelectedRequest({ ...item, type: 'Call' })}
+        onPress={() => {
+          if (can('call_intake_details')) setSelectedRequest({ ...item, type: 'Call' });
+        }}
       >
         <View style={styles.requestCardLeft}>
           <View style={styles.avatarWrap}>
@@ -366,41 +325,68 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
         </View>
         <View style={styles.requestActions}>
           <TouchableOpacity style={styles.acceptBtn} onPress={() => handleAcceptCall(item)} activeOpacity={0.8}>
-            <Text style={styles.acceptBtnText}>{t.accept}</Text>
+            <Text style={styles.acceptBtnText}>{t('accept')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.rejectBtn} onPress={() => handleRejectCall(item)} activeOpacity={0.8}>
-            <Text style={styles.rejectBtnText}>{t.reject}</Text>
+            <Text style={styles.rejectBtnText}>{t('reject')}</Text>
           </TouchableOpacity>
         </View>
       </TouchableOpacity>
     );
   };
 
+  // ── Sub-components ───────────────────────────────────────────────────────
+  const ServiceItem = ({ label, icon, color, onPress, badge }) => (
+    <TouchableOpacity style={styles.serviceItem} onPress={onPress} activeOpacity={0.7}>
+      <View style={[styles.serviceIconContainer, { backgroundColor: color }]}>
+        <Ionicons name={icon} size={26} color={colors.text} />
+        {badge > 0 && (
+          <View style={[styles.badge, { position: 'absolute', top: -2, right: -2 }]}>
+            <Text style={styles.badgeText}>{badge}</Text>
+          </View>
+        )}
+      </View>
+      <Text style={styles.serviceLabel}>{label}</Text>
+    </TouchableOpacity>
+  );
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* ── Header ────────────────────────────────────────────────────────── */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.headerGreet}>
-            {astrologer?.name ? `${t.greet}, ${astrologer.name.split(' ')[0]} 🙏` : t.welcome}
-          </Text>
-          <Text style={styles.headerSub}>{t.dashboard}</Text>
+        <View style={styles.headerLeft}>
+          <View style={styles.avatarWrap}>
+            {astrologer?.profileImage ? (
+              <Image source={{ uri: getProfileImageUri(astrologer.profileImage) }} style={[styles.avatar, { width: 40, height: 40 }]} />
+            ) : (
+              <View style={[styles.avatarPlaceholder, { width: 40, height: 40 }]}>
+                <Text style={[styles.avatarLetter, { fontSize: 16 }]}>{(astrologer?.name || 'A')[0]}</Text>
+              </View>
+            )}
+            <View style={[styles.statusDot, { position: 'absolute', bottom: -2, right: -2, backgroundColor: colors.online, borderWidth: 2, borderColor: colors.white }]} />
+          </View>
+          <View style={styles.headerInfo}>
+            <View style={styles.headerNameRow}>
+              <Text style={styles.headerName}>{astrologer?.name || 'Astrologer'}</Text>
+              <TouchableOpacity onPress={onRefresh}><Ionicons name="refresh" size={14} color={colors.textSecondary} /></TouchableOpacity>
+            </View>
+            <Text style={styles.headerId}>ID: {astrologer?.id || '---'}</Text>
+          </View>
         </View>
         <View style={styles.headerActions}>
-          <TouchableOpacity 
-            style={styles.headerLangBtn} 
-            onPress={() => dispatch(setGlobalLang(globalLang === 'en' ? 'hi' : 'en'))}
-            activeOpacity={0.8}
+          <TouchableOpacity
+            style={styles.langDropdown}
+            onPress={() => setShowLangModal(true)}
           >
-            <Text style={styles.headerLangIcon}>🌐</Text>
-            <Text style={styles.headerLangText}>{globalLang === 'en' ? 'EN' : 'HI'}</Text>
+            <View style={styles.langIconCircle}>
+              <Ionicons name="language" size={14} color={colors.goldDark} />
+            </View>
+            <Text style={styles.langText}>{globalLang === 'en' ? 'EN' : 'HI'}</Text>
+            <Ionicons name="chevron-down" size={12} color={colors.textSecondary} />
           </TouchableOpacity>
-          {can('dashboard_notifications') && can('notifications') && (
-            <TouchableOpacity
-              style={styles.notifBtn}
-              onPress={() => onOpenSubScreen?.('Notifications')}
-            >
-              <Ionicons name="notifications-outline" size={24} color={colors.text} />
+          {can('dashboard_header_notifications') && can('notifications') && (
+            <TouchableOpacity style={styles.headerIconBtn} onPress={() => onOpenSubScreen?.('Notifications')}>
+              <Ionicons name="notifications-outline" size={22} color={colors.textSecondary} />
             </TouchableOpacity>
           )}
         </View>
@@ -409,173 +395,160 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
       <ScrollView
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.gold} />}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 24 }}
+        contentContainerStyle={{ paddingBottom: 40 }}
       >
-        {/* ── Status Toggles ─────────────────────────────────────────────── */}
-        <View style={styles.statusRow}>
-          {can('dashboard_status_toggles') && can('chat') && (
-            <View style={styles.statusCard}>
-              <View style={styles.statusLeft}>
-                <View style={[styles.statusDot, { backgroundColor: chatStatus === 'Online' ? colors.online : colors.offline }]} />
-                <View>
-                  <Text style={styles.statusLabel}>{t.chat}</Text>
-                  <Text style={[styles.statusValue, { color: chatStatus === 'Online' ? colors.online : colors.offline }]}>
-                    {chatStatus}
-                  </Text>
+        {/* ── Availability Switches ───────────────────────────────────────── */}
+        {can('dashboard_status_toggles') && (
+          <View style={styles.availabilityCard}>
+            {/* Chat Row */}
+            {can('chat') && (
+              <View style={[styles.availabilityRow, styles.availabilityBorder]}>
+                <View style={styles.availabilityLabelCol}>
+                  <Text style={styles.availabilityLabel}>{t('chat').toUpperCase()}</Text>
+                </View>
+                <View style={styles.availabilityRight}>
+                  <Text style={styles.availabilityTime}>{new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}, {new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</Text>
+                  <Switch
+                    value={chatStatus === 'Online'}
+                    onValueChange={toggleChatStatus}
+                    trackColor={{ false: colors.border, true: colors.success + '80' }}
+                    thumbColor={chatStatus === 'Online' ? colors.success : colors.textMuted}
+                  />
                 </View>
               </View>
-              <Switch
-                value={chatStatus === 'Online'}
-                onValueChange={toggleChatStatus}
-                trackColor={{ false: colors.border, true: colors.success + '80' }}
-                thumbColor={chatStatus === 'Online' ? colors.success : colors.textMuted}
-              />
-            </View>
-          )}
+            )}
 
-          {can('dashboard_status_toggles') && can('call') && (
-            <View style={styles.statusCard}>
-              <View style={styles.statusLeft}>
-                <View style={[styles.statusDot, { backgroundColor: callStatus === 'Online' ? colors.online : colors.offline }]} />
-                <View>
-                  <Text style={styles.statusLabel}>{t.call}</Text>
-                  <Text style={[styles.statusValue, { color: callStatus === 'Online' ? colors.online : colors.offline }]}>
-                    {callStatus}
-                  </Text>
+            {/* Call Row */}
+            {can('call') && (
+              <View style={styles.availabilityRow}>
+                <View style={styles.availabilityLabelCol}>
+                  <Text style={styles.availabilityLabel}>{t('call').toUpperCase()}</Text>
                 </View>
-              </View>
-              <Switch
-                value={callStatus === 'Online'}
-                onValueChange={toggleCallStatus}
-                trackColor={{ false: colors.border, true: colors.success + '80' }}
-                thumbColor={callStatus === 'Online' ? colors.success : colors.textMuted}
-              />
-            </View>
-          )}
-        </View>
-
-        {/* ── Profile Boost ──────────────────────────────────────────────── */}
-        {boostInfo && (
-          <View style={styles.boostCard}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.boostTitle}>
-                {boostInfo.isBoosted ? t.boostActive : t.boostTitle}
-              </Text>
-              <Text style={styles.boostSub}>
-                {boostInfo.isBoosted
-                  ? t.boostActiveSub
-                  : `${t.boostSub} (${boostInfo.remainingBoosts ?? '?'} left)`}
-              </Text>
-            </View>
-            {!boostInfo.isBoosted ? (
-              <TouchableOpacity
-                style={[styles.boostBtn, boosting && { opacity: 0.6 }]}
-                onPress={handleBoost}
-                disabled={boosting}
-                activeOpacity={0.8}
-              >
-                {boosting
-                  ? <ActivityIndicator color={colors.goldDark} size="small" />
-                  : <Text style={styles.boostBtnText}>{t.boostBtn}</Text>}
-              </TouchableOpacity>
-            ) : (
-              <View style={styles.boostActiveBadge}>
-                <Text style={styles.boostActiveBadgeText}>Active</Text>
+                <View style={styles.availabilityRight}>
+                  <Text style={styles.availabilityTime}>{new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}, {new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</Text>
+                  <Switch
+                    value={callStatus === 'Online'}
+                    onValueChange={toggleCallStatus}
+                    trackColor={{ false: colors.border, true: colors.success + '80' }}
+                    thumbColor={callStatus === 'Online' ? colors.success : colors.textMuted}
+                  />
+                </View>
               </View>
             )}
           </View>
         )}
 
-        {/* ── Quick Stats ────────────────────────────────────────────────── */}
-        <View style={styles.quickStats}>
-          {can('dashboard_quick_stats') && can('chat') && (
-            <TouchableOpacity style={styles.quickStat} onPress={() => onOpenSubScreen?.('ChatHistory')}>
-              <Text style={styles.quickStatEmoji}>💬</Text>
-              <Text style={styles.quickStatLabel}>{t.chats}</Text>
-            </TouchableOpacity>
-          )}
-          {can('dashboard_quick_stats') && can('call') && (
-            <TouchableOpacity style={styles.quickStat} onPress={() => onOpenSubScreen?.('CallHistory')}>
-              <Text style={styles.quickStatEmoji}>📞</Text>
-              <Text style={styles.quickStatLabel}>{t.calls}</Text>
-            </TouchableOpacity>
-          )}
-          {can('dashboard_quick_stats') && can('reviews') && (
-            <TouchableOpacity style={styles.quickStat} onPress={() => onOpenSubScreen?.('Reviews')}>
-              <Text style={styles.quickStatEmoji}>⭐</Text>
-              <Text style={styles.quickStatLabel}>{t.reviews}</Text>
-            </TouchableOpacity>
-          )}
-          {can('dashboard_quick_stats') && can('appointments') && (
-            <TouchableOpacity style={styles.quickStat} onPress={() => onOpenSubScreen?.('Appointments')}>
-              <Text style={styles.quickStatEmoji}>📅</Text>
-              <Text style={styles.quickStatLabel}>{t.schedule}</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+        {/* ── Active Session Card ────────────────────────────────────────── */}
+        {can('dashboard_active_session') && activeSession && (
+          <View style={styles.sessionCard}>
+            <View style={styles.sessionHeader}>
+              <Text style={styles.sessionTitle}>⚡ {t('active')} {activeSession.type === 'chat' ? t('chat') : t('call')}</Text>
+              <View style={[styles.badge, { backgroundColor: colors.success }]}>
+                <Text style={styles.badgeText}>{activeSession.status}</Text>
+              </View>
+            </View>
+            <View style={styles.sessionContent}>
+              <View style={styles.avatarWrap}>
+                {activeSession.profile ? (
+                  <Image source={{ uri: getProfileImageUri(activeSession.profile) }} style={styles.sessionAvatar} />
+                ) : (
+                  <View style={[styles.sessionAvatar, { backgroundColor: colors.border, alignItems: 'center', justifyContent: 'center' }]}>
+                    <Text style={{ fontWeight: 'bold', color: colors.textSecondary }}>{activeSession.name?.[0]}</Text>
+                  </View>
+                )}
+              </View>
+              <View style={styles.sessionInfo}>
+                <Text style={styles.sessionName}>{activeSession.name}</Text>
+                <Text style={styles.sessionSpent}>{t('time_spent')}: {activeSession.spentTime || '00:00'}</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.sessionBtn}
+                onPress={() => {
+                  if (activeSession.type === 'chat') {
+                    navigation.navigate('ChatRoom', { chatId: activeSession.id });
+                  } else {
+                    navigation.navigate('CallRoom', { callId: activeSession.id, isAccepted: true });
+                  }
+                }}
+              >
+                <Text style={styles.sessionBtnText}>{t('resume')}</Text>
+                <Ionicons name="arrow-forward" size={16} color={colors.success} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
 
-        {/* ── Astro Tools ─────────────────────────────────────────────────── */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>✨ Astro Tools</Text>
-        </View>
-        <View style={styles.quickStats}>
-          <TouchableOpacity style={styles.quickStat} onPress={() => onOpenSubScreen?.('Kundali')}>
-            <Text style={styles.quickStatEmoji}>🎡</Text>
-            <Text style={styles.quickStatLabel}>{t.freeKundali}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.quickStat} onPress={() => onOpenSubScreen?.('KundaliMatching')}>
-            <Text style={styles.quickStatEmoji}>👫</Text>
-            <Text style={styles.quickStatLabel}>{t.matching}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.quickStat} onPress={() => onOpenSubScreen?.('Horoscope')}>
-            <Text style={styles.quickStatEmoji}>🔮</Text>
-            <Text style={styles.quickStatLabel}>{t.horoscope}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.quickStat} onPress={() => onOpenSubScreen?.('Panchang')}>
-            <Text style={styles.quickStatEmoji}>📅</Text>
-            <Text style={styles.quickStatLabel}>{t.panchang}</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* ── Chat Requests ─────────────────────────────────────────────── */}
-        {can('chat') && (
-          <>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>💬 {t.chatRequests}</Text>
-              {chatRequests.length > 0 && (
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{chatRequests.length}</Text>
+        {/* ── Profile Boost ──────────────────────────────────────────────── */}
+        {boostInfo && (
+          <View style={styles.boostBanner}>
+            <LinearGradient
+              colors={boostInfo.isBoosted ? ['#FFF7ED', '#FFFBEB'] : ['#F8FAFC', '#F1F5F9']}
+              style={styles.boostContent}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            >
+              <View style={[styles.boostIconBox, { backgroundColor: boostInfo.isBoosted ? '#FEF3C7' : '#E2E8F0' }]}>
+                <Ionicons name="rocket" size={24} color={boostInfo.isBoosted ? '#D97706' : colors.textLight} />
+              </View>
+              <View style={styles.boostTextCol}>
+                <Text style={styles.boostTitleText}>
+                  {boostInfo.isBoosted ? t('boostActive') : t('boostTitle')}
+                </Text>
+                <Text style={styles.boostSubText}>
+                  {boostInfo.isBoosted ? t('boostActiveSub') : t('boostSub')}
+                </Text>
+              </View>
+              {!boostInfo.isBoosted ? (
+                <TouchableOpacity style={styles.boostActionBtn} onPress={handleBoost} disabled={boosting}>
+                  {boosting ? <ActivityIndicator size="small" color={colors.white} /> : <Text style={styles.boostBtnLabel}>{t('boostBtn')}</Text>}
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.boostActiveBadge}>
+                  <Ionicons name="checkmark-circle" size={14} color="#059669" />
+                  <Text style={styles.boostActiveText}>{t('active')}</Text>
                 </View>
               )}
+            </LinearGradient>
+          </View>
+        )}
+
+        {/* ── Service Grid ───────────────────────────────────────────────── */}
+        {can('dashboard_service_grid') && (
+          <>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>✨ {t('features_tools')}</Text>
             </View>
-            {loading ? (
-              <ActivityIndicator color={colors.goldDark} style={{ margin: 20 }} />
-            ) : chatRequests.length === 0 ? (
-              <Text style={styles.noRequests}>{t.noRequests}</Text>
-            ) : (
-              chatRequests.map((req, i) => <ChatRequestCard key={i} item={req} />)
-            )}
+            <View style={styles.serviceGrid}>
+              {can('chat') && can('chat_history') && <ServiceItem label={t('chat')} icon="chatbubble-ellipses-outline" color={colors.iconPink} onPress={() => onOpenSubScreen?.('ChatHistory')} badge={chatRequests.length} />}
+              {can('call') && can('call_history') && <ServiceItem label={t('call')} icon="call-outline" color={colors.iconGreen} onPress={() => onOpenSubScreen?.('CallHistory')} badge={callRequests.length} />}
+              {can('puja') && <ServiceItem label={t('astromall')} icon="basket-outline" color={colors.iconPurple} onPress={() => onOpenSubScreen?.('Puja')} />}
+              {can('appointments') && <ServiceItem label={t('schedule')} icon="calendar-outline" color={colors.iconBlue} onPress={() => onOpenSubScreen?.('Appointments')} />}
+              {can('kundali') && <ServiceItem label={t('freeKundali')} icon="color-filter-outline" color={colors.iconYellow} onPress={() => onOpenSubScreen?.('Kundali')} />}
+              {can('kundali_matching') && <ServiceItem label={t('matching')} icon="heart-outline" color={colors.iconPink} onPress={() => onOpenSubScreen?.('KundaliMatching')} />}
+              {can('horoscope') && <ServiceItem label={t('horoscope')} icon="planet-outline" color={colors.iconBlue} onPress={() => onOpenSubScreen?.('Horoscope')} />}
+              {can('panchang') && <ServiceItem label={t('panchang')} icon="calendar-number-outline" color={colors.iconTeal} onPress={() => onOpenSubScreen?.('Panchang')} />}
+              {can('reviews') && <ServiceItem label={t('reviews')} icon="star-outline" color={colors.iconYellow} onPress={() => onOpenSubScreen?.('Reviews')} />}
+              {can('wallet') && <ServiceItem label={t('wallet')} icon="wallet-outline" color={colors.iconTeal} onPress={() => onOpenSubScreen?.('Wallet')} />}
+            </View>
           </>
         )}
 
-        {/* ── Call Requests ─────────────────────────────────────────────── */}
-        {can('call') && (
+        {/* ── Active Requests ────────────────────────────────────────────── */}
+        {can('dashboard_active_requests') && (
           <>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>📞 {t.callRequests}</Text>
-              {callRequests.length > 0 && (
-                <View style={[styles.badge, { backgroundColor: '#3b82f6' }]}>
-                  <Text style={styles.badgeText}>{callRequests.length}</Text>
-                </View>
-              )}
-            </View>
-            {loading ? (
-              <ActivityIndicator color={colors.goldDark} style={{ margin: 20 }} />
-            ) : callRequests.length === 0 ? (
-              <Text style={styles.noRequests}>{t.noRequests}</Text>
-            ) : (
-              callRequests.map((req, i) => <CallRequestCard key={i} item={req} />)
+            {chatRequests.length > 0 && (
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>💬 {t('chatRequests')}</Text>
+              </View>
             )}
+            {chatRequests.map((req, i) => <ChatRequestCard key={`chat-${i}`} item={req} />)}
+
+            {callRequests.length > 0 && (
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>📞 {t('callRequests')}</Text>
+              </View>
+            )}
+            {callRequests.map((req, i) => <CallRequestCard key={`call-${i}`} item={req} />)}
           </>
         )}
       </ScrollView>
@@ -585,64 +558,93 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
         <View style={styles.modalOverlay}>
           <View style={styles.requestDetailBox}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{selectedRequest?.type} Request Form</Text>
+              <Text style={styles.modalTitle}>{selectedRequest?.type} {t('intake_form')}</Text>
               <TouchableOpacity onPress={() => setSelectedRequest(null)}>
                 <Ionicons name="close-circle" size={30} color={colors.textLight} />
               </TouchableOpacity>
             </View>
-            
+
             {selectedRequest && (
               <ScrollView showsVerticalScrollIndicator={false}>
                 <View style={styles.detailAvatarSection}>
-                   {selectedRequest.userProfile ? (
-                      <Image source={{ uri: getProfileImageUri(selectedRequest.userProfile) }} style={styles.bigAvatar} />
-                    ) : (
-                      <View style={styles.bigAvatarPlaceholder}>
-                        <Text style={styles.bigAvatarLetter}>{(selectedRequest.userName || 'U')[0].toUpperCase()}</Text>
-                      </View>
-                    )}
-                    <Text style={styles.bigName}>{selectedRequest.userName || 'Anonymous User'}</Text>
-                    <View style={styles.timerBadge}>
-                       <Ionicons name="time-outline" size={14} color={colors.goldDark} style={{ marginRight: 4 }} />
-                       <Text style={styles.timerText}>Incoming...</Text>
+                  {selectedRequest.userProfile ? (
+                    <Image source={{ uri: getProfileImageUri(selectedRequest.userProfile) }} style={styles.bigAvatar} />
+                  ) : (
+                    <View style={styles.bigAvatarPlaceholder}>
+                      <Text style={styles.bigAvatarLetter}>{(selectedRequest.userName || 'U')[0].toUpperCase()}</Text>
                     </View>
+                  )}
+                  <Text style={styles.bigName}>{selectedRequest.userName || 'Anonymous User'}</Text>
+                  <View style={styles.timerBadge}>
+                    <Ionicons name="time-outline" size={14} color={colors.goldDark} style={{ marginRight: 4 }} />
+                    <Text style={styles.timerText}>{t('incoming')}</Text>
+                  </View>
                 </View>
 
                 <View style={styles.intakeSection}>
-                   <IntakeRow label="Topic of Concern" value={selectedRequest.intakeTopicOfConcern || 'Not Specified'} icon="help-circle-outline" />
-                   <IntakeRow label="Name" value={selectedRequest.intakeName || selectedRequest.userName || 'User'} icon="person-outline" />
-                   <IntakeRow label="Gender" value={selectedRequest.intakeGender || 'N/A'} icon="transgender-outline" />
-                   <IntakeRow label="Birth Date" value={selectedRequest.intakeBirthDate || 'N/A'} icon="calendar-outline" />
-                   <IntakeRow label="Birth Time" value={selectedRequest.intakeBirthTime || 'N/A'} icon="time-outline" />
-                   <IntakeRow label="Birth Place" value={selectedRequest.intakeBirthPlace || 'N/A'} icon="location-outline" />
+                  <IntakeRow label={t('topic_concern')} value={selectedRequest.intakeTopicOfConcern || t('not_specified')} icon="help-circle-outline" />
+                  <IntakeRow label={t('name')} value={selectedRequest.intakeName || selectedRequest.userName || t('user')} icon="person-outline" />
+                  <IntakeRow label={t('gender')} value={selectedRequest.intakeGender || 'N/A'} icon="transgender-outline" />
+                  <IntakeRow label={t('dob')} value={selectedRequest.intakeBirthDate || 'N/A'} icon="calendar-outline" />
+                  <IntakeRow label={t('tob')} value={selectedRequest.intakeBirthTime || 'N/A'} icon="time-outline" />
+                  <IntakeRow label={t('pob')} value={selectedRequest.intakeBirthPlace || 'N/A'} icon="location-outline" />
                 </View>
 
                 <View style={styles.detailActionsRow}>
-                   <TouchableOpacity 
-                    style={[styles.actionBtn, { backgroundColor: colors.success }]} 
+                  <TouchableOpacity
+                    style={[styles.actionBtn, { backgroundColor: colors.success }]}
                     onPress={() => {
                       const req = selectedRequest;
                       setSelectedRequest(null);
                       req.type === 'Chat' ? handleAcceptChat(req) : handleAcceptCall(req);
                     }}
-                   >
-                     <Text style={styles.actionBtnText}>{t.accept}</Text>
-                   </TouchableOpacity>
-                   <TouchableOpacity 
+                  >
+                    <Text style={styles.actionBtnText}>{t('accept')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
                     style={[styles.actionBtn, { backgroundColor: colors.error }]}
                     onPress={() => {
                       const req = selectedRequest;
                       setSelectedRequest(null);
                       req.type === 'Chat' ? handleRejectChat(req) : handleRejectCall(req);
                     }}
-                   >
-                     <Text style={styles.actionBtnText}>{t.reject}</Text>
-                   </TouchableOpacity>
+                  >
+                    <Text style={styles.actionBtnText}>{t('reject')}</Text>
+                  </TouchableOpacity>
                 </View>
               </ScrollView>
             )}
           </View>
         </View>
+      </Modal>
+
+      {/* Language Selection Modal */}
+      <Modal visible={showLangModal} transparent animationType="fade">
+        <TouchableOpacity
+          style={styles.langModalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowLangModal(false)}
+        >
+          <View style={styles.langModalContent}>
+            <View style={styles.langModalHeader}>
+              <Text style={styles.langModalTitle}>{t('preferred_language')}</Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.langOption, globalLang === 'en' && styles.langOptionActive]}
+              onPress={() => { dispatch(setGlobalLang('en')); setShowLangModal(false); }}
+            >
+              <Text style={[styles.langOptionText, globalLang === 'en' && styles.langOptionTextActive]}>English</Text>
+              {globalLang === 'en' && <Ionicons name="checkmark-circle" size={20} color={colors.goldDark} />}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.langOption, globalLang === 'hi' && styles.langOptionActive]}
+              onPress={() => { dispatch(setGlobalLang('hi')); setShowLangModal(false); }}
+            >
+              <Text style={[styles.langOptionText, globalLang === 'hi' && styles.langOptionTextActive]}>हिन्दी (Hindi)</Text>
+              {globalLang === 'hi' && <Ionicons name="checkmark-circle" size={20} color={colors.goldDark} />}
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
       </Modal>
     </View>
   );
@@ -661,82 +663,216 @@ const IntakeRow = ({ label, value, icon }) => (
 export default DashboardScreen;
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.primary },
+  container: { flex: 1, backgroundColor: colors.secondary },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 12,
     backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
-  headerGreet: { color: colors.text, fontSize: 18, fontWeight: '900' },
-  headerSub: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  headerLangBtn: {
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  headerInfo: { justifyContent: 'center' },
+  headerNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  headerName: { color: colors.text, fontSize: 16, fontWeight: '800' },
+  headerId: { color: colors.textSecondary, fontSize: 12, fontWeight: '500' },
+  statusDot: { width: 8, height: 8, borderRadius: 4 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  headerIconBtn: { padding: 4 },
+  langDropdown: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.goldBg,
+    gap: 8,
+    backgroundColor: '#F8FAFC',
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.borderGold,
+    borderColor: '#E2E8F0',
   },
-  headerLangIcon: { fontSize: 14, marginRight: 4 },
-  headerLangText: { color: colors.goldDark, fontSize: 12, fontWeight: '800' },
-  notifBtn: {
-    width: 38, height: 38, borderRadius: 19,
-    backgroundColor: colors.secondary,
+  langIconCircle: {
+    width: 24, height: 24, borderRadius: 12,
+    backgroundColor: colors.goldBg,
     alignItems: 'center', justifyContent: 'center',
   },
+  langText: { fontSize: 12, fontWeight: '800', color: colors.text },
 
-  statusRow: { flexDirection: 'row', gap: 12, padding: 16 },
+  statusGrid: { flexDirection: 'row', gap: 12, marginHorizontal: 16, marginTop: 16, marginBottom: 8 },
   statusCard: {
-    flex: 1,
+    flex: 1, backgroundColor: colors.white, borderRadius: 20,
+    padding: 12, flexDirection: 'row', alignItems: 'center',
+    borderWidth: 1, borderColor: '#F1F5F9',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 2,
+  },
+  statusIconWrap: { width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  statusInfo: { flex: 1, marginLeft: 10 },
+  statusTitle: { fontSize: 11, fontWeight: '800', color: colors.textMuted },
+  statusState: { fontSize: 13, fontWeight: '700', marginTop: 1 },
+
+  boostBanner: { marginHorizontal: 16, marginBottom: 16, borderRadius: 20, overflow: 'hidden' },
+  boostContent: {
+    flexDirection: 'row', alignItems: 'center', padding: 16,
+    borderWidth: 1, borderColor: '#F1F5F9',
+  },
+  boostIconBox: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  boostTextCol: { flex: 1, marginLeft: 16 },
+  boostTitleText: { fontSize: 13, fontWeight: '900', color: colors.text },
+  boostSubText: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  boostActionBtn: {
+    backgroundColor: colors.goldDark, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12,
+    shadowColor: colors.goldDark, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 4,
+  },
+  boostBtnLabel: { color: colors.white, fontSize: 12, fontWeight: '800' },
+  boostActiveBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: '#ECFDF5', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10,
+  },
+  boostActiveText: { fontSize: 11, fontWeight: '800', color: '#059669' },
+
+  availabilityCard: {
+    margin: 16,
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3,
+  },
+  availabilityRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  availabilityBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },
+  availabilityLabelCol: { flex: 1 },
+  availabilityLabel: { fontSize: 15, fontWeight: '700', color: colors.text },
+  availabilityPrice: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  availabilityRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  availabilityTime: { fontSize: 11, color: colors.textMuted },
+
+  offerBanner: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    backgroundColor: colors.iconYellow,
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#F6E05E',
+  },
+  offerHeader: { textAlign: 'center', fontSize: 13, fontWeight: '700', color: colors.text, marginBottom: 8 },
+  offerContent: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  offerTextCol: { flex: 1 },
+  offerTitle: { fontSize: 14, fontWeight: '800', color: colors.text },
+  offerDesc: { fontSize: 11, color: colors.textSecondary, marginTop: 4 },
+
+  utilityCard: {
+    marginHorizontal: 16,
+    marginBottom: 12,
     backgroundColor: colors.surface,
     borderRadius: 16,
-    padding: 12,
+    padding: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     borderWidth: 1,
     borderColor: colors.border,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
   },
-  statusLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  statusDot: { width: 8, height: 8, borderRadius: 4 },
-  statusLabel: { color: colors.textSecondary, fontSize: 11, fontWeight: '600' },
-  statusValue: { fontSize: 13, fontWeight: '800' },
+  utilityLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  utilityIconBg: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.secondary, alignItems: 'center', justifyContent: 'center' },
+  utilityInfo: { flex: 1 },
+  utilityTitle: { fontSize: 14, fontWeight: '700', color: colors.text },
+  utilitySub: { fontSize: 11, color: colors.textSecondary, marginTop: 2 },
 
-  boostCard: {
-    margin: 16, marginTop: 0,
-    backgroundColor: colors.gold,
-    borderRadius: 16, padding: 16,
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    shadowColor: colors.gold, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4,
+  earningCard: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  boostTitle: { color: colors.text, fontSize: 15, fontWeight: '800', marginBottom: 4 },
-  boostSub: { color: colors.textSecondary, fontSize: 12 },
-  boostBtn: {
-    backgroundColor: colors.white, borderRadius: 20,
-    paddingHorizontal: 18, paddingVertical: 8,
-    borderWidth: 1, borderColor: colors.goldDark,
-  },
-  boostBtnText: { color: colors.goldDark, fontWeight: '800', fontSize: 13 },
-  boostActiveBadge: { backgroundColor: 'rgba(255,255,255,0.25)', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 6 },
-  boostActiveBadgeText: { color: colors.white, fontWeight: '700', fontSize: 13 },
+  earningHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  earningTitle: { fontSize: 14, fontWeight: '700', color: colors.text },
+  earningValue: { fontSize: 16, fontWeight: '800', color: colors.text },
+  checkDetailsBtn: { backgroundColor: colors.success, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12 },
+  checkDetailsText: { color: colors.white, fontSize: 12, fontWeight: '700' },
+  invoiceNote: { fontSize: 11, color: colors.error, marginTop: 8 },
 
-  quickStats: { flexDirection: 'row', marginHorizontal: 16, marginBottom: 16, gap: 10 },
-  quickStat: {
-    flex: 1, backgroundColor: colors.surface, borderRadius: 14, paddingVertical: 14,
-    alignItems: 'center', borderWidth: 1, borderColor: colors.border,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2, gap: 4,
+  serviceGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 8,
+    marginBottom: 20,
   },
-  quickStatEmoji: { fontSize: 22 },
-  quickStatLabel: { color: colors.textSecondary, fontSize: 10, fontWeight: '600' },
+  serviceItem: {
+    width: '33.33%',
+    padding: 8,
+    alignItems: 'center',
+  },
+  serviceIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2,
+  },
+  serviceLabel: { fontSize: 11, fontWeight: '600', color: colors.textSecondary, textAlign: 'center' },
 
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 16, marginBottom: 10, marginTop: 8 },
+  progressCard: {
+    margin: 16,
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  progressInfo: { flex: 1 },
+  progressTitle: { fontSize: 15, fontWeight: '800', color: colors.text },
+  progressSub: { fontSize: 12, color: colors.textSecondary, marginTop: 4 },
+  progressCircle: { width: 60, height: 60, borderRadius: 30, borderWidth: 4, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  progressTime: { fontSize: 14, fontWeight: '800', color: colors.error },
+  progressUnit: { fontSize: 8, color: colors.textMuted },
+
+  sessionCard: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  sessionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  sessionTitle: { fontSize: 14, fontWeight: '700', color: colors.text },
+  sessionViewAll: { fontSize: 12, color: colors.info, fontWeight: '600' },
+  sessionContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.secondary,
+    padding: 12,
+    borderRadius: 16,
+  },
+  sessionAvatar: { width: 44, height: 44, borderRadius: 22 },
+  sessionInfo: { flex: 1, marginLeft: 12 },
+  sessionName: { fontSize: 14, fontWeight: '700', color: colors.text },
+  sessionSpent: { fontSize: 11, color: colors.textSecondary, marginTop: 2 },
+  sessionTimer: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.white, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10 },
+  sessionTimeText: { fontSize: 10, fontWeight: '700', color: colors.text, marginLeft: 4 },
+  sessionActions: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  sessionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: colors.border, gap: 6 },
+  sessionBtnText: { fontSize: 13, fontWeight: '700', color: colors.success },
+
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 16, marginBottom: 12, marginTop: 8 },
   sectionTitle: { color: colors.text, fontSize: 16, fontWeight: '800' },
   badge: { backgroundColor: colors.error, borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2 },
   badgeText: { color: colors.white, fontSize: 11, fontWeight: '800' },
@@ -744,7 +880,6 @@ const styles = StyleSheet.create({
   requestCard: {
     backgroundColor: colors.surface, marginHorizontal: 16, marginBottom: 10, borderRadius: 16, padding: 14,
     flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: colors.border,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
   },
   requestCardLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
   avatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.border },
@@ -753,31 +888,16 @@ const styles = StyleSheet.create({
   requestInfo: { flex: 1 },
   requestName: { color: colors.text, fontSize: 14, fontWeight: '700' },
   requestTopic: { color: colors.textSecondary, fontSize: 12, marginTop: 2 },
-  requestMeta: { color: colors.textMuted, fontSize: 11, marginTop: 2 },
   requestTime: { color: colors.goldDark, fontSize: 11, fontWeight: '700', marginTop: 4 },
   requestActions: { gap: 8 },
   acceptBtn: { backgroundColor: colors.success, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8 },
   acceptBtnText: { color: colors.white, fontSize: 12, fontWeight: '800' },
   rejectBtn: { backgroundColor: colors.errorBg, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: 'rgba(255,59,48,0.2)' },
   rejectBtnText: { color: colors.error, fontSize: 12, fontWeight: '800' },
-  noRequests: { color: colors.textMuted, textAlign: 'center', marginTop: 10, fontSize: 13, fontStyle: 'italic' },
-  callNameRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
-  callTypeBadge: { backgroundColor: colors.secondary, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
-  callTypeText: { fontSize: 9, fontWeight: '800', color: colors.textSecondary },
-
-  // New styles
-  avatarWrap: { position: 'relative' },
-  typeMiniIcon: {
-    position: 'absolute', bottom: -2, right: -2,
-    width: 18, height: 18, borderRadius: 9,
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1.5, borderColor: colors.white,
-  },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 20 },
   requestDetailBox: {
     backgroundColor: colors.white, borderRadius: 30, padding: 24, maxHeight: '85%',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.2, shadowRadius: 20, elevation: 10,
   },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
   modalTitle: { color: colors.text, fontSize: 18, fontWeight: '900' },
@@ -796,4 +916,23 @@ const styles = StyleSheet.create({
   detailActionsRow: { flexDirection: 'row', gap: 12, marginTop: 24 },
   actionBtn: { flex: 1, paddingVertical: 15, borderRadius: 16, alignItems: 'center', shadowOpacity: 0.2, elevation: 4 },
   actionBtnText: { color: colors.white, fontSize: 15, fontWeight: '900' },
+
+  langModalOverlay: {
+    flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    justifyContent: 'center', alignItems: 'center', padding: 20,
+  },
+  langModalContent: {
+    backgroundColor: colors.white, borderRadius: 24, padding: 20, width: '100%',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 10,
+  },
+  langModalHeader: { marginBottom: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  langModalTitle: { fontSize: 18, fontWeight: '900', color: colors.text, textAlign: 'center' },
+  langOption: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingVertical: 14, paddingHorizontal: 16, borderRadius: 12, marginBottom: 8,
+    borderWidth: 1, borderColor: '#F1F5F9',
+  },
+  langOptionActive: { backgroundColor: colors.goldBg, borderColor: colors.goldLight },
+  langOptionText: { fontSize: 16, fontWeight: '700', color: colors.textSecondary },
+  langOptionTextActive: { color: colors.text },
 });

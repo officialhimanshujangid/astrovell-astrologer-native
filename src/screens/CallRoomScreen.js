@@ -210,7 +210,7 @@ const ZegoBridge = React.forwardRef(({ config, onMessage }, ref) => {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 const CallRoomScreen = ({ route, navigation }) => {
   const insets = useSafeAreaInsets();
-  const { callId, isAccepted = false, initialData = null } = route.params || {};
+  const { callId, isAccepted = false, initialData = null } = route?.params || {};
   const onBack = () => navigation.goBack();
   const { astrologer, token: authToken } = useSelector((s) => s.auth);
 

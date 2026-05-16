@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { reviewApi } from '../api/services';
 import { colors } from '../theme/colors';
 import ScreenHeader from '../components/ScreenHeader';
+import useTranslation from '../hooks/useTranslation';
 
 const Stars = ({ rating }) => (
   <View style={{ flexDirection: 'row', gap: 2 }}>
@@ -19,6 +20,7 @@ const Stars = ({ rating }) => (
 
 const ReviewsScreen = ({ onBack }) => {
   const { astrologer } = useSelector(s => s.auth);
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [reviews,    setReviews]    = useState([]);
   const [loading,    setLoading]    = useState(true);
@@ -39,14 +41,14 @@ const ReviewsScreen = ({ onBack }) => {
 
   const handleReply = async (reviewId) => {
     const text = replies[reviewId]?.trim();
-    if (!text) { Alert.alert('Error', 'Enter a reply first'); return; }
+    if (!text) { Alert.alert(t('error'), t('enter_reply')); return; }
     setReplyingId(reviewId);
     try {
       await reviewApi.reply({ reviewId, reply: text, astrologerId: astrologer?.id });
-      Alert.alert('✅ Success', 'Reply sent!');
+      Alert.alert(`✅ ${t('success')}`, t('reply_sent'));
       setReplies(prev => ({ ...prev, [reviewId]: '' }));
       load();
-    } catch (_) { Alert.alert('Error', 'Failed to send reply'); }
+    } catch (_) { Alert.alert(t('error'), t('failed_reply')); }
     setReplyingId(null);
   };
 
@@ -54,7 +56,7 @@ const ReviewsScreen = ({ onBack }) => {
     <View style={styles.reviewCard}>
       <View style={styles.reviewHeader}>
         <View>
-          <Text style={styles.reviewUser}>{item.userName || item.name || 'User'}</Text>
+          <Text style={styles.reviewUser}>{item.userName || item.name || t('user')}</Text>
           <Stars rating={item.rating || 0} />
         </View>
         <Text style={styles.reviewDate}>
@@ -67,7 +69,7 @@ const ReviewsScreen = ({ onBack }) => {
 
       {item.reply ? (
         <View style={styles.replyWrap}>
-          <Text style={styles.replyLabel}>Your Reply</Text>
+          <Text style={styles.replyLabel}>{t('your_reply')}</Text>
           <Text style={styles.replyText}>{item.reply}</Text>
         </View>
       ) : (
@@ -76,7 +78,7 @@ const ReviewsScreen = ({ onBack }) => {
             style={styles.replyInput}
             value={replies[item.id] || ''}
             onChangeText={v => setReplies(prev => ({ ...prev, [item.id]: v }))}
-            placeholder="Write a reply..."
+            placeholder={t('write_reply')}
             placeholderTextColor={colors.textMuted}
             multiline
           />
@@ -87,7 +89,7 @@ const ReviewsScreen = ({ onBack }) => {
           >
             {replyingId === item.id
               ? <ActivityIndicator color={colors.white} size="small" />
-              : <Text style={styles.replyBtnText}>Reply</Text>}
+              : <Text style={styles.replyBtnText}>{t('reply')}</Text>}
           </TouchableOpacity>
         </View>
       )}
@@ -95,8 +97,8 @@ const ReviewsScreen = ({ onBack }) => {
   );
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <ScreenHeader title="User Reviews" subtitle={`${reviews.length} reviews`} onBack={onBack} />
+    <View style={styles.container}>
+      <ScreenHeader title={t('user_reviews')} subtitle={`${reviews.length} ${t('reviews_count')}`} onBack={onBack} />
       {loading ? (
         <ActivityIndicator color={colors.secondary} style={{ margin: 40 }} />
       ) : (
@@ -109,7 +111,7 @@ const ReviewsScreen = ({ onBack }) => {
           ListEmptyComponent={
             <View style={styles.empty}>
               <Text style={styles.emptyIcon}>⭐</Text>
-              <Text style={styles.emptyText}>No reviews yet</Text>
+              <Text style={styles.emptyText}>{t('no_reviews')}</Text>
             </View>
           }
         />
