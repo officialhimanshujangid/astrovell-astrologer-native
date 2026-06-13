@@ -15,6 +15,24 @@ const WithdrawModal = ({ visible, balance, astrologerId, onClose, onSuccess }) =
 
   const update = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
 
+  const isFormValid = () => {
+    const amountVal = parseFloat(form.amount);
+    const hasValidAmount = !isNaN(amountVal) && amountVal > 0 && amountVal <= balance;
+    if (!hasValidAmount) return false;
+
+    if (form.paymentMethod === 'bank') {
+      return !!(
+        form.accountNumber?.trim() &&
+        form.ifscCode?.trim() &&
+        form.accountHolderName?.trim()
+      );
+    } else {
+      return !!form.upiId?.trim();
+    }
+  };
+
+  const formValid = isFormValid();
+
   const handleSubmit = async () => {
     if (!form.amount || parseFloat(form.amount) <= 0) { Alert.alert('Error', 'Enter valid amount'); return; }
     if (parseFloat(form.amount) > balance) { Alert.alert('Error', 'Insufficient balance'); return; }
@@ -119,13 +137,21 @@ const WithdrawModal = ({ visible, balance, astrologerId, onClose, onSuccess }) =
             )}
 
             <TouchableOpacity
-              style={[styles.submitBtn, submitting && { opacity: 0.6 }]}
+              style={[
+                styles.submitBtn,
+                { backgroundColor: formValid ? colors.goldDark : '#E2E8F0' },
+                submitting && { opacity: 0.6 }
+              ]}
               onPress={handleSubmit}
-              disabled={submitting}
+              disabled={submitting || !formValid}
             >
-              {submitting
-                ? <ActivityIndicator color={colors.primary} />
-                : <Text style={styles.submitBtnText}>Submit Request</Text>}
+              {submitting ? (
+                <ActivityIndicator color={colors.white} />
+              ) : (
+                <Text style={[styles.submitBtnText, { color: formValid ? colors.white : '#94A3B8' }]}>
+                  Submit Request
+                </Text>
+              )}
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>

@@ -86,7 +86,9 @@ const MainTabNavigator = () => {
       Settings:      'settings',
       Support:       'support',
     };
-    const permKey = subPermMap[name];
+    const isSettingsSub = name && name.startsWith('Settings_');
+    const lookupName = isSettingsSub ? 'Settings' : name;
+    const permKey = subPermMap[lookupName];
     if (permKey && !can(permKey)) return; // blocked
     setActiveSubScreen(name);
   };
@@ -110,7 +112,10 @@ const MainTabNavigator = () => {
   if (activeSubScreen === 'Wallet')         return <WalletScreen onBack={closeSubScreen} />;
   if (activeSubScreen === 'Waitlist')       return <WaitlistScreen onBack={closeSubScreen} />;
   if (activeSubScreen === 'AssistantChat')  return <AssistantChatScreen onBack={closeSubScreen} />;
-  if (activeSubScreen === 'Settings')       return <SettingsScreen onBack={closeSubScreen} />;
+  if (activeSubScreen === 'Settings' || (activeSubScreen && activeSubScreen.startsWith('Settings_'))) {
+    const initialSub = activeSubScreen.startsWith('Settings_') ? activeSubScreen.split('_')[1] : null;
+    return <SettingsScreen onBack={closeSubScreen} initialSubScreen={initialSub} />;
+  }
   if (activeSubScreen === 'Support')        return <SupportScreen onBack={closeSubScreen} />;
 
   const renderScreen = () => {

@@ -40,7 +40,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { callApi } from '../api/services';
 import { colors } from '../theme/colors';
 import { ZEGO_SDK } from '../utils/ZegoSDK';
-import { SOCKET_BASE } from '../api/apiClient';
+import { BASE_URI, SOCKET_BASE } from '../api/apiClient';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -160,7 +160,7 @@ const ZegoBridge = React.forwardRef(({ config, onMessage }, ref) => {
     <WebView
       ref={ref}
       originWhitelist={['*']}
-      source={{ html: buildZegoHtml(config), baseUrl: 'https://astrology-i7c9.onrender.com/' }}
+      source={{ html: buildZegoHtml(config), baseUrl: BASE_URI }}
       style={config.isVideo ? st.videoWebView : st.hiddenWebView}
       mediaPlaybackRequiresUserAction={false}
       allowsInlineMediaPlayback={true}
@@ -189,7 +189,7 @@ const CallRoomScreen = ({ route, navigation }) => {
 
   const [phase, setPhase] = useState(isAccepted ? 'connecting' : 'incoming');
   const [callData, setCallData] = useState(initialData || null);
-  const [timer, setTimer]     = useState(0);
+  const [timer, setTimer] = useState(0);
   const [callConfig, setCallConfig] = useState(null);
   const [voiceReady, setVoiceReady] = useState(false);
   const [peerConnected, setPeerConnected] = useState(false);
@@ -204,15 +204,15 @@ const CallRoomScreen = ({ route, navigation }) => {
   // Agora-specific
   const [agoraRemoteUid, setAgoraRemoteUid] = useState(null);
 
-  const socketRef    = useRef(null);
-  const timerRef     = useRef(null);
-  const hbRef        = useRef(null);
-  const wvRef        = useRef(null);
-  const agoraEngRef  = useRef(null);
+  const socketRef = useRef(null);
+  const timerRef = useRef(null);
+  const hbRef = useRef(null);
+  const wvRef = useRef(null);
+  const agoraEngRef = useRef(null);
   const metricsBufferRef = useRef([]);
-  const metricsFlushRef  = useRef(null);
-  const voiceStarted     = useRef(false);
-  const timerValRef      = useRef(0);
+  const metricsFlushRef = useRef(null);
+  const voiceStarted = useRef(false);
+  const timerValRef = useRef(0);
 
   // ── Timer ───────────────────────────────────────────────────────────────
   const startTimer = useCallback(() => {
@@ -257,7 +257,7 @@ const CallRoomScreen = ({ route, navigation }) => {
       const buf = metricsBufferRef.current;
       if (!buf.length) return;
       const events = buf.splice(0, buf.length);
-      callApi.postMetrics({ callId: parseInt(callId), events }).catch(() => {});
+      callApi.postMetrics({ callId: parseInt(callId), events }).catch(() => { });
     }, 30000);
   }, [callId]);
 
@@ -267,7 +267,7 @@ const CallRoomScreen = ({ route, navigation }) => {
     const buf = metricsBufferRef.current;
     if (buf.length) {
       const events = buf.splice(0, buf.length);
-      callApi.postMetrics({ callId: parseInt(callId), events }).catch(() => {});
+      callApi.postMetrics({ callId: parseInt(callId), events }).catch(() => { });
     }
   }, [callId]);
 
@@ -279,7 +279,7 @@ const CallRoomScreen = ({ route, navigation }) => {
         agoraEngRef.current.release();
         agoraEngRef.current = null;
       }
-    } catch (_) {}
+    } catch (_) { }
   }, []);
 
   // ── Token refresh ─────────────────────────────────────────────────────────
@@ -518,13 +518,13 @@ const CallRoomScreen = ({ route, navigation }) => {
         } else if (c.callStatus === 'Pending') {
           setPhase('incoming');
         }
-      }).catch(() => {});
+      }).catch(() => { });
     } else {
       callApi.getCallById({ callId }).then((res) => {
         const d = res.data?.recordList ?? res.data?.data ?? res.data;
         const c = Array.isArray(d) ? d[0] : d;
         if (c && !callData) setCallData(c);
-      }).catch(() => {});
+      }).catch(() => { });
     }
 
     socket.on('call-accepted', (data) => {
@@ -621,10 +621,10 @@ const CallRoomScreen = ({ route, navigation }) => {
     try {
       const msg = JSON.parse(e.nativeEvent.data);
       switch (msg.type) {
-        case 'ready':          setVoiceReady(true); break;
+        case 'ready': setVoiceReady(true); break;
         case 'peer_connected': setPeerConnected(true); break;
-        case 'peer_left':      setPeerConnected(false); break;
-        case 'log':            console.log('[ZegoBridge JS]', msg.data); break;
+        case 'peer_left': setPeerConnected(false); break;
+        case 'log': console.log('[ZegoBridge JS]', msg.data); break;
         case 'room_state':
           if (msg.data?.reason === 'RECONNECTING') setConnStatus('reconnecting');
           else if (msg.data?.reason === 'CONNECTED') setConnStatus('connected');
@@ -634,7 +634,7 @@ const CallRoomScreen = ({ route, navigation }) => {
           Alert.alert('Voice Error', msg.data);
           break;
       }
-    } catch (_) {}
+    } catch (_) { }
   };
 
   // ── Render ────────────────────────────────────────────────────────────────

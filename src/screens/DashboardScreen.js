@@ -13,7 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 import { colors } from '../theme/colors';
 import { chatApi, callApi, boostApi } from '../api/services';
-import { SOCKET_BASE } from '../api/apiClient';
+import { BASE_URI, SOCKET_BASE } from '../api/apiClient';
 import {
   setChatRequests, setCallRequests,
   removeChatRequest, removeCallRequest,
@@ -24,7 +24,7 @@ import usePermissions from '../hooks/usePermissions';
 import useActiveSession from '../hooks/useActiveSession';
 import useTranslation from '../hooks/useTranslation';
 
-const BASE_IMG = 'https://astrology-i7c9.onrender.com/';
+const BASE_IMG = BASE_URI;
 
 
 const DashboardScreen = ({ onOpenSubScreen }) => {

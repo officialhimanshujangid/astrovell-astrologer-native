@@ -21,6 +21,11 @@ export const profileApi = {
   getForm16a: (data) => API.post('/astro/astrologer/form16a/my', data),
   getTrainingVideos: (data) => API.post('/customer/getTrainingVideo', data),
   changeContactNo: (data) => API.post('/astro/astrologer/changeContactNo', data),
+  getGallery: (data) => API.post('/astro/gallery/my', data),
+  toggleGallery: (data) => API.post('/astro/gallery/toggle', data),
+  deleteGallery: (data) => API.post('/astro/gallery/delete', data),
+  addGallery: (data) => API.post('/astro/gallery/add', data),
+  updateBillingAddress: (data) => API.post('/astro/astrologer/updateBillingAddress', data),
 };
 
 // ── Chat ──────────────────────────────────────────────────────────────────────

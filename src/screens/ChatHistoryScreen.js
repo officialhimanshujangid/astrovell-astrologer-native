@@ -7,8 +7,9 @@ import { chatApi } from '../api/services';
 import { colors } from '../theme/colors';
 import ScreenHeader from '../components/ScreenHeader';
 import useTranslation from '../hooks/useTranslation';
+import { BASE_URI } from '../api/apiClient';
 
-const BASE_IMG = 'https://astrology-i7c9.onrender.com/';
+const BASE_IMG = BASE_URI;
 
 const ChatHistoryScreen = ({ onBack, isSubScreen = false }) => {
   const { astrologer } = useSelector(s => s.auth);

@@ -9,17 +9,18 @@ import { Ionicons } from '@expo/vector-icons';
 import { pujaApi } from '../api/services';
 import { colors } from '../theme/colors';
 import ScreenHeader from '../components/ScreenHeader';
+import { BASE_URI } from '../api/apiClient';
 
-const BASE_IMG = 'https://astrology-i7c9.onrender.com/';
+const BASE_IMG = BASE_URI;
 
 const PujaScreen = ({ onBack }) => {
   const { astrologer } = useSelector(s => s.auth);
   const insets = useSafeAreaInsets();
-  const [pujas,      setPujas]      = useState([]);
-  const [loading,    setLoading]    = useState(true);
+  const [pujas, setPujas] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
-  const [saving,     setSaving]     = useState(false);
+  const [saving, setSaving] = useState(false);
   const [selectedPuja, setSelectedPuja] = useState(null);
   const [form, setForm] = useState({
     puja_title: '', puja_price: '', puja_place: '', short_description: '', long_description: '',
@@ -29,7 +30,7 @@ const PujaScreen = ({ onBack }) => {
     try {
       const res = await pujaApi.getList({ astrologerId: astrologer?.id, startIndex: 0, fetchRecord: 50 });
       setPujas(res.data?.recordList || res.data?.data || []);
-    } catch (_) {}
+    } catch (_) { }
     setLoading(false);
   };
 
@@ -47,7 +48,7 @@ const PujaScreen = ({ onBack }) => {
       await pujaApi.add({ ...form, astrologerId: astrologer?.id });
       Alert.alert('✅ Success', 'Puja created! Awaiting admin approval.');
       setShowCreate(false);
-      setForm({ puja_title:'', puja_price:'', puja_place:'', short_description:'', long_description:'' });
+      setForm({ puja_title: '', puja_price: '', puja_place: '', short_description: '', long_description: '' });
       load();
     } catch (err) {
       Alert.alert('Error', err.response?.data?.message || 'Failed to create puja');
@@ -84,8 +85,8 @@ const PujaScreen = ({ onBack }) => {
     const isApproved = item.isAdminApproved === 'Approved';
 
     return (
-      <TouchableOpacity 
-        style={styles.pujaCard} 
+      <TouchableOpacity
+        style={styles.pujaCard}
         activeOpacity={0.9}
         onPress={() => setSelectedPuja(item)}
       >
@@ -161,7 +162,7 @@ const PujaScreen = ({ onBack }) => {
                     <Ionicons name="close-circle" size={28} color={colors.textLight} />
                   </TouchableOpacity>
                 </View>
-                
+
                 <ScrollView showsVerticalScrollIndicator={false}>
                   {getPujaImage(selectedPuja) ? (
                     <Image source={{ uri: getPujaImage(selectedPuja) }} style={styles.detailImage} />
@@ -170,13 +171,13 @@ const PujaScreen = ({ onBack }) => {
                       <Text style={{ fontSize: 50 }}>🪔</Text>
                     </View>
                   )}
-                  
+
                   <View style={styles.detailContent}>
                     <View style={styles.detailHeader}>
                       <Text style={styles.detailTitle}>{selectedPuja.puja_title}</Text>
                       <Text style={styles.detailPrice}>₹{parseFloat(selectedPuja.puja_price || 0).toFixed(0)}</Text>
                     </View>
-                    
+
                     <View style={styles.detailMetaRow}>
                       <View style={styles.metaItem}>
                         <Ionicons name="location-outline" size={16} color={colors.goldDark} />
@@ -191,21 +192,21 @@ const PujaScreen = ({ onBack }) => {
 
                     <Text style={styles.detailDescTitle}>Short Description</Text>
                     <Text style={styles.detailDescText}>{selectedPuja.short_description || 'No short description provided.'}</Text>
-                    
+
                     <Text style={styles.detailDescTitle}>Full Description</Text>
                     <Text style={styles.detailDescText}>{selectedPuja.long_description || 'No full description provided.'}</Text>
                   </View>
 
                   <View style={styles.detailActions}>
-                    <TouchableOpacity 
-                      style={styles.detailDeleteBtn} 
+                    <TouchableOpacity
+                      style={styles.detailDeleteBtn}
                       onPress={() => handleDelete(selectedPuja.id)}
                     >
                       <Ionicons name="trash-outline" size={20} color={colors.error} />
                       <Text style={styles.detailDeleteText}>Delete Puja</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity 
-                      style={styles.detailCloseBtn} 
+                    <TouchableOpacity
+                      style={styles.detailCloseBtn}
                       onPress={() => setSelectedPuja(null)}
                     >
                       <Text style={styles.detailCloseText}>Close</Text>
@@ -282,9 +283,9 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.05, shadowRadius: 10, elevation: 3,
   },
-  pujaImage:            { width: '100%', height: 160, resizeMode: 'cover' },
+  pujaImage: { width: '100%', height: 160, resizeMode: 'cover' },
   pujaImagePlaceholder: { height: 120, backgroundColor: colors.goldBg, alignItems: 'center', justifyContent: 'center', gap: 8 },
-  noImgText:            { color: colors.goldDark, fontSize: 12, fontWeight: '600' },
+  noImgText: { color: colors.goldDark, fontSize: 12, fontWeight: '600' },
   pujaInfo: { padding: 16 },
   pujaHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
   pujaTitle: { flex: 1, color: colors.text, fontSize: 17, fontWeight: '800', marginRight: 8 },
@@ -293,8 +294,8 @@ const styles = StyleSheet.create({
   pujaPlace: { color: colors.textSecondary, fontSize: 13, fontWeight: '500' },
   pujaFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 },
   approvalBadge: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
-  approvalText:  { fontSize: 11, fontWeight: '800', textTransform: 'uppercase' },
-  
+  approvalText: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase' },
+
   empty: { alignItems: 'center', paddingTop: 80, paddingHorizontal: 40 },
   emptyIcon: { fontSize: 48, marginBottom: 16 },
   emptyText: { color: colors.textMuted, fontSize: 15, marginBottom: 24, textAlign: 'center' },
@@ -305,7 +306,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3, shadowRadius: 6, elevation: 5,
   },
   createBtnText: { color: colors.text, fontWeight: '800', fontSize: 15 },
-  
+
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalBox: {
     backgroundColor: colors.surface,
@@ -316,7 +317,7 @@ const styles = StyleSheet.create({
   },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   modalTitle: { color: colors.text, fontSize: 22, fontWeight: '900' },
-  
+
   // Detail Modal Specifics
   detailImage: { width: '100%', height: 200, borderRadius: 20, marginBottom: 16, resizeMode: 'cover' },
   detailImagePlaceholder: { width: '100%', height: 180, borderRadius: 20, backgroundColor: colors.goldBg, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },

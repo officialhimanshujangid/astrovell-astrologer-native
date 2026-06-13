@@ -32,6 +32,17 @@ const ALL_MENU_ITEMS = [
       { icon: '💖', labelKey: 'match_kundali', key: 'KundaliMatching', permKey: 'kundali_matching' },
     ]
   },
+  {
+    sectionKey: 'settings', items: [
+      { icon: '📱', labelKey: 'update_phone', key: 'Settings_phone', permKey: 'settings' },
+      { icon: '🎥', labelKey: 'training_video', key: 'Settings_training', permKey: 'settings' },
+      { icon: '📜', labelKey: 'terms_conditions', key: 'Settings_terms', permKey: 'settings' },
+      { icon: '🏦', labelKey: 'bank_details', key: 'Settings_bank', permKey: 'settings' },
+      { icon: '📄', labelKey: 'download_form16a', key: 'Settings_form16a', permKey: 'settings' },
+      { icon: '🖼️', labelKey: 'gallery', key: 'Settings_gallery', permKey: 'settings' },
+      { icon: '📍', labelKey: 'update_billing', key: 'Settings_billing', permKey: 'settings' },
+    ]
+  },
 ];
 
 const MoreScreen = ({ onOpenSubScreen }) => {

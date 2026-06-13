@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Alert, BackHandler, Linking, Image, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Alert, BackHandler, Linking, Image, Modal, Animated, PanResponder } from 'react-native';
 import { useSelector } from 'react-redux';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -9,6 +9,8 @@ import ScreenHeader from '../components/ScreenHeader';
 import useTranslation from '../hooks/useTranslation';
 import { profileApi, pageApi, authApi } from '../api/services';
 import { SOCKET_BASE } from '../api/apiClient';
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 
 const maskAccountNumber = (num) => {
   if (!num) return '•••• •••• •••• ••••';
@@ -71,10 +73,25 @@ const getYoutubeId = (url) => {
   return (match && match[2].length === 11) ? match[2] : null;
 };
 
-const SettingsScreen = ({ onBack }) => {
+const SettingsScreen = ({ onBack, initialSubScreen }) => {
   const { t, globalLang } = useTranslation();
   const { astrologer } = useSelector((s) => s.auth);
-  const [activeSubScreen, setActiveSubScreen] = useState(null);
+  const [activeSubScreen, setActiveSubScreen] = useState(initialSubScreen || null);
+  const [openedDirectly] = useState(!!initialSubScreen);
+
+  const handleBack = () => {
+    if (openedDirectly) {
+      onBack();
+    } else {
+      setActiveSubScreen(null);
+    }
+  };
+
+  useEffect(() => {
+    if (initialSubScreen) {
+      setActiveSubScreen(initialSubScreen);
+    }
+  }, [initialSubScreen]);
 
   const [profileDetails, setProfileDetails] = useState(null);
   const [phoneForm, setPhoneForm] = useState({ contactNo: '', whatsappNo: '' });
@@ -112,6 +129,52 @@ const SettingsScreen = ({ onBack }) => {
   const [videoList, setVideoList] = useState([]);
   const [videoLoading, setVideoLoading] = useState(false);
   const [activeVideo, setActiveVideo] = useState(null);
+
+  // Gallery State
+  const [galleryList, setGalleryList] = useState([]);
+  const [galleryLoading, setGalleryLoading] = useState(false);
+  const [uploadLoading, setUploadLoading] = useState(false);
+  const [adjustModalVisible, setAdjustModalVisible] = useState(false);
+  const [tempImageUri, setTempImageUri] = useState(null);
+  const [tempImageBase64, setTempImageBase64] = useState(null);
+  const [selectedGalleryImage, setSelectedGalleryImage] = useState(null);
+
+  // Billing Address State
+  const [billingAddress, setBillingAddress] = useState('');
+  const [billingLoading, setBillingLoading] = useState(false);
+
+  // Image adjustment states
+  const [scale, setScale] = useState(1);
+  const [rotation, setRotation] = useState(0);
+  const [translateX, setTranslateX] = useState(0);
+  const [translateY, setTranslateY] = useState(0);
+
+  const lastX = React.useRef(0);
+  const lastY = React.useRef(0);
+
+  const resetAdjustmentStates = () => {
+    setScale(1);
+    setRotation(0);
+    setTranslateX(0);
+    setTranslateY(0);
+    lastX.current = 0;
+    lastY.current = 0;
+  };
+
+  const panResponder = React.useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderMove: (evt, gestureState) => {
+        setTranslateX(lastX.current + gestureState.dx / scale);
+        setTranslateY(lastY.current + gestureState.dy / scale);
+      },
+      onPanResponderRelease: (evt, gestureState) => {
+        lastX.current += gestureState.dx / scale;
+        lastY.current += gestureState.dy / scale;
+      },
+    })
+  ).current;
 
   // Load Phone Data
   const loadPhoneData = async () => {
@@ -244,6 +307,247 @@ const SettingsScreen = ({ onBack }) => {
     }
   };
 
+  // Load Gallery Data
+  const loadGalleryData = async () => {
+    setGalleryLoading(true);
+    try {
+      const res = await profileApi.getGallery({ astrologerId: astrologer?.id });
+      const d = res.data;
+      if (d?.status === 200 || res.status === 200) {
+        setGalleryList(d.recordList || []);
+      }
+    } catch (err) {
+      Alert.alert(t('error'), 'Failed to load gallery images.');
+    } finally {
+      setGalleryLoading(false);
+    }
+  };
+
+  // Toggle Gallery image active/inactive (show/hide)
+  const handleToggleGallery = async (id) => {
+    try {
+      const res = await profileApi.toggleGallery({ id });
+      if (res.data?.status === 200 || res.status === 200) {
+        setGalleryList(prev => prev.map(item => item.id === id ? { ...item, isActive: item.isActive === 1 ? 0 : 1 } : item));
+        Alert.alert(t('success') || 'Success', res.data?.message || 'Status updated');
+      }
+    } catch (err) {
+      Alert.alert(t('error'), 'Failed to toggle image status.');
+    }
+  };
+
+  // Delete Gallery image
+  const handleDeleteGallery = async (id) => {
+    Alert.alert(
+      globalLang === 'hi' ? 'छवि हटाएं' : 'Delete Image',
+      globalLang === 'hi' ? 'क्या आप वाकई इस छवि को हटाना चाहते हैं?' : 'Are you sure you want to delete this image?',
+      [
+        { text: t('cancel') || 'Cancel', style: 'cancel' },
+        {
+          text: globalLang === 'hi' ? 'हटाएं' : 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const res = await profileApi.deleteGallery({ id });
+              if (res.data?.status === 200 || res.status === 200) {
+                setGalleryList(prev => prev.filter(item => item.id !== id));
+                Alert.alert(t('success') || 'Success', res.data?.message || 'Photo deleted');
+              }
+            } catch (err) {
+              Alert.alert(t('error'), 'Failed to delete image.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  // Pick and Upload Image
+  const handleUploadGallery = async () => {
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (permissionResult.granted === false) {
+      Alert.alert(
+        globalLang === 'hi' ? 'अनुमति आवश्यक है' : "Permission Required", 
+        globalLang === 'hi' ? 'छवि अपलोड करने के लिए आपको फ़ोटो एक्सेस की अनुमति देनी होगी।' : "You need to allow access to your photos to upload images."
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: false, // Avoid native editor issues
+      quality: 0.7,
+      base64: true,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      const selectedAsset = result.assets[0];
+      setTempImageUri(selectedAsset.uri);
+      setTempImageBase64(selectedAsset.base64);
+      resetAdjustmentStates();
+      setAdjustModalVisible(true);
+    }
+  };
+
+  // Confirm and upload selected image from Adjust Modal
+  const confirmUploadGallery = async () => {
+    if (!tempImageUri) return;
+    setUploadLoading(true);
+
+    try {
+      let width = 0;
+      let height = 0;
+
+      // Get original image dimensions
+      await new Promise((resolve) => {
+        Image.getSize(
+          tempImageUri,
+          (w, h) => {
+            width = w;
+            height = h;
+            resolve();
+          },
+          () => {
+            // fallback if getSize fails
+            width = 800;
+            height = 800;
+            resolve();
+          }
+        );
+      });
+
+      let currentUri = tempImageUri;
+      let currentWidth = width;
+      let currentHeight = height;
+
+      const manipActions = [];
+
+      // 1. First, apply rotation if any
+      if (rotation !== 0) {
+        const rotResult = await ImageManipulator.manipulateAsync(
+          currentUri,
+          [{ rotate: rotation }],
+          { format: ImageManipulator.SaveFormat.PNG }
+        );
+        currentUri = rotResult.uri;
+        currentWidth = rotResult.width;
+        currentHeight = rotResult.height;
+      }
+
+      // 2. Compute crop box calculation (crop box is square 300x300, and image uses resizeMode cover)
+      const boxSize = 300;
+      const scaleFactor = Math.max(boxSize / currentWidth, boxSize / currentHeight);
+      const displayedWidth = currentWidth * scaleFactor;
+      const displayedHeight = currentHeight * scaleFactor;
+      const displayScale = displayedWidth / currentWidth;
+
+      // cropSizeInOriginal represents the width/height of the crop frame in original pixel space
+      const cropSizeInOriginal = (boxSize / scale) / displayScale;
+      
+      // originX0, originY0 is the default centered crop position in original pixels
+      const originX0 = (currentWidth - cropSizeInOriginal) / 2;
+      const originY0 = (currentHeight - cropSizeInOriginal) / 2;
+
+      // Shift based on translateX / translateY (touch dragging moves image opposite of crop origin)
+      const originX = originX0 - (translateX / scale) / displayScale;
+      const originY = originY0 - (translateY / scale) / displayScale;
+
+      // Clamp coordinates to remain within image boundaries
+      const finalOriginX = Math.round(Math.max(0, Math.min(currentWidth - cropSizeInOriginal, originX)));
+      const finalOriginY = Math.round(Math.max(0, Math.min(currentHeight - cropSizeInOriginal, originY)));
+      const finalSize = Math.round(Math.min(cropSizeInOriginal, currentWidth - finalOriginX, currentHeight - finalOriginY));
+
+      manipActions.push({
+        crop: {
+          originX: finalOriginX,
+          originY: finalOriginY,
+          width: finalSize,
+          height: finalSize,
+        }
+      });
+
+      // Resize the cropped area to 600x600 for standard gallery resolution and optimized upload sizes
+      manipActions.push({
+        resize: {
+          width: 600,
+          height: 600
+        }
+      });
+
+      const cropResult = await ImageManipulator.manipulateAsync(
+        currentUri,
+        manipActions,
+        {
+          compress: 0.7,
+          format: ImageManipulator.SaveFormat.JPEG,
+          base64: true
+        }
+      );
+
+      const base64Data = `data:image/jpeg;base64,${cropResult.base64}`;
+
+      const res = await profileApi.addGallery({
+        astrologerId: astrologer?.id,
+        images: [base64Data]
+      });
+
+      if (res.data?.status === 200 || res.status === 200) {
+        Alert.alert(t('success') || 'Success', res.data?.message || 'Photo uploaded');
+        setAdjustModalVisible(false);
+        loadGalleryData(); // Refresh list
+      }
+    } catch (err) {
+      console.log('Image processing error:', err);
+      Alert.alert(t('error'), 'Failed to process and upload image.');
+    } finally {
+      setUploadLoading(false);
+    }
+  };
+
+  // Load Billing Address Data
+  const loadBillingData = async () => {
+    setBillingLoading(true);
+    try {
+      const res = await profileApi.get({ astrologerId: astrologer?.id });
+      const d = res.data;
+      const a = d?.recordList?.[0] || d?.data || d?.recordList || {};
+      setBillingAddress(a.billingAddress || '');
+    } catch (err) {
+      console.log('Failed to load billing address:', err);
+    } finally {
+      setBillingLoading(false);
+    }
+  };
+
+  // Submit Updated Billing Address
+  const handleUpdateBillingAddress = async () => {
+    if (!billingAddress.trim()) {
+      Alert.alert(t('error'), globalLang === 'hi' ? 'कृपया बिलिंग पता दर्ज करें।' : 'Please enter a billing address.');
+      return;
+    }
+    setSaveLoading(true);
+    try {
+      const res = await profileApi.updateBillingAddress({
+        astrologerId: astrologer?.id,
+        billingAddress: billingAddress.trim(),
+      });
+      const d = res.data;
+      if (d?.status === 200 || res.status === 200) {
+        Alert.alert(
+          `✅ ${t('success')}`,
+          d.message || (globalLang === 'hi' ? 'बिलिंग पता सफलतापूर्वक अपडेट किया गया।' : 'Billing address updated successfully.')
+        );
+        handleBack();
+      } else {
+        Alert.alert(t('error'), d?.message || 'Failed to update billing address.');
+      }
+    } catch (err) {
+      Alert.alert(t('error'), err.response?.data?.message || 'Failed to update billing address.');
+    } finally {
+      setSaveLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (activeSubScreen === 'phone') {
       loadPhoneData();
@@ -255,6 +559,10 @@ const SettingsScreen = ({ onBack }) => {
       loadTermsContent();
     } else if (activeSubScreen === 'training') {
       loadVideoData();
+    } else if (activeSubScreen === 'gallery') {
+      loadGalleryData();
+    } else if (activeSubScreen === 'billing') {
+      loadBillingData();
     }
   }, [activeSubScreen]);
 
@@ -262,7 +570,7 @@ const SettingsScreen = ({ onBack }) => {
     if (!activeSubScreen) return;
 
     const handleHardwareBack = () => {
-      setActiveSubScreen(null);
+      handleBack();
       return true; // prevent default (global back handler)
     };
 
@@ -327,7 +635,7 @@ const SettingsScreen = ({ onBack }) => {
         setOtpInput('');
         setReceivedOtp(null);
         setOtpSent(false);
-        setActiveSubScreen(null);
+        handleBack();
       } else {
         Alert.alert(t('error'), d?.message || 'Failed to update phone number.');
       }
@@ -361,7 +669,7 @@ const SettingsScreen = ({ onBack }) => {
           `✅ ${t('success')}`, 
           res.data?.message || 'Bank update request submitted. Awaiting admin approval.'
         );
-        setActiveSubScreen(null);
+        handleBack();
       } else {
         Alert.alert(t('error'), res.data?.message || 'Failed to submit request.');
       }
@@ -428,7 +736,7 @@ const SettingsScreen = ({ onBack }) => {
     if (activeSubScreen === 'phone') {
       return (
         <View style={styles.container}>
-          <ScreenHeader title={t('update_phone')} onBack={() => setActiveSubScreen(null)} />
+          <ScreenHeader title={t('update_phone')} onBack={handleBack} />
           {fetchLoading ? (
             <View style={styles.centered}>
               <ActivityIndicator size="large" color={colors.goldDark} />
@@ -537,7 +845,7 @@ const SettingsScreen = ({ onBack }) => {
     if (activeSubScreen === 'bank') {
       return (
         <View style={styles.container}>
-          <ScreenHeader title={t('bank_details')} onBack={() => setActiveSubScreen(null)} />
+          <ScreenHeader title={t('bank_details')} onBack={handleBack} />
           {bankFetchLoading ? (
             <View style={styles.centered}>
               <ActivityIndicator size="large" color={colors.goldDark} />
@@ -738,7 +1046,7 @@ const SettingsScreen = ({ onBack }) => {
     if (activeSubScreen === 'form16a') {
       return (
         <View style={styles.container}>
-          <ScreenHeader title={t('download_form16a')} onBack={() => setActiveSubScreen(null)} />
+          <ScreenHeader title={t('download_form16a')} onBack={handleBack} />
           {form16aLoading ? (
             <View style={styles.centered}>
               <ActivityIndicator size="large" color={colors.goldDark} />
@@ -801,10 +1109,286 @@ const SettingsScreen = ({ onBack }) => {
       );
     }
 
+    if (activeSubScreen === 'gallery') {
+      return (
+        <View style={styles.container}>
+          <ScreenHeader title={t('gallery')} onBack={handleBack} />
+          {galleryLoading ? (
+            <View style={styles.centered}>
+              <ActivityIndicator size="large" color={colors.goldDark} />
+            </View>
+          ) : (
+            <ScrollView contentContainerStyle={styles.galleryScroll} showsVerticalScrollIndicator={false}>
+              <TouchableOpacity 
+                style={styles.uploadCard} 
+                onPress={handleUploadGallery} 
+                disabled={uploadLoading}
+                activeOpacity={0.8}
+              >
+                {uploadLoading ? (
+                  <View style={styles.uploadLoadingRow}>
+                    <ActivityIndicator size="small" color={colors.goldDark} style={{ marginRight: 8 }} />
+                    <Text style={styles.uploadCardText}>
+                      {globalLang === 'hi' ? 'अपलोड हो रहा है...' : 'Uploading...'}
+                    </Text>
+                  </View>
+                ) : (
+                  <>
+                    <Ionicons name="cloud-upload" size={28} color={colors.goldDark} style={{ marginBottom: 4 }} />
+                    <Text style={styles.uploadCardText}>
+                      {globalLang === 'hi' ? 'नया चित्र अपलोड करें' : 'Upload New Photo'}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              {galleryList.length === 0 ? (
+                <View style={styles.emptyContainer}>
+                  <View style={styles.emptyIconCircle}>
+                    <Ionicons name="images-outline" size={48} color={colors.textMuted} />
+                  </View>
+                  <Text style={styles.emptyTitle}>
+                    {globalLang === 'hi' ? 'कोई चित्र नहीं मिला' : 'No Images Found'}
+                  </Text>
+                  <Text style={styles.emptyDescription}>
+                    {globalLang === 'hi' ? 'अपनी प्रोफ़ाइल में दिखाने के लिए चित्र अपलोड करें।' : 'Upload photos to feature them on your profile.'}
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.galleryGrid}>
+                  {galleryList.map((item) => (
+                    <View key={item.id} style={styles.galleryCard}>
+                      <TouchableOpacity 
+                        style={styles.imageContainer}
+                        onPress={() => setSelectedGalleryImage(`${SOCKET_BASE}/${item.image}`)}
+                        activeOpacity={0.9}
+                      >
+                        <Image 
+                          source={{ uri: `${SOCKET_BASE}/${item.image}` }} 
+                          style={styles.galleryImage}
+                          resizeMode="cover"
+                        />
+                        {item.isActive === 0 && (
+                          <View style={styles.hiddenOverlay}>
+                            <Ionicons name="eye-off" size={20} color={colors.white} />
+                            <Text style={styles.hiddenText}>
+                              {globalLang === 'hi' ? 'छिपा हुआ' : 'Hidden'}
+                            </Text>
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                      <View style={styles.galleryCardActions}>
+                        <TouchableOpacity 
+                          style={[styles.actionBtn, { backgroundColor: colors.surface }]} 
+                          onPress={() => handleToggleGallery(item.id)}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons 
+                            name={item.isActive === 1 ? "eye" : "eye-off"} 
+                            size={16} 
+                            color={item.isActive === 1 ? '#4CAF50' : colors.textSecondary} 
+                          />
+                          <Text style={[styles.actionBtnText, { color: item.isActive === 1 ? '#4CAF50' : colors.textSecondary }]}>
+                            {item.isActive === 1 
+                              ? (globalLang === 'hi' ? 'दिखाएं' : 'Show') 
+                              : (globalLang === 'hi' ? 'छिपाएं' : 'Hide')}
+                          </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity 
+                          style={[styles.actionBtn, { backgroundColor: '#FFEBEE', borderColor: '#FFCDD2' }]} 
+                          onPress={() => handleDeleteGallery(item.id)}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="trash" size={14} color="#D32F2F" />
+                          <Text style={[styles.actionBtnText, { color: '#D32F2F' }]}>
+                            {globalLang === 'hi' ? 'हटाएं' : 'Delete'}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </ScrollView>
+          )}
+
+          {/* Adjust Photo Modal */}
+          <Modal visible={adjustModalVisible} transparent animationType="fade">
+            <View style={styles.adjustModalOverlay}>
+              <View style={styles.adjustHeader}>
+                <TouchableOpacity onPress={() => setAdjustModalVisible(false)} style={styles.adjustCloseBtnHeader}>
+                  <Ionicons name="close" size={24} color={colors.white} />
+                </TouchableOpacity>
+                <Text style={styles.adjustHeaderTitle}>
+                  {globalLang === 'hi' ? 'छवि समायोजित करें' : 'Adjust & Crop'}
+                </Text>
+                <TouchableOpacity 
+                  onPress={confirmUploadGallery} 
+                  disabled={uploadLoading}
+                  style={[styles.adjustProceedBtnHeader, { backgroundColor: uploadLoading ? 'rgba(76,175,80,0.4)' : '#2E7D32' }]}
+                >
+                  {uploadLoading ? (
+                    <ActivityIndicator color={colors.white} size="small" />
+                  ) : (
+                    <Ionicons name="checkmark" size={22} color={colors.white} />
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.adjustHelperText}>
+                {globalLang === 'hi' ? 'खींचकर स्थान बदलें • ज़ूम करने के लिए बटनों का उपयोग करें' : 'Drag to reposition • Use buttons below to zoom'}
+              </Text>
+
+              <View style={styles.adjustImageContainer}>
+                {tempImageUri && (
+                  <View style={styles.cropBox} {...panResponder.panHandlers}>
+                    <Image 
+                      source={{ uri: tempImageUri }} 
+                      style={[
+                        styles.adjustImage,
+                        {
+                          transform: [
+                            { scale: scale },
+                            { translateX: translateX },
+                            { translateY: translateY },
+                            { rotate: `${rotation}deg` }
+                          ]
+                        }
+                      ]} 
+                      resizeMode="cover"
+                    />
+                    {/* Visual guidelines grid overlay */}
+                    <View style={styles.gridOverlay} pointerEvents="none">
+                      <View style={styles.gridRow}>
+                        <View style={styles.gridCell} />
+                        <View style={styles.gridCell} />
+                        <View style={styles.gridCell} />
+                      </View>
+                      <View style={styles.gridRow}>
+                        <View style={styles.gridCell} />
+                        <View style={styles.gridCell} />
+                        <View style={styles.gridCell} />
+                      </View>
+                      <View style={styles.gridRow}>
+                        <View style={styles.gridCell} />
+                        <View style={styles.gridCell} />
+                        <View style={styles.gridCell} />
+                      </View>
+                    </View>
+                  </View>
+                )}
+              </View>
+
+              {/* Adjust Controls Panel */}
+              <View style={styles.adjustControlsRow}>
+                <TouchableOpacity 
+                  style={styles.adjustControlBtn} 
+                  onPress={() => setScale(prev => Math.max(1.0, prev - 0.1))}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="remove-circle-outline" size={24} color={colors.white} />
+                </TouchableOpacity>
+                
+                <Text style={styles.adjustControlText}>
+                  {Math.round(scale * 100)}%
+                </Text>
+
+                <TouchableOpacity 
+                  style={styles.adjustControlBtn} 
+                  onPress={() => setScale(prev => Math.min(3.0, prev + 0.1))}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="add-circle-outline" size={24} color={colors.white} />
+                </TouchableOpacity>
+
+                <View style={{ width: 1, height: 20, backgroundColor: '#334155', marginHorizontal: 8 }} />
+
+                <TouchableOpacity 
+                  style={styles.adjustControlBtnRow} 
+                  onPress={() => setRotation(prev => (prev + 90) % 360)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="reload-outline" size={18} color={colors.white} style={{ marginRight: 4 }} />
+                  <Text style={styles.adjustControlBtnText}>
+                    {globalLang === 'hi' ? 'घुमाएं' : 'Rotate'}
+                  </Text>
+                </TouchableOpacity>
+
+                <View style={{ width: 1, height: 20, backgroundColor: '#334155', marginHorizontal: 8 }} />
+
+                <TouchableOpacity 
+                  style={styles.adjustControlBtnRow} 
+                  onPress={resetAdjustmentStates}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="refresh-outline" size={16} color={colors.white} style={{ marginRight: 4 }} />
+                  <Text style={styles.adjustControlBtnText}>
+                    {globalLang === 'hi' ? 'रीसेट' : 'Reset'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.adjustFooter}>
+                <TouchableOpacity 
+                  style={[styles.adjustFooterBtn, { backgroundColor: '#334155' }]} 
+                  onPress={() => setAdjustModalVisible(false)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="close-circle-outline" size={20} color={colors.white} style={{ marginRight: 6 }} />
+                  <Text style={[styles.adjustFooterBtnText, { color: colors.white }]}>
+                    {t('cancel') || 'Cancel'}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={[styles.adjustFooterBtn, { backgroundColor: '#2E7D32' }]} 
+                  onPress={confirmUploadGallery}
+                  disabled={uploadLoading}
+                  activeOpacity={0.7}
+                >
+                  {uploadLoading ? (
+                    <ActivityIndicator color={colors.white} size="small" />
+                  ) : (
+                    <>
+                      <Ionicons name="checkmark-circle" size={20} color={colors.white} style={{ marginRight: 6 }} />
+                      <Text style={[styles.adjustFooterBtnText, { color: colors.white }]}>
+                        {globalLang === 'hi' ? 'आगे बढ़ें' : 'Proceed'}
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
+
+          {/* Fullscreen Image Preview Modal */}
+          <Modal 
+            visible={!!selectedGalleryImage} 
+            transparent 
+            animationType="fade" 
+            onRequestClose={() => setSelectedGalleryImage(null)}
+          >
+            <View style={styles.previewModalOverlay}>
+              <TouchableOpacity style={styles.previewCloseBtn} onPress={() => setSelectedGalleryImage(null)} activeOpacity={0.7}>
+                <Ionicons name="close" size={28} color={colors.white} />
+              </TouchableOpacity>
+              {selectedGalleryImage && (
+                <Image 
+                  source={{ uri: selectedGalleryImage }} 
+                  style={styles.previewImage}
+                  resizeMode="contain"
+                />
+              )}
+            </View>
+          </Modal>
+        </View>
+      );
+    }
+
     if (activeSubScreen === 'terms') {
       return (
         <View style={styles.container}>
-          <ScreenHeader title={t('terms_conditions')} onBack={() => setActiveSubScreen(null)} />
+          <ScreenHeader title={t('terms_conditions')} onBack={handleBack} />
           {termsLoading ? (
             <View style={styles.centered}>
               <ActivityIndicator size="large" color={colors.goldDark} />
@@ -832,7 +1416,7 @@ const SettingsScreen = ({ onBack }) => {
     if (activeSubScreen === 'training') {
       return (
         <View style={styles.container}>
-          <ScreenHeader title={t('training_video')} onBack={() => setActiveSubScreen(null)} />
+          <ScreenHeader title={t('training_video')} onBack={handleBack} />
           {videoLoading ? (
             <View style={styles.centered}>
               <ActivityIndicator size="large" color={colors.goldDark} />
@@ -931,10 +1515,60 @@ const SettingsScreen = ({ onBack }) => {
       );
     }
 
+    if (activeSubScreen === 'billing') {
+      return (
+        <View style={styles.container}>
+          <ScreenHeader title={t('update_billing')} onBack={handleBack} />
+          {billingLoading ? (
+            <View style={styles.centered}>
+              <ActivityIndicator size="large" color={colors.goldDark} />
+            </View>
+          ) : (
+            <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+              <View style={styles.formContainer}>
+                
+                {/* Billing Address Input Field */}
+                <View style={styles.field}>
+                  <Text style={styles.fieldLabel}>
+                    {globalLang === 'hi' ? 'व्यावसायिक बिलिंग पता / जीएसटी पता' : 'Business Billing Address / GST Address'}
+                  </Text>
+                  <TextInput
+                    style={[styles.input, styles.textArea]}
+                    value={billingAddress}
+                    onChangeText={setBillingAddress}
+                    multiline={true}
+                    numberOfLines={4}
+                    placeholderTextColor={colors.textLight}
+                    placeholder={globalLang === 'hi' ? 'अपना व्यावसायिक बिलिंग पता दर्ज करें...' : 'Enter your business billing address...'}
+                  />
+                </View>
+
+                {/* Submit Action Button */}
+                <TouchableOpacity
+                  style={[styles.saveBtn, { backgroundColor: colors.goldDark }, saveLoading && { opacity: 0.6 }]}
+                  onPress={handleUpdateBillingAddress}
+                  disabled={saveLoading}
+                >
+                  {saveLoading ? (
+                    <ActivityIndicator color={colors.white} />
+                  ) : (
+                    <Text style={[styles.saveBtnText, { color: colors.white }]}>
+                      {globalLang === 'hi' ? 'सबमिट करें' : 'Submit'}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+
+              </View>
+            </ScrollView>
+          )}
+        </View>
+      );
+    }
+
     const sub = SETTING_ITEMS.find(item => item.key === activeSubScreen);
     return (
       <View style={styles.container}>
-        <ScreenHeader title={sub.title} onBack={() => setActiveSubScreen(null)} />
+        <ScreenHeader title={sub.title} onBack={handleBack} />
         <View style={styles.content}>
           <View style={[styles.iconCircle, { backgroundColor: sub.color }]}>
             <Text style={styles.emoji}>{sub.emoji}</Text>
@@ -1469,6 +2103,266 @@ const styles = StyleSheet.create({
     color: colors.goldDark,
     fontWeight: '700',
     textDecorationLine: 'underline',
+  },
+
+  // Gallery Styles
+  galleryScroll: {
+    padding: 16,
+    paddingBottom: 60,
+  },
+  uploadCard: {
+    backgroundColor: '#FFFBEB',
+    borderColor: '#FDE68A',
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  uploadLoadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  uploadCardText: {
+    fontSize: 14,
+    color: colors.goldDark,
+    fontWeight: '800',
+    marginTop: 4,
+  },
+  galleryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
+    justifyContent: 'space-between',
+  },
+  galleryCard: {
+    width: '47%',
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  imageContainer: {
+    aspectRatio: 1,
+    position: 'relative',
+    backgroundColor: colors.secondary,
+  },
+  galleryImage: {
+    width: '100%',
+    height: '100%',
+  },
+  hiddenOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  hiddenText: {
+    color: colors.white,
+    fontSize: 12,
+    fontWeight: '800',
+    marginTop: 4,
+  },
+  galleryCardActions: {
+    flexDirection: 'row',
+    padding: 8,
+    gap: 8,
+  },
+  actionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: 4,
+  },
+  actionBtnText: {
+    fontSize: 11,
+    fontWeight: '800',
+  },
+
+  // Adjust Photo Modal Styles
+  adjustModalOverlay: {
+    flex: 1,
+    backgroundColor: '#0F172A', // Dark slate/black theme
+    paddingHorizontal: 20,
+    paddingVertical: 30,
+    justifyContent: 'space-between',
+  },
+  adjustHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#334155',
+  },
+  adjustHeaderTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.white,
+  },
+  adjustCloseBtnHeader: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  adjustProceedBtnHeader: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  adjustHelperText: {
+    fontSize: 12,
+    color: '#94A3B8',
+    textAlign: 'center',
+    marginTop: 12,
+    fontStyle: 'italic',
+  },
+  adjustImageContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginVertical: 12,
+  },
+  cropBox: {
+    width: 300,
+    height: 300,
+    backgroundColor: '#020617',
+    borderRadius: 16,
+    overflow: 'hidden',
+    position: 'relative',
+    borderWidth: 3,
+    borderColor: '#FFCC00', // Solid gold border for strong contrast on any background
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  adjustImage: {
+    width: '100%',
+    height: '100%',
+  },
+  gridOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'space-between',
+  },
+  gridRow: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  gridCell: {
+    flex: 1,
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 204, 0, 0.40)', // Golden grid lines for high contrast on black/white
+  },
+  adjustControlsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    backgroundColor: '#1E293B',
+    borderRadius: 12,
+    marginVertical: 16,
+    gap: 8,
+  },
+  adjustControlBtn: {
+    padding: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  adjustControlBtnRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: 8,
+  },
+  adjustControlText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: colors.white,
+    minWidth: 44,
+    textAlign: 'center',
+  },
+  adjustControlBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.white,
+  },
+  adjustFooter: {
+    flexDirection: 'row',
+    gap: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#334155',
+  },
+  adjustFooterBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  adjustFooterBtnText: {
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  // Fullscreen Preview Modal Styles
+  previewModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(2, 6, 23, 0.95)', // Semi-transparent deep dark background
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  previewCloseBtn: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  previewImage: {
+    width: '100%',
+    height: '100%',
+  },
+  textArea: {
+    height: 120,
+    textAlignVertical: 'top',
+    paddingTop: 14,
   },
 });
 

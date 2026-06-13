@@ -18,7 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { colors } from '../theme/colors';
 import { chatApi, callApi } from '../api/services';
-import { SOCKET_BASE } from '../api/apiClient';
+import { BASE_URI, SOCKET_BASE } from '../api/apiClient';
 import {
   setChatRequests,
   setCallRequests,
@@ -30,7 +30,7 @@ import useTranslation from '../hooks/useTranslation';
 import ScreenHeader from '../components/ScreenHeader';
 import useActiveSession from '../hooks/useActiveSession';
 
-const BASE_IMG = 'https://astrology-i7c9.onrender.com/';
+const BASE_IMG = BASE_URI;
 
 const WaitlistScreen = ({ onBack }) => {
   const dispatch = useDispatch();
@@ -61,7 +61,7 @@ const WaitlistScreen = ({ onBack }) => {
         const d = callRes.value.data;
         dispatch(setCallRequests(d?.callRequest || d?.recordList || []));
       }
-    } catch (_) {}
+    } catch (_) { }
   }, [astrologer?.id]);
 
   const onRefresh = async () => {

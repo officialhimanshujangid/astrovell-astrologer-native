@@ -50,6 +50,8 @@ export const translations = {
     consultation_charges: "Consultation Charges",
     chat_charge: "Chat Charge (per min)",
     call_charge: "Call Charge (per min)",
+    current_city: "Current City",
+    country: "Country",
 
     // Setup Preference Screen
     welcome_Astrovell: "Welcome to Astrovell",
@@ -271,6 +273,8 @@ export const translations = {
     consultation_charges: "परामर्श शुल्क",
     chat_charge: "चैट शुल्क (प्रति मिनट)",
     call_charge: "कॉल शुल्क (प्रति मिनट)",
+    current_city: "वर्तमान शहर",
+    country: "देश",
 
     // Setup Preference Screen
     welcome_Astrovell: "Astrovell में आपका स्वागत है",

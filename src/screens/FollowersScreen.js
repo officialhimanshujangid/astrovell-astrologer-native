@@ -8,22 +8,23 @@ import { followerApi } from '../api/services';
 import { colors } from '../theme/colors';
 import ScreenHeader from '../components/ScreenHeader';
 import useTranslation from '../hooks/useTranslation';
+import { BASE_URI } from '../api/apiClient';
 
-const BASE_IMG = 'https://astrology-i7c9.onrender.com/';
+const BASE_IMG = BASE_URI;
 
 const FollowersScreen = ({ onBack }) => {
   const { astrologer } = useSelector(s => s.auth);
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const [followers,  setFollowers]  = useState([]);
-  const [loading,    setLoading]    = useState(true);
+  const [followers, setFollowers] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = async () => {
     try {
       const res = await followerApi.getFollowers({ astrologerId: astrologer?.id, startIndex: 0, fetchRecord: 100 });
       setFollowers(res.data?.recordList || res.data?.data || []);
-    } catch (_) {}
+    } catch (_) { }
     setLoading(false);
   };
 

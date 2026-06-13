@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, Alert, ActivityIndicator, Image, RefreshControl,
+  TextInput, Alert, ActivityIndicator, Image, RefreshControl, Platform
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useDispatch, useSelector } from 'react-redux';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,8 +15,9 @@ import { updateAstrologer, logout } from '../store/slices/authSlice';
 import ScreenHeader from '../components/ScreenHeader';
 import usePermissions from '../hooks/usePermissions';
 import useTranslation from '../hooks/useTranslation';
+import { BASE_URI } from '../api/apiClient';
 
-const BASE_IMG = 'https://astrology-i7c9.onrender.com/';
+const BASE_IMG = BASE_URI;
 
 const getLanguageString = (val) => {
   if (!val) return '';
@@ -25,22 +27,67 @@ const getLanguageString = (val) => {
 };
 
 const ProfileScreen = ({ onOpenSubScreen }) => {
-  const dispatch   = useDispatch();
-  const insets     = useSafeAreaInsets();
+  const dispatch = useDispatch();
+  const insets = useSafeAreaInsets();
   const { astrologer } = useSelector(s => s.auth);
   const { can } = usePermissions();
   const { t } = useTranslation();
 
-  const [mode,    setMode]    = useState('view'); // 'view' | 'edit'
+  const [mode, setMode] = useState('view'); // 'view' | 'edit'
   const [loading, setLoading] = useState(true);
-  const [saving,  setSaving]  = useState(false);
+  const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [profile, setProfile] = useState(null);
 
   const [form, setForm] = useState({
     name: '', email: '', whatsappNo: '', gender: '',
     birthDate: '', experience: '', aboutMe: '', charge: '', languageKnown: '',
+    currentCity: '', country: '',
   });
+
+  const [showDatePicker, setShowDatePicker] = useState(false);
+
+  const onDateChange = (event, selectedDate) => {
+    setShowDatePicker(false);
+    if (selectedDate) {
+      const yyyy = selectedDate.getFullYear();
+      const mm = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const dd = String(selectedDate.getDate()).padStart(2, '0');
+      update('birthDate', `${yyyy}-${mm}-${dd}`);
+    }
+  };
+
+  const getDisplayDate = (dateStr) => {
+    if (!dateStr) return '';
+    try {
+      const parts = dateStr.split('-');
+      if (parts.length === 3) {
+        const y = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10) - 1;
+        const d = parseInt(parts[2], 10);
+        return new Date(y, m, d).toLocaleDateString();
+      }
+      return new Date(dateStr).toLocaleDateString();
+    } catch (e) {
+      return dateStr;
+    }
+  };
+
+  const getDatePickerValue = (dateStr) => {
+    if (!dateStr) return new Date(1990, 0, 1);
+    try {
+      const parts = dateStr.split('-');
+      if (parts.length === 3) {
+        const y = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10) - 1;
+        const d = parseInt(parts[2], 10);
+        return new Date(y, m, d);
+      }
+      return new Date(dateStr);
+    } catch (e) {
+      return new Date(1990, 0, 1);
+    }
+  };
 
   useEffect(() => { loadProfile(); }, []);
 
@@ -56,8 +103,9 @@ const ProfileScreen = ({ onOpenSubScreen }) => {
         gender: a.gender || '', birthDate: a.birthDate || '',
         experience: String(a.experience || ''), aboutMe: a.aboutMe || '',
         charge: String(a.charge || ''), languageKnown: getLanguageString(a.languageKnown),
+        currentCity: a.currentCity || '', country: a.country || '',
       });
-    } catch (_) {}
+    } catch (_) { }
     setLoading(false);
   };
 
@@ -112,125 +160,148 @@ const ProfileScreen = ({ onOpenSubScreen }) => {
 
       {mode === 'view' ? (
         <ScrollView
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.gold} />}
-        contentContainerStyle={{ paddingBottom: 40 }}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* ── Profile Header Card ────────────────────────────────────────── */}
-        <View style={styles.profileCard}>
-          <View style={styles.profileInfo}>
-            <View style={styles.avatarContainer}>
-               {profileImg ? (
-                <Image source={{ uri: profileImg }} style={styles.avatar} />
-              ) : (
-                <View style={styles.avatarPlaceholder}>
-                  <Text style={styles.avatarLetter}>{(profile?.name || 'A')[0].toUpperCase()}</Text>
-                </View>
-              )}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.gold} />}
+          contentContainerStyle={{ paddingBottom: 40 }}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* ── Profile Header Card ────────────────────────────────────────── */}
+          <View style={styles.profileCard}>
+            <View style={styles.profileInfo}>
+              <View style={styles.avatarContainer}>
+                {profileImg ? (
+                  <Image source={{ uri: profileImg }} style={styles.avatar} />
+                ) : (
+                  <View style={styles.avatarPlaceholder}>
+                    <Text style={styles.avatarLetter}>{(profile?.name || 'A')[0].toUpperCase()}</Text>
+                  </View>
+                )}
+              </View>
+              <View style={styles.profileText}>
+                <Text style={styles.profileName}>{profile?.name || 'Astrologer'} ({profile?.id || '3921'})</Text>
+                <Text style={styles.profileEmail}>{profile?.email || 'user@email.com'}</Text>
+                <Text style={styles.profilePhone}>{profile?.contactNo || '+918560033640'}</Text>
+              </View>
+              <TouchableOpacity style={styles.editIconBtn} onPress={() => setMode('edit')}>
+                <Ionicons name="create-outline" size={24} color={colors.textSecondary} />
+              </TouchableOpacity>
             </View>
-            <View style={styles.profileText}>
-               <Text style={styles.profileName}>{profile?.name || 'Astrologer'} ({profile?.id || '3921'})</Text>
-               <Text style={styles.profileEmail}>{profile?.email || 'user@email.com'}</Text>
-               <Text style={styles.profilePhone}>{profile?.contactNo || '+918560033640'}</Text>
-            </View>
-            <TouchableOpacity style={styles.editIconBtn} onPress={() => setMode('edit')}>
-               <Ionicons name="create-outline" size={24} color={colors.textSecondary} />
-            </TouchableOpacity>
           </View>
-        </View>
 
-        {/* ── Menu List ─────────────────────────────────────────────────── */}
-        <View style={styles.menuList}>
-          <MenuRow icon="person-outline" iconColor="#ff4d4d" label={t('edit_profile')} onPress={() => setMode('edit')} />
-          <MenuRow icon="wallet-outline" iconColor="#20b2aa" label={t('wallet')} onPress={() => onOpenSubScreen?.('Wallet')} />
-          <MenuRow icon="chatbubbles-outline" iconColor="#6495ed" label={t('chat_history')} onPress={() => onOpenSubScreen?.('ChatHistory')} />
-          <MenuRow icon="call-outline" iconColor="#ff4500" label={t('call_history')} onPress={() => onOpenSubScreen?.('CallHistory')} />
-          <MenuRow icon="star-outline" iconColor="#ffa500" label={t('user_reviews')} onPress={() => onOpenSubScreen?.('Reviews')} />
-          <MenuRow icon="document-text-outline" iconColor="#1e90ff" label={t('my_reports')} onPress={() => onOpenSubScreen?.('Reports')} />
-          <MenuRow icon="people-outline" iconColor="#32cd32" label={t('followers')} onPress={() => onOpenSubScreen?.('Followers')} />
-          <MenuRow icon="notifications-outline" iconColor="#4682b4" label={t('notifications')} onPress={() => onOpenSubScreen?.('Notifications')} />
-        </View>
+          {/* ── Menu List ─────────────────────────────────────────────────── */}
+          <View style={styles.menuList}>
+            <MenuRow icon="person-outline" iconColor="#ff4d4d" label={t('edit_profile')} onPress={() => setMode('edit')} />
+            <MenuRow icon="wallet-outline" iconColor="#20b2aa" label={t('wallet')} onPress={() => onOpenSubScreen?.('Wallet')} />
+            <MenuRow icon="chatbubbles-outline" iconColor="#6495ed" label={t('chat_history')} onPress={() => onOpenSubScreen?.('ChatHistory')} />
+            <MenuRow icon="call-outline" iconColor="#ff4500" label={t('call_history')} onPress={() => onOpenSubScreen?.('CallHistory')} />
+            <MenuRow icon="star-outline" iconColor="#ffa500" label={t('user_reviews')} onPress={() => onOpenSubScreen?.('Reviews')} />
+            <MenuRow icon="document-text-outline" iconColor="#1e90ff" label={t('my_reports')} onPress={() => onOpenSubScreen?.('Reports')} />
+            <MenuRow icon="people-outline" iconColor="#32cd32" label={t('followers')} onPress={() => onOpenSubScreen?.('Followers')} />
+            <MenuRow icon="notifications-outline" iconColor="#4682b4" label={t('notifications')} onPress={() => onOpenSubScreen?.('Notifications')} />
+          </View>
 
-        <View style={styles.versionFooter}>
-          <Text style={styles.versionText}>version 1.1.463</Text>
-        </View>
+          <View style={styles.versionFooter}>
+            <Text style={styles.versionText}>version 1.1.463</Text>
+          </View>
 
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={20} color={colors.error} style={{ marginRight: 8 }} />
-          <Text style={styles.logoutBtnText}>{t('logout_account')}</Text>
-        </TouchableOpacity>
-      </ScrollView>
-    ) : (
-      /* Edit Form */
-      <ScrollView
-        contentContainerStyle={{ paddingBottom: 40 }}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.editForm}>
-          {[
-            { key: 'name', label: t('name'), icon: 'person' },
-            { key: 'email', label: t('email'), icon: 'mail', keyboard: 'email-address' },
-            { key: 'whatsappNo', label: t('phone'), icon: 'logo-whatsapp', keyboard: 'phone-pad' },
-            { key: 'birthDate', label: t('dob'), icon: 'calendar' },
-            { key: 'experience', label: t('experience'), icon: 'briefcase', keyboard: 'number-pad' },
-            { key: 'charge', label: t('chat_charge'), icon: 'cash', keyboard: 'number-pad' },
-            { key: 'languageKnown', label: t('language'), icon: 'language' },
-          ].map(f => (
-            <View key={f.key} style={styles.field}>
-              <Text style={styles.fieldLabel}>{f.label}</Text>
+          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+            <Ionicons name="log-out-outline" size={20} color={colors.error} style={{ marginRight: 8 }} />
+            <Text style={styles.logoutBtnText}>{t('logout_account')}</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      ) : (
+        /* Edit Form */
+        <ScrollView
+          contentContainerStyle={{ paddingBottom: 40 }}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.editForm}>
+            {[
+              { key: 'name', label: t('name'), icon: 'person' },
+              { key: 'email', label: t('email'), icon: 'mail', keyboard: 'email-address' },
+              { key: 'whatsappNo', label: t('phone'), icon: 'logo-whatsapp', keyboard: 'phone-pad' },
+              { key: 'birthDate', label: t('dob'), icon: 'calendar' },
+              { key: 'experience', label: t('experience'), icon: 'briefcase', keyboard: 'number-pad' },
+              { key: 'charge', label: t('chat_charge'), icon: 'cash', keyboard: 'number-pad' },
+              { key: 'languageKnown', label: t('language'), icon: 'language' },
+              { key: 'currentCity', label: t('current_city'), icon: 'navigate' },
+              { key: 'country', label: t('country'), icon: 'globe' },
+            ].map(f => (
+              <View key={f.key} style={styles.field}>
+                <Text style={styles.fieldLabel}>{f.label}</Text>
+                {f.key === 'birthDate' ? (
+                  <TouchableOpacity
+                    style={[styles.input, { justifyContent: 'center' }]}
+                    onPress={() => setShowDatePicker(true)}
+                  >
+                    <Text style={{ color: form.birthDate ? colors.text : colors.textLight, fontSize: 15 }}>
+                      {getDisplayDate(form.birthDate) || t('dob')}
+                    </Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TextInput
+                    style={styles.input}
+                    value={form[f.key]}
+                    onChangeText={v => update(f.key, v)}
+                    keyboardType={f.keyboard || 'default'}
+                    placeholderTextColor={colors.textLight}
+                  />
+                )}
+              </View>
+            ))}
+
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>{t('gender')}</Text>
+              <View style={styles.radioRow}>
+                {['Male', 'Female', 'Other'].map(g => (
+                  <TouchableOpacity
+                    key={g}
+                    style={[styles.radioBtn, form.gender === g && styles.radioBtnActive]}
+                    onPress={() => update('gender', g)}
+                  >
+                    <Text style={[styles.radioText, form.gender === g && styles.radioTextActive]}>{t(g.toLowerCase())}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>{t('about')}</Text>
               <TextInput
-                style={styles.input}
-                value={form[f.key]}
-                onChangeText={v => update(f.key, v)}
-                keyboardType={f.keyboard || 'default'}
+                style={[styles.input, { height: 100, textAlignVertical: 'top' }]}
+                value={form.aboutMe}
+                onChangeText={v => update('aboutMe', v)}
+                multiline
                 placeholderTextColor={colors.textLight}
+                placeholder={t('tell_about_yourself')}
               />
             </View>
-          ))}
 
-          <View style={styles.field}>
-            <Text style={styles.fieldLabel}>{t('gender')}</Text>
-            <View style={styles.radioRow}>
-              {['Male', 'Female', 'Other'].map(g => (
-                <TouchableOpacity
-                  key={g}
-                  style={[styles.radioBtn, form.gender === g && styles.radioBtnActive]}
-                  onPress={() => update('gender', g)}
-                >
-                  <Text style={[styles.radioText, form.gender === g && styles.radioTextActive]}>{t(g.toLowerCase())}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            {showDatePicker && (
+              <DateTimePicker
+                value={getDatePickerValue(form.birthDate)}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={onDateChange}
+                maximumDate={new Date()}
+              />
+            )}
+
+            <TouchableOpacity
+              style={[styles.saveBtn, saving && { opacity: 0.6 }]}
+              onPress={handleSave}
+              disabled={saving}
+            >
+              {saving ? <ActivityIndicator color={colors.white} /> : <Text style={styles.saveBtnText}>{t('edit_profile')}</Text>}
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[styles.saveBtn, { backgroundColor: colors.border, marginTop: 12 }]} onPress={() => setMode('view')}>
+              <Text style={[styles.saveBtnText, { color: colors.text }]}>{t('cancel')}</Text>
+            </TouchableOpacity>
           </View>
-
-          <View style={styles.field}>
-            <Text style={styles.fieldLabel}>{t('about')}</Text>
-            <TextInput
-              style={[styles.input, { height: 100, textAlignVertical: 'top' }]}
-              value={form.aboutMe}
-              onChangeText={v => update('aboutMe', v)}
-              multiline
-              placeholderTextColor={colors.textLight}
-              placeholder={t('tell_about_yourself')}
-            />
-          </View>
-
-          <TouchableOpacity
-            style={[styles.saveBtn, saving && { opacity: 0.6 }]}
-            onPress={handleSave}
-            disabled={saving}
-          >
-            {saving ? <ActivityIndicator color={colors.white} /> : <Text style={styles.saveBtnText}>{t('edit_profile')}</Text>}
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={[styles.saveBtn, { backgroundColor: colors.border, marginTop: 12 }]} onPress={() => setMode('view')}>
-            <Text style={[styles.saveBtnText, { color: colors.text }]}>{t('cancel')}</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    )}
-  </View>
-);
+        </ScrollView>
+      )}
+    </View>
+  );
 };
 
 const MenuRow = ({ icon, iconColor, label, badge, badgeColor, badgeTextColor, onPress }) => (
@@ -252,7 +323,7 @@ export default ProfileScreen;
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fdf2f2' },
-  centered:  { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fdf2f2' },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fdf2f2' },
 
   customHeader: { backgroundColor: '#fb9494', paddingHorizontal: 16, paddingBottom: 16 },
   headerTitle: { color: colors.white, fontSize: 22, fontWeight: '500' },
@@ -306,8 +377,8 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: colors.border,
     backgroundColor: colors.white, alignItems: 'center',
   },
-  radioBtnActive:  { borderColor: '#fb9494', backgroundColor: '#fdf2f2' },
-  radioText:       { color: colors.textSecondary, fontSize: 14, fontWeight: '600' },
+  radioBtnActive: { borderColor: '#fb9494', backgroundColor: '#fdf2f2' },
+  radioText: { color: colors.textSecondary, fontSize: 14, fontWeight: '600' },
   radioTextActive: { color: '#fb9494' },
   saveBtn: {
     backgroundColor: '#fb9494', borderRadius: 12,

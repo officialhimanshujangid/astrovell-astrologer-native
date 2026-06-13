@@ -9,7 +9,7 @@
   "dashboard_header": true,
   "dashboard_header_notifications": true,
   "dashboard_header_settings": true,
-  "dashboard_header_support": true,
+  "dashboard_header_support": false,
   "dashboard_status_toggles": true,
   "dashboard_active_session": true,
   "dashboard_boost": true,
@@ -52,5 +52,5 @@
   "settings": true,
   "waitlist": true,
   "assistant_chat": false,
-  "support": true
+  "support": false
 }
