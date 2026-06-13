@@ -56,7 +56,7 @@ const SetupPreferenceScreen = () => {
           PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
           {
             title: 'Microphone Permission',
-            message: 'AstroVell needs access to your microphone for consultations with customers.',
+            message: 'Astrovell needs access to your microphone for consultations with customers.',
             buttonNeutral: 'Ask Me Later',
             buttonNegative: 'Cancel',
             buttonPositive: 'OK',
@@ -99,7 +99,7 @@ const SetupPreferenceScreen = () => {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.primary} />
-      
+
       {/* Background Decor */}
       <View style={styles.topCircle} />
       <View style={styles.bottomCircle} />
@@ -109,7 +109,7 @@ const SetupPreferenceScreen = () => {
           <View style={styles.iconContainer}>
             <Ionicons name="sparkles-outline" size={40} color={colors.goldDark} />
           </View>
-          <Text style={styles.title}>{t('welcome_astrovell')}</Text>
+          <Text style={styles.title}>{t('welcome_Astrovell')}</Text>
           <Text style={styles.subtitle}>
             {t('setup_subtitle')}
           </Text>
@@ -165,8 +165,8 @@ const SetupPreferenceScreen = () => {
               <Text style={styles.permSub}>{t('mic_required')}</Text>
             </View>
             {!permissionGranted ? (
-              <TouchableOpacity 
-                style={styles.permBtn} 
+              <TouchableOpacity
+                style={styles.permBtn}
                 onPress={requestAudioPermission}
                 disabled={requestingPermission}
               >
@@ -182,7 +182,7 @@ const SetupPreferenceScreen = () => {
           </View>
         </View>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.submitBtn, !selectedLang && styles.submitBtnDisabled]}
           onPress={handleContinue}
           activeOpacity={0.9}

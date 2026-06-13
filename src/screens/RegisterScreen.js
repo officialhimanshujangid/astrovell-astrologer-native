@@ -4,6 +4,8 @@ import {
   ScrollView, ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { useDispatch } from 'react-redux';
+import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from '../theme/colors';
 import { authApi } from '../api/services';
@@ -16,28 +18,33 @@ const RegisterScreen = ({ navigation }) => {
   const insets   = useSafeAreaInsets();
 
   const [form, setForm] = useState({
-    name: '', email: '', contactNo: '', gender: '', dob: '',
-    experience: '', about: '', charge: '', language: '',
+    name: '',
+    email: '',
+    contactNo: '',
+    countryCode: '+91',
+    whatsappNo: '',
+    gender: '',
+    birthDate: '',
+    currentCity: '',
+    country: 'India',
+    termsAccepted: false,
   });
   const [otp,       setOtp]       = useState('');
   const [devOtp,    setDevOtp]    = useState('');
   const [otpSent,   setOtpSent]   = useState(false);
   const [verified,  setVerified]  = useState(false);
-  const [skills,    setSkills]    = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [selectedSkill, setSelectedSkill] = useState('');
-  const [selectedCat,   setSelectedCat]   = useState('');
   const [loading, setLoading] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
-  useEffect(() => {
-    authApi.getMasterData()
-      .then(res => {
-        const d = res.data;
-        setSkills(d?.skills || d?.recordList?.skills || []);
-        setCategories(d?.categories || d?.recordList?.categories || []);
-      })
-      .catch(() => {});
-  }, []);
+  const onDateChange = (event, selectedDate) => {
+    setShowDatePicker(false);
+    if (selectedDate) {
+      const yyyy = selectedDate.getFullYear();
+      const mm = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const dd = String(selectedDate.getDate()).padStart(2, '0');
+      update('birthDate', `${yyyy}-${mm}-${dd}`);
+    }
+  };
 
   const update = (key, val) => setForm(prev => ({ ...prev, [key]: val }));
 
@@ -76,11 +83,13 @@ const RegisterScreen = ({ navigation }) => {
         dispatch(loginSuccess({ token: d.token, astrologer }));
       } else {
         // new user — OTP verified, proceed to registration
+        setForm(prev => ({ ...prev, whatsappNo: prev.contactNo }));
         setVerified(true);
       }
     } catch (err) {
       const status = err.response?.data?.status;
       if (status === 404 || status === 400) {
+        setForm(prev => ({ ...prev, whatsappNo: prev.contactNo }));
         setVerified(true); // new user
       } else {
         Alert.alert('Error', err.response?.data?.message || 'OTP verification failed');
@@ -92,14 +101,20 @@ const RegisterScreen = ({ navigation }) => {
   const handleRegister = async () => {
     if (!form.name.trim()) { Alert.alert('Error', 'Please enter your full name'); return; }
     if (!form.gender)      { Alert.alert('Error', 'Please select gender'); return; }
+    if (!form.termsAccepted) { Alert.alert('Error', 'Please accept the Terms and Conditions'); return; }
     setLoading(true);
     try {
       const payload = {
-        name: form.name, email: form.email, contactNo: form.contactNo,
-        gender: form.gender, birthDate: form.dob,
-        experience: form.experience, aboutMe: form.about, charge: form.charge,
-        languageKnown: form.language,
-        primarySkill: selectedSkill, astrologerCategoryId: selectedCat,
+        name: form.name,
+        email: form.email,
+        contactNo: form.contactNo,
+        countryCode: form.countryCode,
+        whatsappNo: form.whatsappNo,
+        gender: form.gender,
+        birthDate: form.birthDate,
+        currentCity: form.currentCity,
+        country: form.country,
+        termsAccepted: form.termsAccepted,
       };
       const res = await authApi.register(payload);
       const d = res.data;
@@ -180,23 +195,51 @@ const RegisterScreen = ({ navigation }) => {
         {[
           { key: 'name', label: 'Full Name *', placeholder: 'Your name' },
           { key: 'email', label: 'Email', placeholder: 'your@email.com', keyboard: 'email-address' },
-          { key: 'dob', label: 'Date of Birth', placeholder: 'YYYY-MM-DD' },
-          { key: 'experience', label: 'Experience (years)', placeholder: '5', keyboard: 'number-pad' },
-          { key: 'charge', label: 'Charge per minute (₹)', placeholder: '20', keyboard: 'number-pad' },
-          { key: 'language', label: 'Languages Known', placeholder: 'Hindi, English' },
+          { key: 'whatsappNo', label: 'WhatsApp Number', placeholder: 'WhatsApp number', keyboard: 'phone-pad' },
+          { key: 'birthDate', label: 'Date of Birth', placeholder: 'Select birth date (YYYY-MM-DD)' },
+          { key: 'currentCity', label: 'Current City', placeholder: 'Your current city' },
+          { key: 'country', label: 'Country', placeholder: 'Your country' },
         ].map(f => (
           <View style={styles.fieldWrap} key={f.key}>
-            <Text style={styles.label}>{f.label}</Text>
-            <TextInput
-              style={styles.input}
-              value={form[f.key]}
-              onChangeText={v => update(f.key, v)}
-              placeholder={f.placeholder}
-              placeholderTextColor={colors.textMuted}
-              keyboardType={f.keyboard || 'default'}
-            />
+            <View style={styles.labelRow}>
+              <Text style={[styles.label, { marginBottom: 0 }]}>{f.label}</Text>
+              {f.key === 'whatsappNo' && (
+                <TouchableOpacity onPress={() => update('whatsappNo', form.contactNo)}>
+                  <Text style={styles.sameAsPhoneText}>Same as contact</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            {f.key === 'birthDate' ? (
+              <TouchableOpacity
+                style={[styles.input, { justifyContent: 'center' }]}
+                onPress={() => setShowDatePicker(true)}
+              >
+                <Text style={{ color: form.birthDate ? colors.text : colors.textMuted, fontSize: 15 }}>
+                  {form.birthDate || f.placeholder}
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <TextInput
+                style={styles.input}
+                value={form[f.key]}
+                onChangeText={v => update(f.key, v)}
+                placeholder={f.placeholder}
+                placeholderTextColor={colors.textMuted}
+                keyboardType={f.keyboard || 'default'}
+              />
+            )}
           </View>
         ))}
+
+        {showDatePicker && (
+          <DateTimePicker
+            value={form.birthDate ? new Date(form.birthDate) : new Date(1990, 0, 1)}
+            mode="date"
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            onChange={onDateChange}
+            maximumDate={new Date()}
+          />
+        )}
 
         <View style={styles.fieldWrap}>
           <Text style={styles.label}>Gender *</Text>
@@ -213,17 +256,18 @@ const RegisterScreen = ({ navigation }) => {
           </View>
         </View>
 
-        <View style={styles.fieldWrap}>
-          <Text style={styles.label}>About Me</Text>
-          <TextInput
-            style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
-            value={form.about}
-            onChangeText={v => update('about', v)}
-            placeholder="Tell customers about yourself..."
-            placeholderTextColor={colors.textMuted}
-            multiline
+        <TouchableOpacity
+          style={styles.checkboxRow}
+          onPress={() => update('termsAccepted', !form.termsAccepted)}
+          activeOpacity={0.8}
+        >
+          <Ionicons
+            name={form.termsAccepted ? 'checkbox' : 'square-outline'}
+            size={24}
+            color={form.termsAccepted ? colors.goldDark : colors.textMuted}
           />
-        </View>
+          <Text style={styles.checkboxLabel}>I accept the Terms and Conditions</Text>
+        </TouchableOpacity>
 
         <TouchableOpacity style={[styles.btn, loading && styles.btnDisabled]} onPress={handleRegister} disabled={loading}>
           {loading ? <ActivityIndicator color={colors.primary} /> : <Text style={styles.btnText}>Complete Registration</Text>}
@@ -303,4 +347,27 @@ const styles = StyleSheet.create({
   radioBtnActive: { borderColor: colors.gold, backgroundColor: colors.goldBg },
   radioText: { color: colors.textMuted, fontSize: 13, fontWeight: '600' },
   radioTextActive: { color: colors.goldDark },
+  labelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  sameAsPhoneText: {
+    color: colors.goldDark,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+    marginBottom: 20,
+    gap: 8,
+  },
+  checkboxLabel: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
 });

@@ -4,11 +4,11 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useSelector } from 'react-redux';
 import { colors } from '../theme/colors';
 
-import LoginScreen       from '../screens/LoginScreen';
-import RegisterScreen    from '../screens/RegisterScreen';
-import MainTabNavigator  from './MainTabNavigator';
-import ChatRoomScreen    from '../screens/ChatRoomScreen';
-import CallRoomScreen    from '../screens/CallRoomScreen';
+import LoginScreen from '../screens/LoginScreen';
+import RegisterScreen from '../screens/RegisterScreen';
+import MainTabNavigator from './MainTabNavigator';
+import ChatRoomScreen from '../screens/ChatRoomScreen';
+import CallRoomScreen from '../screens/CallRoomScreen';
 import SetupPreferenceScreen from '../screens/SetupPreferenceScreen';
 
 const Stack = createNativeStackNavigator();
@@ -17,7 +17,7 @@ const LoadingScreen = () => (
   <View style={styles.loadingContainer}>
     <Text style={styles.emoji}>🔮</Text>
     <ActivityIndicator size="large" color={colors.gold} style={{ marginBottom: 16 }} />
-    <Text style={styles.title}>AstroVell Astrologer</Text>
+    <Text style={styles.title}>Astrovell Astrologer</Text>
     <Text style={styles.sub}>Loading your panel...</Text>
   </View>
 );
@@ -31,7 +31,7 @@ const AppNavigator = () => {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {!isLoggedIn ? (
         <>
-          <Stack.Screen name="Login"    component={LoginScreen} />
+          <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Register" component={RegisterScreen} />
         </>
       ) : profileCheckLoading ? (
@@ -40,7 +40,7 @@ const AppNavigator = () => {
         <Stack.Screen name="SetupPreference" component={SetupPreferenceScreen} />
       ) : (
         <>
-          <Stack.Screen name="Main"     component={MainTabNavigator} />
+          <Stack.Screen name="Main" component={MainTabNavigator} />
           <Stack.Screen name="ChatRoom" component={ChatRoomScreen} />
           <Stack.Screen name="CallRoom" component={CallRoomScreen} />
         </>
@@ -61,5 +61,5 @@ const styles = StyleSheet.create({
   },
   emoji: { fontSize: 56, marginBottom: 16 },
   title: { color: colors.text, fontSize: 20, fontWeight: '800', letterSpacing: 0.5 },
-  sub:   { color: colors.textMuted, fontSize: 13 },
+  sub: { color: colors.textMuted, fontSize: 13 },
 });

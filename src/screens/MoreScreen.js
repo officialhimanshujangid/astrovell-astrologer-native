@@ -72,7 +72,7 @@ const MoreScreen = ({ onOpenSubScreen }) => {
         ))}
 
         <View style={styles.versionCard}>
-          <Text style={styles.versionText}>🔮 AstroVell Astrologer</Text>
+          <Text style={styles.versionText}>🔮 Astrovell Astrologer</Text>
           <Text style={styles.versionSub}>{t('version')} 1.0.0 • {t('powered_by')}</Text>
         </View>
       </ScrollView>

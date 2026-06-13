@@ -4,13 +4,14 @@
  * State machine:
  *   'incoming'   → show Accept / Reject (call is Pending)
  *   'accepting'  → API call in-flight
- *   'connecting' → accepted, fetching Zego token
+ *   'connecting' → accepted, fetching token
  *   'active'     → voice/video live with timer
  *   'completed'  → call ended
  *   'rejected'   → astrologer rejected
  *
- * This version implements robust heartbeats, metrics, and token refresh
- * to match the web implementation, using the Zego Web SDK inside a WebView.
+ * Provider strategy:
+ *   - 'agora' → react-native-agora native SDK (works in dev builds & Expo Go)
+ *   - 'zego'  → Zego Web SDK inside a WebView
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
@@ -18,6 +19,20 @@ import {
   StatusBar, ActivityIndicator, Alert, Dimensions, Platform, PermissionsAndroid,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
+// Agora native SDK — optional, only available in dev builds (not Expo Go)
+let createAgoraRtcEngine, ClientRoleType, ChannelProfileType, RtcSurfaceView;
+let AGORA_AVAILABLE = false;
+try {
+  const agora = require('react-native-agora');
+  createAgoraRtcEngine = agora.createAgoraRtcEngine;
+  ClientRoleType = agora.ClientRoleType;
+  ChannelProfileType = agora.ChannelProfileType;
+  RtcSurfaceView = agora.RtcSurfaceView;
+  AGORA_AVAILABLE = true;
+} catch (e) {
+  console.warn('[AstroCall] react-native-agora not available (Expo Go). Using Zego WebView only.');
+  RtcSurfaceView = View; // fallback stub
+}
 import { useSelector } from 'react-redux';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { io } from 'socket.io-client';
@@ -32,7 +47,7 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const fmt = (sec) =>
   `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`;
 
-// ─── Zegocloud WebView HTML ──────────────────────────────────────────────────
+// ─── Zego WebView HTML (Zego provider only) ───────────────────────────────────
 const buildZegoHtml = ({ appID, roomID, userID, token, serverUrl, userName, isVideo }) => `
 <!DOCTYPE html><html><head>
 <meta charset="UTF-8">
@@ -40,13 +55,15 @@ const buildZegoHtml = ({ appID, roomID, userID, token, serverUrl, userName, isVi
 <style>
   *{margin:0;padding:0;box-sizing:border-box;}
   body{width:100vw;height:100vh;overflow:hidden;background:#000;font-family:sans-serif;}
-  #remote-video { width: 100%; height: 100%; object-fit: cover; background: #111; }
-  #local-video { 
-    position: absolute; bottom: 20px; right: 20px; 
-    width: 100px; height: 150px; border-radius: 12px; 
-    border: 2px solid rgba(255,255,255,0.3); object-fit: cover; 
+  #remote-video-container { width: 100%; height: 100%; background: #111; }
+  #remote-video { width: 100%; height: 100%; object-fit: cover; display: none; }
+  #local-video-container {
+    position: absolute; bottom: 20px; right: 20px;
+    width: 100px; height: 150px; border-radius: 12px;
+    border: 2px solid rgba(255,255,255,0.3); overflow: hidden;
     background: #222; z-index: 10;
   }
+  #local-video { width: 100%; height: 100%; object-fit: cover; display: none; }
   .status-msg {
     position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
     color: #fff; font-size: 14px; text-align: center; pointer-events: none;
@@ -55,149 +72,105 @@ const buildZegoHtml = ({ appID, roomID, userID, token, serverUrl, userName, isVi
   #ra { display: none; }
 </style>
 <script>
-// PRE-GRANT MIC/CAM in WebView before Zego SDK loads
-// Expo Go WebView does not show a permission dialog — getUserMedia must succeed
-// before ZegoExpressEngine calls it internally.
+window._preGrantStream = null;
 (function() {
-  var _realGUM = navigator.mediaDevices && navigator.mediaDevices.getUserMedia
-    ? navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices)
-    : null;
-  if (!_realGUM) return;
-  _realGUM({ audio: true, video: false })
-    .then(function(s) {
-      s.getTracks().forEach(function(t) { t.stop(); });
-    })
-    .catch(function(e) {
-      if (window.ReactNativeWebView) {
-        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'log', data: 'Pre-grant GUM failed: ' + e.message }));
-      }
-    });
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+  navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+    .then(function(s) { window._preGrantStream = s; })
+    .catch(function() {});
 })();
 </script>
 <script>${ZEGO_SDK}</script>
 </head><body>
 <audio id="ra" autoplay playsinline></audio>
-${isVideo ? `
+<div id="remote-video-container">
   <video id="remote-video" autoplay playsinline></video>
+</div>
+<div id="local-video-container">
   <video id="local-video" autoplay playsinline muted></video>
-` : '<div class="status-msg" id="status">Audio Only Session</div>'}
+</div>
+${isVideo ? '' : '<div class="status-msg">Audio Only Session</div>'}
 <script>
 function post(t,d){try{window.ReactNativeWebView.postMessage(JSON.stringify({type:t,data:d}));}catch(e){}}
 
+var appID = Number(${JSON.stringify(appID || 0)});
+var roomID = ${JSON.stringify(roomID || '')};
+var token = ${JSON.stringify(token || '')};
+var userID = String(${JSON.stringify(userID || '')});
+var userName = ${JSON.stringify(userName || 'User')};
+var serverUrl = ${JSON.stringify(serverUrl || 'wss://webliveroom-api.zegocloud.com/ws')};
+var isVideo = ${!!isVideo};
 var zg, localStream;
 
 async function init(){
   try{
-    post('log', 'Init started');
+    post('log', 'Zego Init: appID=' + appID);
     if(typeof ZegoExpressEngine === 'undefined') {
-      post('log', 'Zego SDK not found, waiting...');
-      setTimeout(init, 1000);
+      setTimeout(init, 800);
       return;
     }
-    
-    var appID = Number(${JSON.stringify(appID || 0)});
-    var roomID = ${JSON.stringify(roomID || '')};
-    var token = ${JSON.stringify(token || '')};
-    var userID = String(${JSON.stringify(userID || '')});
-    var userName = ${JSON.stringify(userName || 'User')};
-    var serverUrl = ${JSON.stringify(serverUrl || 'wss://webliveroom-api.zegocloud.com/ws')};
-    var isVideo = ${!!isVideo};
-
-    post('log', 'Init step 1: appID=' + appID + ' server=' + serverUrl);
+    if (isVideo) {
+      document.getElementById('remote-video').style.display = 'block';
+      document.getElementById('local-video').style.display = 'block';
+    }
     zg = new ZegoExpressEngine(appID, serverUrl);
-    
-    zg.on('roomStateChanged', function(r, reason, errorCode){
-      post('log', 'Room state: ' + reason + ' ' + errorCode);
-      post('room_state', { reason: reason, code: errorCode });
+    zg.on('roomStateChanged', function(r, reason, code){
+      post('room_state', { reason: reason, code: code });
     });
-
     zg.on('roomStreamUpdate', async function(r, uType, list){
-      post('log', 'Stream update: ' + uType + ' count=' + list.length);
       if(uType === 'ADD'){
         for(var s of list){
-          post('log', 'Playing stream: ' + s.streamID);
           var rs = await zg.startPlayingStream(s.streamID);
           if(isVideo) {
             var rv = document.getElementById('remote-video');
             if(rv) rv.srcObject = rs;
           } else {
             var ra = document.getElementById('ra');
-            if(ra) { ra.srcObject = rs; ra.play().catch(function(e){ post('log', 'Play error: ' + e.message); }); }
+            if(ra) { ra.srcObject = rs; ra.play().catch(function(){}); }
           }
         }
         post('peer_connected', null);
-      } else { 
-        post('peer_left', null); 
+      } else {
+        post('peer_left', null);
       }
     });
-
-    post('log', 'Init step 2: LoginRoom ' + roomID + ' user=' + userID);
     await zg.loginRoom(roomID, token, { userID: userID, userName: userName });
-    post('log', 'Init step 3: Login successful');
-    
-    // --- Diagnostic: confirm getUserMedia is reachable before calling createStream ---
-    post('log', 'GUM check: mediaDevices=' + (!!navigator.mediaDevices) + ' getUserMedia=' + (!!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)));
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      post('error', 'getUserMedia unavailable — WebView is not in a secure context or mic access is blocked at the OS level.');
-      return;
-    }
-    
-    post('log', 'Init step 4: CreateStream isVideo=' + isVideo);
-    // Race createStream against a 15s timeout — getUserMedia hangs forever if mic permission is blocked
+    post('log', 'Zego Login OK');
     localStream = await Promise.race([
       zg.createStream({ camera: { audio: true, video: isVideo } }),
-      new Promise(function(_, rej) {
-        setTimeout(function() { rej(new Error('createStream timed out (15s) — mic permission likely denied in WebView')); }, 15000);
-      })
+      new Promise(function(_, rej){ setTimeout(function(){ rej(new Error('timeout')); }, 15000); })
     ]);
-    post('log', 'Init step 5: Stream created');
-
-    if(isVideo) {
-      var lv = document.getElementById('local-video');
-      if(lv) lv.srcObject = localStream;
-    }
-
-    post('log', 'Init step 6: Publishing...');
+    if(isVideo) { var lv = document.getElementById('local-video'); if(lv) lv.srcObject = localStream; }
     await zg.startPublishingStream('stream_' + userID, localStream);
-    post('log', 'Init step 7: Published');
     post('ready', null);
   }catch(e){
-    post('log', 'Init ERROR: ' + (e.message || String(e)));
+    post('log', 'Zego ERROR: ' + (e.message || String(e)));
     post('error', e.message || String(e));
   }
 }
 
-function updateToken(newToken) {
-  if(zg) zg.renewToken(newToken);
-}
-
-if(document.readyState === 'loading'){document.addEventListener('DOMContentLoaded', init);}else{init();}
+function updateToken(t){ if(zg) zg.renewToken(t); }
+if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',init);}else{init();}
 </script></body></html>`;
 
-// ─── Voice/Video Bridge ──────────────────────────────────────────────────────
+// ─── Zego WebView Bridge ──────────────────────────────────────────────────────
 const ZegoBridge = React.forwardRef(({ config, onMessage }, ref) => {
   if (!config) return null;
-  const isVideo = config.isVideo;
-
   return (
     <WebView
       ref={ref}
       originWhitelist={['*']}
       source={{ html: buildZegoHtml(config), baseUrl: 'https://astrology-i7c9.onrender.com/' }}
-      style={isVideo ? st.videoWebView : st.hiddenWebView}
+      style={config.isVideo ? st.videoWebView : st.hiddenWebView}
       mediaPlaybackRequiresUserAction={false}
       allowsInlineMediaPlayback={true}
       mixedContentMode="always"
       allowFileAccess={true}
-      mediaCapturePermissionGrantType="grantIfSameHostElsePrompt"
+      mediaCapturePermissionGrantType="grant"
       onPermissionRequest={(event) => {
         const { resources } = event.nativeEvent;
-        console.log('[ZegoBridge] WebView granting resources:', resources);
-        // Correct API: grant() lives on nativeEvent, not event.request
         if (typeof event.nativeEvent.grant === 'function') {
           event.nativeEvent.grant(resources);
-        } else if (event.nativeEvent.onPermissionRequest) {
-          event.nativeEvent.onPermissionRequest.grant(resources);
         }
       }}
       onMessage={onMessage}
@@ -217,22 +190,31 @@ const CallRoomScreen = ({ route, navigation }) => {
   const [phase, setPhase] = useState(isAccepted ? 'connecting' : 'incoming');
   const [callData, setCallData] = useState(initialData || null);
   const [timer, setTimer]     = useState(0);
-  const [zegoConfig, setZegoConfig] = useState(null);
+  const [callConfig, setCallConfig] = useState(null);
   const [voiceReady, setVoiceReady] = useState(false);
   const [peerConnected, setPeerConnected] = useState(false);
   const [accepting, setAccepting] = useState(false);
   const [rejecting, setRejecting] = useState(false);
   const [connStatus, setConnStatus] = useState('connecting');
+  // Call controls
+  const [isMuted, setIsMuted] = useState(false);
+  const [isSpeaker, setIsSpeaker] = useState(true);
+  const [isVideoOff, setIsVideoOff] = useState(false);
+  const [isCameraFlipped, setIsCameraFlipped] = useState(false);
+  // Agora-specific
+  const [agoraRemoteUid, setAgoraRemoteUid] = useState(null);
 
-  const socketRef = useRef(null);
-  const timerRef  = useRef(null);
-  const hbRef     = useRef(null);
-  const wvRef     = useRef(null);
+  const socketRef    = useRef(null);
+  const timerRef     = useRef(null);
+  const hbRef        = useRef(null);
+  const wvRef        = useRef(null);
+  const agoraEngRef  = useRef(null);
   const metricsBufferRef = useRef([]);
-  const metricsFlushRef = useRef(null);
-  const voiceStarted = useRef(false);
-  const timerValRef = useRef(0);
+  const metricsFlushRef  = useRef(null);
+  const voiceStarted     = useRef(false);
+  const timerValRef      = useRef(0);
 
+  // ── Timer ───────────────────────────────────────────────────────────────
   const startTimer = useCallback(() => {
     clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
@@ -249,6 +231,7 @@ const CallRoomScreen = ({ route, navigation }) => {
     timerRef.current = null;
   }, []);
 
+  // ── Heartbeat ────────────────────────────────────────────────────────────
   const startHeartbeat = useCallback(() => {
     clearInterval(hbRef.current);
     hbRef.current = setInterval(() => {
@@ -256,7 +239,7 @@ const CallRoomScreen = ({ route, navigation }) => {
         socketRef.current.emit('call-heartbeat', {
           callId: parseInt(callId),
           duration: timerValRef.current,
-          metrics: metricsBufferRef.current
+          metrics: metricsBufferRef.current,
         });
       }
     }, 10000);
@@ -267,6 +250,7 @@ const CallRoomScreen = ({ route, navigation }) => {
     hbRef.current = null;
   }, []);
 
+  // ── Metrics ──────────────────────────────────────────────────────────────
   const startMetricsFlush = useCallback(() => {
     clearInterval(metricsFlushRef.current);
     metricsFlushRef.current = setInterval(() => {
@@ -280,7 +264,6 @@ const CallRoomScreen = ({ route, navigation }) => {
   const stopMetricsFlush = useCallback(() => {
     clearInterval(metricsFlushRef.current);
     metricsFlushRef.current = null;
-    // Final flush
     const buf = metricsBufferRef.current;
     if (buf.length) {
       const events = buf.splice(0, buf.length);
@@ -288,6 +271,18 @@ const CallRoomScreen = ({ route, navigation }) => {
     }
   }, [callId]);
 
+  // ── Agora cleanup ─────────────────────────────────────────────────────────
+  const releaseAgora = useCallback(() => {
+    try {
+      if (agoraEngRef.current) {
+        agoraEngRef.current.leaveChannel();
+        agoraEngRef.current.release();
+        agoraEngRef.current = null;
+      }
+    } catch (_) {}
+  }, []);
+
+  // ── Token refresh ─────────────────────────────────────────────────────────
   const refreshToken = useCallback(async () => {
     try {
       const res = await callApi.getZegoToken({
@@ -296,62 +291,105 @@ const CallRoomScreen = ({ route, navigation }) => {
         isAstrologer: true,
       });
       if (res.data?.status === 200 && res.data.token) {
-        wvRef.current?.injectJavaScript(`updateToken('${res.data.token}')`);
+        if (callConfig?.provider === 'agora' && agoraEngRef.current) {
+          agoraEngRef.current.renewToken(res.data.token);
+        } else {
+          wvRef.current?.injectJavaScript(`updateToken('${res.data.token}')`);
+        }
       }
     } catch (e) {
       console.warn('[AstroCall] Token refresh failed:', e);
     }
-  }, [callId, astrologer]);
+  }, [callId, astrologer, callConfig]);
+
+  // ── Call Controls ─────────────────────────────────────────────────────────
+  const toggleMute = useCallback(() => {
+    const next = !isMuted;
+    setIsMuted(next);
+    if (callConfig?.provider === 'agora' && agoraEngRef.current) {
+      agoraEngRef.current.muteLocalAudioStream(next);
+    } else if (wvRef.current) {
+      wvRef.current.injectJavaScript(`
+        if(localStream) {
+          var tracks = localStream.getAudioTracks();
+          tracks.forEach(function(t){ t.enabled = ${!next}; });
+        } true;
+      `);
+    }
+  }, [isMuted, callConfig]);
+
+  const toggleSpeaker = useCallback(() => {
+    const next = !isSpeaker;
+    setIsSpeaker(next);
+    if (callConfig?.provider === 'agora' && agoraEngRef.current) {
+      agoraEngRef.current.setEnableSpeakerphone(next);
+    }
+  }, [isSpeaker, callConfig]);
+
+  const toggleVideo = useCallback(() => {
+    const next = !isVideoOff;
+    setIsVideoOff(next);
+    if (callConfig?.provider === 'agora' && agoraEngRef.current) {
+      agoraEngRef.current.muteLocalVideoStream(next);
+    } else if (wvRef.current) {
+      wvRef.current.injectJavaScript(`
+        if(localStream) {
+          var tracks = localStream.getVideoTracks();
+          tracks.forEach(function(t){ t.enabled = ${!next}; });
+        } true;
+      `);
+    }
+  }, [isVideoOff, callConfig]);
+
+  const flipCamera = useCallback(() => {
+    setIsCameraFlipped((p) => !p);
+    if (callConfig?.provider === 'agora' && agoraEngRef.current) {
+      agoraEngRef.current.switchCamera();
+    }
+  }, [callConfig]);
 
   useEffect(() => {
-    if (phase === 'active' && timer > 0 && timer % 3000 === 0) {
-      refreshToken();
-    }
+    if (phase === 'active' && timer > 0 && timer % 3000 === 0) refreshToken();
   }, [timer, phase, refreshToken]);
 
-  // Permissions check (Android)
+  // ── Permissions ───────────────────────────────────────────────────────────
   const requestPermissions = async () => {
     if (Platform.OS !== 'android') return true;
     try {
-      console.log('[AstroCall] Requesting Native Permissions...');
       const granted = await PermissionsAndroid.requestMultiple([
         PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
         PermissionsAndroid.PERMISSIONS.CAMERA,
       ]);
-      const ok = granted['android.permission.RECORD_AUDIO'] === PermissionsAndroid.RESULTS.GRANTED;
-      console.log('[AstroCall] Native Permissions result:', ok);
-      return ok;
-    } catch (err) {
-      console.warn(err);
+      return granted['android.permission.RECORD_AUDIO'] === PermissionsAndroid.RESULTS.GRANTED;
+    } catch (_) {
       return false;
     }
   };
 
+  // ── Connect Voice/Video ───────────────────────────────────────────────────
   const connectVoice = useCallback(async (isVideoCall) => {
     if (voiceStarted.current) return;
     voiceStarted.current = true;
 
-    const hasPerms = await requestPermissions();
-    if (!hasPerms) {
-      Alert.alert('Permission Error', 'Microphone permission is required for calls.');
-    }
+    await requestPermissions();
 
     try {
-      console.log('[AstroCall] Fetching Zego Token for CID:', callId);
+      console.log('[AstroCall] Fetching token for CID:', callId);
       const res = await callApi.getZegoToken({
         callId: parseInt(callId),
         userId: astrologer?.id || astrologer?.userId,
         isAstrologer: true,
       });
-      console.log('[AstroCall] Zego Token Response:', res.data);
+      console.log('[AstroCall] Token Response:', res.data);
       if (res.data?.status === 200) {
-        setZegoConfig({ 
-          ...res.data, 
+        const config = {
+          ...res.data,
           userID: res.data.userID || res.data.userId || String(astrologer?.id || astrologer?.userId || 'astro_' + Date.now()),
           roomID: res.data.roomID || res.data.roomId || String(callId),
           userName: astrologer?.name || 'Astrologer',
-          isVideo: isVideoCall
-        });
+          isVideo: isVideoCall,
+        };
+        setCallConfig(config);
         setPhase('active');
         startTimer();
         startHeartbeat();
@@ -368,6 +406,77 @@ const CallRoomScreen = ({ route, navigation }) => {
     }
   }, [callId, astrologer, startTimer, startHeartbeat, startMetricsFlush]);
 
+  // ── Agora Native Engine ────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!callConfig || callConfig.provider !== 'agora') return;
+
+    console.log('[Agora Native] Initialising engine. AppID:', callConfig.appID);
+    let engine;
+    try {
+      engine = createAgoraRtcEngine();
+      agoraEngRef.current = engine;
+
+      engine.initialize({
+        appId: callConfig.appID,
+        channelProfile: ChannelProfileType.ChannelProfileCommunication,
+      });
+
+      engine.registerEventHandler({
+        onJoinChannelSuccess: (connection, elapsed) => {
+          console.log('[Agora Native] Joined. Elapsed:', elapsed);
+          setVoiceReady(true);
+        },
+        onUserJoined: (connection, remoteUid, elapsed) => {
+          console.log('[Agora Native] Remote joined:', remoteUid);
+          setAgoraRemoteUid(remoteUid);
+          setPeerConnected(true);
+        },
+        onUserOffline: (connection, remoteUid, reason) => {
+          console.log('[Agora Native] Remote left:', remoteUid, reason);
+          setAgoraRemoteUid(null);
+          setPeerConnected(false);
+        },
+        onError: (err, msg) => {
+          console.warn('[Agora Native] Error:', err, msg);
+          Alert.alert('Call Error', msg || String(err));
+        },
+        onTokenPrivilegeWillExpire: () => refreshToken(),
+        onConnectionStateChanged: (connection, state, reason) => {
+          // Agora states: 1=Disconnected, 2=Connecting, 3=Connected, 4=Reconnecting, 5=Failed
+          if (state === 3) setConnStatus('connected');
+          else if (state === 4) setConnStatus('reconnecting');
+          else if (state === 5) setConnStatus('failed');
+        },
+      });
+
+      engine.enableAudio();
+      if (callConfig.isVideo) {
+        engine.enableVideo();
+        engine.startPreview();
+      }
+
+      const uid = parseInt(callConfig.userID) || 0;
+      console.log('[Agora Native] Joining:', callConfig.roomID, 'uid:', uid);
+      engine.joinChannel(callConfig.token, callConfig.roomID, uid, {
+        clientRoleType: ClientRoleType.ClientRoleBroadcaster,
+        publishMicrophoneTrack: true,
+        publishCameraTrack: !!callConfig.isVideo,
+        autoSubscribeAudio: true,
+        autoSubscribeVideo: !!callConfig.isVideo,
+      });
+
+    } catch (e) {
+      console.error('[Agora Native] Init error:', e);
+      Alert.alert('Agora Error', e.message || String(e));
+    }
+
+    return () => {
+      console.log('[Agora Native] Releasing engine');
+      releaseAgora();
+    };
+  }, [callConfig, refreshToken, releaseAgora]);
+
+  // ── auto-connect if already accepted ─────────────────────────────────────
   useEffect(() => {
     if (isAccepted && callData) {
       const isVideoCall = callData.call_type == 11 || callData.call_type === 'Video';
@@ -375,6 +484,7 @@ const CallRoomScreen = ({ route, navigation }) => {
     }
   }, [isAccepted, callData, connectVoice]);
 
+  // ── Socket ────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!callId || !astrologer) return;
 
@@ -391,10 +501,7 @@ const CallRoomScreen = ({ route, navigation }) => {
       socket.emit('join-call', { callId: parseInt(callId) });
       setConnStatus('connected');
     });
-
-    socket.on('disconnect', () => {
-      setConnStatus('reconnecting');
-    });
+    socket.on('disconnect', () => console.log('[AstroCall] Socket disconnected (voice channel unaffected)'));
 
     if (!isAccepted) {
       callApi.getCallById({ callId }).then((res) => {
@@ -430,6 +537,7 @@ const CallRoomScreen = ({ route, navigation }) => {
     });
 
     socket.on('call-ended', () => {
+      releaseAgora();
       setPhase('completed');
       stopTimer();
       stopHeartbeat();
@@ -440,13 +548,14 @@ const CallRoomScreen = ({ route, navigation }) => {
       Alert.alert('Call Error', data.message || 'An error occurred.');
     });
 
-    return () => { 
-      socket.disconnect(); 
-      stopTimer(); 
-      stopHeartbeat(); 
+    return () => {
+      socket.disconnect();
+      stopTimer();
+      stopHeartbeat();
       stopMetricsFlush();
+      releaseAgora();
     };
-  }, [callId, astrologer, authToken, connectVoice, stopTimer, stopHeartbeat, startMetricsFlush, stopMetricsFlush]);
+  }, [callId, astrologer, authToken, connectVoice, stopTimer, stopHeartbeat, startMetricsFlush, stopMetricsFlush, releaseAgora]);
 
   // ── Actions ───────────────────────────────────────────────────────────────
   const handleAccept = async () => {
@@ -498,6 +607,7 @@ const CallRoomScreen = ({ route, navigation }) => {
         text: 'End Call', style: 'destructive',
         onPress: () => {
           socketRef.current?.emit('end-call', { callId: parseInt(callId) });
+          releaseAgora();
           stopTimer();
           stopHeartbeat();
           stopMetricsFlush();
@@ -510,20 +620,17 @@ const CallRoomScreen = ({ route, navigation }) => {
   const handleWebViewMessage = (e) => {
     try {
       const msg = JSON.parse(e.nativeEvent.data);
-      switch(msg.type) {
-        case 'ready': setVoiceReady(true); break;
+      switch (msg.type) {
+        case 'ready':          setVoiceReady(true); break;
         case 'peer_connected': setPeerConnected(true); break;
-        case 'peer_left': setPeerConnected(false); break;
-        case 'log': console.log('[ZegoBridge JS]', msg.data); break;
+        case 'peer_left':      setPeerConnected(false); break;
+        case 'log':            console.log('[ZegoBridge JS]', msg.data); break;
         case 'room_state':
-          if (msg.data.reason === 'RECONNECTING') setConnStatus('reconnecting');
-          else if (msg.data.reason === 'CONNECTED') setConnStatus('connected');
-          else if (msg.data.reason === 'DISCONNECTED') setConnStatus('disconnected');
+          if (msg.data?.reason === 'RECONNECTING') setConnStatus('reconnecting');
+          else if (msg.data?.reason === 'CONNECTED') setConnStatus('connected');
           break;
-        case 'publish_quality': metricsBufferRef.current.push({ type: 'publish', stats: msg.data, ts: Date.now() }); break;
-        case 'play_quality': metricsBufferRef.current.push({ type: 'play', stats: msg.data, ts: Date.now() }); break;
         case 'error':
-          console.warn('[Zego Bridge Error]', msg.data);
+          console.warn('[ZegoBridge Error]', msg.data);
           Alert.alert('Voice Error', msg.data);
           break;
       }
@@ -531,30 +638,53 @@ const CallRoomScreen = ({ route, navigation }) => {
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
-  const customerLetter = (callData?.userName || 'U')[0].toUpperCase();
   const isVideo = callData?.call_type == 11 || callData?.call_type === 'Video';
+  const isAgora = callConfig?.provider === 'agora';
+  const customerLetter = (callData?.userName || 'U')[0].toUpperCase();
 
   return (
     <View style={st.root}>
       <StatusBar barStyle="light-content" backgroundColor="#110022" />
 
       {/* Back Button */}
-      <TouchableOpacity 
-        style={[st.topBackBtn, { top: insets.top + 10 }]} 
+      <TouchableOpacity
+        style={[st.topBackBtn, { top: insets.top + 10 }]}
         onPress={onBack}
         activeOpacity={0.7}
       >
         <Ionicons name="arrow-back" size={26} color="#FFF" />
       </TouchableOpacity>
 
-      {/* Zego Bridge (WebView) */}
-      <ZegoBridge
-        ref={wvRef}
-        config={zegoConfig}
-        onMessage={handleWebViewMessage}
-      />
+      {/* ── Zego WebView (Zego provider only) ── */}
+      {callConfig && !isAgora && (
+        <ZegoBridge
+          ref={wvRef}
+          config={callConfig}
+          onMessage={handleWebViewMessage}
+        />
+      )}
 
-      {/* Connection Overlays */}
+      {/* ── Agora Native Video (Agora provider, video calls) ── */}
+      {isAgora && isVideo && phase === 'active' && (
+        <View style={StyleSheet.absoluteFill}>
+          {agoraRemoteUid != null ? (
+            <RtcSurfaceView
+              canvas={{ uid: agoraRemoteUid }}
+              style={st.videoWebView}
+            />
+          ) : (
+            <View style={[st.videoWebView, { alignItems: 'center', justifyContent: 'center' }]}>
+              <ActivityIndicator color="#FFF" />
+              <Text style={{ color: '#FFF', marginTop: 8, opacity: 0.7 }}>Waiting for customer video...</Text>
+            </View>
+          )}
+          <View style={st.localPip}>
+            <RtcSurfaceView canvas={{ uid: 0 }} style={{ flex: 1 }} />
+          </View>
+        </View>
+      )}
+
+      {/* Reconnecting overlay */}
       {connStatus === 'reconnecting' && phase === 'active' && (
         <View style={st.statusOverlay}>
           <ActivityIndicator color={colors.secondary} />
@@ -614,7 +744,8 @@ const CallRoomScreen = ({ route, navigation }) => {
       {/* ── ACTIVE ── */}
       {phase === 'active' && (
         <View style={st.activeRoot}>
-          {!isVideo ? (
+          {/* Audio-only or Zego video UI */}
+          {(!isVideo || (!isAgora && isVideo)) && (
             <View style={st.audioCenter}>
               <View style={[st.avatarWrap, peerConnected && st.avatarGlow]}>
                 <View style={[st.avatar, st.avatarActive]}>
@@ -623,37 +754,78 @@ const CallRoomScreen = ({ route, navigation }) => {
               </View>
               <Text style={st.name}>{callData?.userName || 'Customer'}</Text>
               <Text style={st.voiceStatus}>
-                {!voiceReady ? '⏳ Connecting...' : peerConnected ? '🔊 Live' : '🔇 Waiting for customer...'}
+                {!voiceReady ? '⏳ Joining channel...' : peerConnected ? '🔊 Connected' : '🔇 Waiting for customer...'}
               </Text>
-            </View>
-          ) : (
-            <View style={st.videoOverlay}>
-              <View style={st.videoHeader}>
-                 <Text style={st.videoName}>{callData?.userName}</Text>
-                 <View style={st.liveBadge}>
-                    <View style={st.liveDot} />
-                    <Text style={st.liveTxt}>LIVE</Text>
-                 </View>
-              </View>
-              {!peerConnected && (
-                <View style={st.videoWaiting}>
-                  <ActivityIndicator color="#FFF" />
-                  <Text style={st.videoWaitingTxt}>Waiting for customer video...</Text>
-                </View>
-              )}
-            </View>
-          )}
-
-          <View style={st.controlsWrap}>
-             <View style={st.timerChip}>
+              <View style={st.timerChip}>
                 <Ionicons name="time-outline" size={16} color={colors.secondary} />
                 <Text style={st.timerTxt}>{fmt(timer)}</Text>
               </View>
+            </View>
+          )}
 
-              <TouchableOpacity style={st.endBtn} onPress={handleEndCall} activeOpacity={0.85}>
-                <Ionicons name="call" size={24} color="#FFF" />
-                <Text style={st.endTxt}>End Call</Text>
+          {/* Agora video overlay */}
+          {isAgora && isVideo && (
+            <View style={st.videoOverlay}>
+              <View style={st.videoHeader}>
+                <Text style={st.videoName}>{callData?.userName}</Text>
+                <View style={st.liveBadge}>
+                  <View style={st.liveDot} />
+                  <Text style={st.liveTxt}>LIVE</Text>
+                </View>
+              </View>
+            </View>
+          )}
+
+          {/* ── Call Controls ── */}
+          <View style={st.controlsWrap}>
+            {/* Control buttons row */}
+            <View style={st.controlBar}>
+              <TouchableOpacity
+                style={[st.controlBtn, isMuted && st.controlBtnActive]}
+                onPress={toggleMute}
+                activeOpacity={0.7}
+              >
+                <Ionicons name={isMuted ? 'mic-off' : 'mic'} size={24} color={isMuted ? '#ef4444' : '#FFF'} />
+                <Text style={[st.controlLabel, isMuted && st.controlLabelActive]}>Mute</Text>
               </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[st.controlBtn, isSpeaker && st.controlBtnActive]}
+                onPress={toggleSpeaker}
+                activeOpacity={0.7}
+              >
+                <Ionicons name={isSpeaker ? 'volume-high' : 'ear'} size={24} color={isSpeaker ? colors.secondary : '#FFF'} />
+                <Text style={[st.controlLabel, isSpeaker && st.controlLabelActive]}>Speaker</Text>
+              </TouchableOpacity>
+
+              {isVideo && (
+                <TouchableOpacity
+                  style={[st.controlBtn, isVideoOff && st.controlBtnActive]}
+                  onPress={toggleVideo}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name={isVideoOff ? 'videocam-off' : 'videocam'} size={24} color={isVideoOff ? '#ef4444' : '#FFF'} />
+                  <Text style={[st.controlLabel, isVideoOff && st.controlLabelActive]}>Camera</Text>
+                </TouchableOpacity>
+              )}
+
+              {isVideo && (
+                <TouchableOpacity
+                  style={st.controlBtn}
+                  onPress={flipCamera}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="camera-reverse" size={24} color="#FFF" />
+                  <Text style={st.controlLabel}>Flip</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* End Call button */}
+            <TouchableOpacity style={st.endBtn} onPress={handleEndCall} activeOpacity={0.85}>
+              <Ionicons name="call" size={24} color="#FFF" style={{ transform: [{ rotate: '135deg' }] }} />
+              <Text style={st.endTxt}>End Call</Text>
+            </TouchableOpacity>
           </View>
         </View>
       )}
@@ -700,35 +872,53 @@ const st = StyleSheet.create({
   },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
 
-  hiddenWebView: { 
-    width: 100, height: 100, 
-    position: 'absolute', top: 0, left: 0, 
-    opacity: 0.01, zIndex: -1 
+  hiddenWebView: {
+    width: 100, height: 100,
+    position: 'absolute', top: 0, left: 0,
+    opacity: 0.01, zIndex: -1,
   },
   videoWebView: { flex: 1, backgroundColor: '#000' },
+  localPip: {
+    position: 'absolute', bottom: 120, right: 20,
+    width: 100, height: 150, borderRadius: 12,
+    overflow: 'hidden', borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.3)', zIndex: 15,
+  },
 
   statusOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.6)',
-    zIndex: 100,
-    alignItems: 'center',
-    justifyContent: 'center',
+    zIndex: 100, alignItems: 'center', justifyContent: 'center',
   },
   statusOverlayTxt: { color: '#FFF', marginTop: 10, fontWeight: '700' },
 
   activeRoot: { flex: 1 },
   audioCenter: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  
+
   videoOverlay: { ...StyleSheet.absoluteFillObject, zIndex: 5, padding: 20 },
   videoHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   videoName: { color: '#FFF', fontSize: 18, fontWeight: '800', textShadowColor: 'rgba(0,0,0,0.8)', textShadowRadius: 4 },
-  videoWaiting: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10 },
-  videoWaitingTxt: { color: '#FFF', opacity: 0.8 },
 
   controlsWrap: {
     position: 'absolute', bottom: 40, left: 0, right: 0,
     alignItems: 'center', zIndex: 20,
   },
+  controlBar: {
+    flexDirection: 'row', justifyContent: 'center', gap: 16,
+    marginBottom: 24, paddingHorizontal: 20,
+  },
+  controlBtn: {
+    width: 64, height: 72, borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center', justifyContent: 'center', gap: 4,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+  },
+  controlBtnActive: {
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    borderColor: 'rgba(255,255,255,0.25)',
+  },
+  controlLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 10, fontWeight: '600' },
+  controlLabelActive: { color: '#FFF' },
 
   rippleContainer: { width: 160, height: 160, alignItems: 'center', justifyContent: 'center', marginBottom: 28 },
   ripple: { position: 'absolute', borderRadius: 999 },
@@ -771,29 +961,33 @@ const st = StyleSheet.create({
   connectingRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 16 },
   connectingTxt: { color: '#a78bfa', fontSize: 14 },
 
-  actionRow: { flexDirection: 'row', gap: 20, marginTop: 8 },
+  timerChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 20,
+    backgroundColor: 'rgba(0,0,0,0.5)', borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)', borderRadius: 20,
+    paddingHorizontal: 18, paddingVertical: 9,
+  },
+  timerTxt: { color: '#FFF', fontWeight: '700', fontSize: 16, fontVariant: ['tabular-nums'] },
+
+  actionRow: { flexDirection: 'row', gap: 20, marginTop: 16 },
   rejectBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: '#ef4444', borderRadius: 16, paddingVertical: 18,
+    backgroundColor: '#ef4444', borderRadius: 50,
+    paddingVertical: 16,
+    shadowColor: '#ef4444', shadowOpacity: 0.4, shadowRadius: 10, elevation: 5,
   },
   acceptBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: '#10b981', borderRadius: 16, paddingVertical: 18,
+    backgroundColor: '#10b981', borderRadius: 50,
+    paddingVertical: 16,
+    shadowColor: '#10b981', shadowOpacity: 0.4, shadowRadius: 10, elevation: 5,
   },
-  actionTxt: { color: '#FFF', fontWeight: '800', fontSize: 16 },
-
-  timerChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: 'rgba(0,0,0,0.5)', borderWidth: 1,
-    borderColor: 'rgba(124,58,237,0.4)', borderRadius: 20,
-    paddingHorizontal: 20, paddingVertical: 10, marginBottom: 20,
-  },
-  timerTxt: { color: colors.secondary, fontWeight: '900', fontSize: 22, fontVariant: ['tabular-nums'] },
+  actionTxt: { color: '#FFF', fontWeight: '800', fontSize: 17 },
 
   endBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: '#ef4444', borderRadius: 50,
-    paddingHorizontal: 40, paddingVertical: 18,
+    paddingHorizontal: 36, paddingVertical: 16,
     shadowColor: '#ef4444', shadowOpacity: 0.4, shadowRadius: 10, elevation: 5,
   },
   endTxt: { color: '#FFF', fontWeight: '800', fontSize: 18 },

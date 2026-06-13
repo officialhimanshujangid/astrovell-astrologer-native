@@ -11,12 +11,12 @@ import { loginSuccess } from '../store/slices/authSlice';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const LoginScreen = ({ navigation }) => {
-  const dispatch  = useDispatch();
-  const insets    = useSafeAreaInsets();
-  const [phone,   setPhone]   = useState('');
-  const [otp,     setOtp]     = useState('');
+  const dispatch = useDispatch();
+  const insets = useSafeAreaInsets();
+  const [phone, setPhone] = useState('');
+  const [otp, setOtp] = useState('');
   const [otpSent, setOtpSent] = useState(false);
-  const [devOtp,  setDevOtp]  = useState('');
+  const [devOtp, setDevOtp] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSendOtp = async () => {
@@ -79,7 +79,7 @@ const LoginScreen = ({ navigation }) => {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.emoji}>🔮</Text>
-          <Text style={styles.brand}>AstroVell</Text>
+          <Text style={styles.brand}>Astrovell</Text>
           <Text style={styles.brandSub}>Astrologer Panel</Text>
         </View>
 
@@ -160,7 +160,7 @@ const LoginScreen = ({ navigation }) => {
         </View>
 
         {/* Footer */}
-        <Text style={styles.footer}>AstroVell Astrologer • Trusted by thousands</Text>
+        <Text style={styles.footer}>Astrovell Astrologer • Trusted by thousands</Text>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -196,7 +196,7 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   cardTitle: { color: colors.text, fontSize: 22, fontWeight: '800', marginBottom: 6 },
-  cardSub:   { color: colors.textMuted, fontSize: 13, marginBottom: 24 },
+  cardSub: { color: colors.textMuted, fontSize: 13, marginBottom: 24 },
 
   fieldWrap: { marginBottom: 16 },
   label: { color: colors.textSecondary, fontSize: 12, fontWeight: '600', marginBottom: 6, letterSpacing: 0.5 },
@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 15,
   },
-  phoneRow:    { flexDirection: 'row', gap: 8 },
+  phoneRow: { flexDirection: 'row', gap: 8 },
   countryCode: {
     backgroundColor: colors.white,
     borderWidth: 1,
@@ -220,7 +220,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   countryCodeText: { color: colors.text, fontSize: 14, fontWeight: '600' },
-  phoneInput:      { flex: 1 },
+  phoneInput: { flex: 1 },
 
   devOtp: { color: colors.goldDark, fontSize: 12, fontWeight: '600', marginTop: 6 },
 

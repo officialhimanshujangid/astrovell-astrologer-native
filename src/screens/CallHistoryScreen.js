@@ -14,8 +14,8 @@ const CallHistoryScreen = ({ onBack, isSubScreen = false }) => {
   const { astrologer } = useSelector(s => s.auth);
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
-  const [history,    setHistory]    = useState([]);
-  const [loading,    setLoading]    = useState(true);
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
 
@@ -23,7 +23,7 @@ const CallHistoryScreen = ({ onBack, isSubScreen = false }) => {
     try {
       const res = await callApi.getCallHistory({ astrologerId: astrologer?.id, startIndex: 0, fetchRecord: 50 });
       setHistory(res.data?.recordList || []);
-    } catch (_) {}
+    } catch (_) { }
     setLoading(false);
   };
 
@@ -35,7 +35,7 @@ const CallHistoryScreen = ({ onBack, isSubScreen = false }) => {
     const isSuccess = item.callStatus === 'Completed';
 
     return (
-      <TouchableOpacity 
+      <TouchableOpacity
         activeOpacity={0.8}
         onPress={() => setSelectedItem(item)}
         style={styles.orderCard}
@@ -60,18 +60,18 @@ const CallHistoryScreen = ({ onBack, isSubScreen = false }) => {
 
         <View style={styles.cardBody}>
           <View style={styles.infoGrid}>
-             <View style={styles.infoItem}>
-                <Ionicons name="person-outline" size={16} color={colors.textLight} />
-                <Text style={styles.infoLabel}>{item.userName || t('user')}</Text>
-             </View>
-             <View style={styles.infoItem}>
-                <Ionicons name="time-outline" size={16} color={colors.textLight} />
-                <Text style={styles.infoLabel}>{item.totalMin || 0} {t('min')}</Text>
-             </View>
-             <View style={styles.infoItem}>
-                <Ionicons name={isVideo ? "videocam-outline" : "call-outline"} size={16} color={colors.textLight} />
-                <Text style={styles.infoLabel}>{isVideo ? t('video') : t('voice')}</Text>
-             </View>
+            <View style={styles.infoItem}>
+              <Ionicons name="person-outline" size={16} color={colors.textLight} />
+              <Text style={styles.infoLabel}>{item.userName || t('user')}</Text>
+            </View>
+            <View style={styles.infoItem}>
+              <Ionicons name="time-outline" size={16} color={colors.textLight} />
+              <Text style={styles.infoLabel}>{item.totalMin || 0} {t('min')}</Text>
+            </View>
+            <View style={styles.infoItem}>
+              <Ionicons name={isVideo ? "videocam-outline" : "call-outline"} size={16} color={colors.textLight} />
+              <Text style={styles.infoLabel}>{isVideo ? t('video') : t('voice')}</Text>
+            </View>
           </View>
 
           <View style={styles.divider} />
@@ -144,9 +144,9 @@ const CallHistoryScreen = ({ onBack, isSubScreen = false }) => {
                 <View style={styles.detailUserCard}>
                   <View style={styles.detailAvatarWrap}>
                     {selectedItem.userProfile ? (
-                      <Image 
-                        source={{ uri: selectedItem.userProfile.startsWith('http') ? selectedItem.userProfile : `${BASE_IMG}${selectedItem.userProfile}` }} 
-                        style={styles.detailAvatar} 
+                      <Image
+                        source={{ uri: selectedItem.userProfile.startsWith('http') ? selectedItem.userProfile : `${BASE_IMG}${selectedItem.userProfile}` }}
+                        style={styles.detailAvatar}
                       />
                     ) : (
                       <View style={[styles.detailAvatar, styles.detailAvatarPlaceholder]}>
@@ -169,8 +169,8 @@ const CallHistoryScreen = ({ onBack, isSubScreen = false }) => {
                   <DetailRow label={t('net_earning')} value={`₹${parseFloat(selectedItem.deductionFromAstrologer || 0).toFixed(2)}`} icon="wallet-outline" color={colors.success} />
                 </View>
 
-                <TouchableOpacity 
-                  style={styles.closeBtn} 
+                <TouchableOpacity
+                  style={styles.closeBtn}
                   onPress={() => setSelectedItem(null)}
                 >
                   <Text style={styles.closeBtnText}>{t('back_to_history')}</Text>
@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FAFAFA' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   loadingText: { marginTop: 12, color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
-  
+
   orderCard: {
     backgroundColor: colors.white,
     borderRadius: 20,
@@ -244,13 +244,13 @@ const styles = StyleSheet.create({
   infoGrid: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
   infoItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   infoLabel: { fontSize: 13, color: colors.text, fontWeight: '600' },
-  
+
   divider: { height: 1, backgroundColor: '#F1F5F9', marginBottom: 16 },
-  
+
   cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   dateText: { fontSize: 13, color: colors.text, fontWeight: '700' },
   timeText: { fontSize: 12, color: colors.textLight, marginTop: 2 },
-  
+
   earningsContainer: { alignItems: 'flex-end' },
   earningsLabel: { fontSize: 11, color: colors.textLight, fontWeight: '700', textTransform: 'uppercase' },
   earningsValue: { fontSize: 18, fontWeight: '800', color: colors.goldDark },

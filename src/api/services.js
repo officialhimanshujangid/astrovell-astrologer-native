@@ -16,6 +16,11 @@ export const profileApi = {
   getCategories: () => API.post('/astro/getAstrologerCategory'),
   getAvailability: (data) => API.post('/astro/getAstrologerAvailability', data),
   updateAvailability: (data) => API.post('/astro/updateAstrologerAvailability', data),
+  getBankStatus: (data) => API.post('/astro/astrologer/bankUpdate/myStatus', data),
+  requestBankUpdate: (data) => API.post('/astro/astrologer/bankUpdate/request', data),
+  getForm16a: (data) => API.post('/astro/astrologer/form16a/my', data),
+  getTrainingVideos: (data) => API.post('/customer/getTrainingVideo', data),
+  changeContactNo: (data) => API.post('/astro/astrologer/changeContactNo', data),
 };
 
 // ── Chat ──────────────────────────────────────────────────────────────────────

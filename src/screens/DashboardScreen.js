@@ -519,16 +519,16 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
               <Text style={styles.sectionTitle}>✨ {t('features_tools')}</Text>
             </View>
             <View style={styles.serviceGrid}>
-              {can('chat') && can('chat_history') && <ServiceItem label={t('chat')} icon="chatbubble-ellipses-outline" color={colors.iconPink} onPress={() => onOpenSubScreen?.('ChatHistory')} badge={chatRequests.length} />}
-              {can('call') && can('call_history') && <ServiceItem label={t('call')} icon="call-outline" color={colors.iconGreen} onPress={() => onOpenSubScreen?.('CallHistory')} badge={callRequests.length} />}
-              {can('puja') && <ServiceItem label={t('astromall')} icon="basket-outline" color={colors.iconPurple} onPress={() => onOpenSubScreen?.('Puja')} />}
-              {can('appointments') && <ServiceItem label={t('schedule')} icon="calendar-outline" color={colors.iconBlue} onPress={() => onOpenSubScreen?.('Appointments')} />}
-              {can('kundali') && <ServiceItem label={t('freeKundali')} icon="color-filter-outline" color={colors.iconYellow} onPress={() => onOpenSubScreen?.('Kundali')} />}
-              {can('kundali_matching') && <ServiceItem label={t('matching')} icon="heart-outline" color={colors.iconPink} onPress={() => onOpenSubScreen?.('KundaliMatching')} />}
-              {can('horoscope') && <ServiceItem label={t('horoscope')} icon="planet-outline" color={colors.iconBlue} onPress={() => onOpenSubScreen?.('Horoscope')} />}
-              {can('panchang') && <ServiceItem label={t('panchang')} icon="calendar-number-outline" color={colors.iconTeal} onPress={() => onOpenSubScreen?.('Panchang')} />}
-              {can('reviews') && <ServiceItem label={t('reviews')} icon="star-outline" color={colors.iconYellow} onPress={() => onOpenSubScreen?.('Reviews')} />}
+              {can('call_history') && <ServiceItem label={t('call')} icon="call-outline" color={colors.iconGreen} onPress={() => onOpenSubScreen?.('CallHistory')} badge={callRequests.length} />}
+              {can('chat_history') && <ServiceItem label={t('chat')} icon="chatbubble-ellipses-outline" color={colors.iconPink} onPress={() => onOpenSubScreen?.('ChatHistory')} badge={chatRequests.length} />}
+              {can('waitlist') && <ServiceItem label={t('waitlist')} icon="hourglass-outline" color={colors.iconYellow} onPress={() => onOpenSubScreen?.('Waitlist')} />}
+              {can('assistant_chat') && <ServiceItem label={t('assistant_chat')} icon="chatbubbles-outline" color={colors.iconBlue} onPress={() => onOpenSubScreen?.('AssistantChat')} />}
+              {can('followers') && <ServiceItem label={t('my_followers')} icon="people-outline" color={colors.iconGreen} onPress={() => onOpenSubScreen?.('Followers')} />}
+              {can('reviews') && <ServiceItem label={t('my_reviews')} icon="star-outline" color={colors.iconYellow} onPress={() => onOpenSubScreen?.('Reviews')} />}
               {can('wallet') && <ServiceItem label={t('wallet')} icon="wallet-outline" color={colors.iconTeal} onPress={() => onOpenSubScreen?.('Wallet')} />}
+              {can('settings') && <ServiceItem label={t('settings')} icon="settings-outline" color={colors.iconPink} onPress={() => onOpenSubScreen?.('Settings')} />}
+              {can('support') && <ServiceItem label={t('support')} icon="help-buoy-outline" color={colors.iconBlue} onPress={() => onOpenSubScreen?.('Support')} />}
+              {can('profile') && <ServiceItem label={t('my_profile')} icon="person-outline" color={colors.iconOrange} onPress={() => onOpenSubScreen?.('Profile')} />}
             </View>
           </>
         )}

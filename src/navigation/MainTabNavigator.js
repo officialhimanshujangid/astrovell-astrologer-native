@@ -19,6 +19,10 @@ import KundaliScreen      from '../screens/KundaliScreen';
 import KundaliMatchingScreen from '../screens/KundaliMatchingScreen';
 import HoroscopeScreen    from '../screens/HoroscopeScreen';
 import PanchangScreen     from '../screens/PanchangScreen';
+import WaitlistScreen     from '../screens/WaitlistScreen';
+import AssistantChatScreen from '../screens/AssistantChatScreen';
+import SettingsScreen     from '../screens/SettingsScreen';
+import SupportScreen      from '../screens/SupportScreen';
 import BottomTabBar       from '../components/BottomTabBar';
 import { colors }         from '../theme/colors';
 import usePermissions     from '../hooks/usePermissions';
@@ -56,6 +60,11 @@ const MainTabNavigator = () => {
   }, [activeTab, activeSubScreen]);
 
   const openSubScreen = (name) => {
+    console.log('[MainTabNavigator] openSubScreen called with:', name);
+    if (name === 'Profile') {
+      setActiveTab('Profile');
+      return;
+    }
     // Guard: only open sub-screen if permission allows
     const subPermMap = {
       ChatHistory:   'chat_history',
@@ -72,6 +81,10 @@ const MainTabNavigator = () => {
       Horoscope:     'horoscope',
       Panchang:      'panchang',
       Wallet:        'wallet',
+      Waitlist:      'waitlist',
+      AssistantChat: 'assistant_chat',
+      Settings:      'settings',
+      Support:       'support',
     };
     const permKey = subPermMap[name];
     if (permKey && !can(permKey)) return; // blocked
@@ -95,6 +108,10 @@ const MainTabNavigator = () => {
   if (activeSubScreen === 'Horoscope')      return <HoroscopeScreen onBack={closeSubScreen} />;
   if (activeSubScreen === 'Panchang')       return <PanchangScreen onBack={closeSubScreen} />;
   if (activeSubScreen === 'Wallet')         return <WalletScreen onBack={closeSubScreen} />;
+  if (activeSubScreen === 'Waitlist')       return <WaitlistScreen onBack={closeSubScreen} />;
+  if (activeSubScreen === 'AssistantChat')  return <AssistantChatScreen onBack={closeSubScreen} />;
+  if (activeSubScreen === 'Settings')       return <SettingsScreen onBack={closeSubScreen} />;
+  if (activeSubScreen === 'Support')        return <SupportScreen onBack={closeSubScreen} />;
 
   const renderScreen = () => {
     switch (activeTab) {

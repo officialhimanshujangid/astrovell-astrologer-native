@@ -26,6 +26,7 @@ const WalletScreen = ({ onBack }) => {
   const [showWithdraw,  setShowWithdraw]  = useState(false);
   const [showAllWithdrawals, setShowAllWithdrawals] = useState(false);
   const [selectedTx, setSelectedTx] = useState(null);
+  const [selectedWithdrawal, setSelectedWithdrawal] = useState(null);
 
   const load = () => dispatch(fetchWalletData(astrologer?.id));
 
@@ -54,20 +55,26 @@ const WalletScreen = ({ onBack }) => {
 
   const getStatusColor = (status) => {
     switch ((status || '').toLowerCase()) {
-      case 'approved': case 'completed': return colors.success;
-      case 'rejected': return colors.error;
+      case 'approved': case 'completed': case 'released': return colors.success;
+      case 'rejected': case 'cancelled': return colors.error;
       default: return colors.warning;
     }
   };
 
   const renderWithdrawItem = ({ item }) => (
-    <View style={styles.withdrawItem}>
+    <TouchableOpacity 
+      style={styles.withdrawItem} 
+      onPress={() => setSelectedWithdrawal(item)}
+      activeOpacity={0.7}
+    >
       <View style={styles.itemIconWrap}>
-        <Ionicons name="receipt" size={20} color={colors.goldDark} />
+        <Ionicons name="cash-outline" size={20} color={colors.goldDark} />
       </View>
       <View style={{ flex: 1 }}>
         <Text style={styles.withdrawAmount}>₹{parseFloat(item.withdrawAmount || item.amount || 0).toFixed(2)}</Text>
-        <Text style={styles.withdrawMethod}>{item.paymentMethod || t('bank_transfer')}</Text>
+        <Text style={styles.withdrawMethod}>
+          {item.paymentMethod === 'upi' ? '📱 UPI' : `🏦 ${t('bank_transfer')}`}
+        </Text>
       </View>
       <View style={styles.itemRight}>
         <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '15' }]}>
@@ -77,7 +84,7 @@ const WalletScreen = ({ onBack }) => {
           {item.created_at ? new Date(item.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : ''}
         </Text>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 
   return (
@@ -103,7 +110,7 @@ const WalletScreen = ({ onBack }) => {
                  <Text style={styles.balanceValue}>₹{parseFloat(balance || 0).toLocaleString('en-IN')}</Text>
                </View>
                <TouchableOpacity style={styles.withdrawActionBtn} onPress={() => setShowWithdraw(true)}>
-                 <Text style={styles.withdrawActionText}>{t('complete_setup')}</Text>
+                 <Text style={styles.withdrawActionText}>{t('withdrawal_request')}</Text>
                  <Ionicons name="arrow-forward" size={16} color="#FF6B6B" />
                </TouchableOpacity>
             </View>
@@ -155,11 +162,30 @@ const WalletScreen = ({ onBack }) => {
              </TouchableOpacity>
           </View>
 
+          {/* ── Withdrawal Requests ────────────────────────────────────────── */}
           <View style={styles.sectionHeader}>
-             <Text style={styles.sectionTitle}>Recent Transactions</Text>
+             <Text style={styles.sectionTitle}>Withdrawal Requests</Text>
              <TouchableOpacity onPress={() => setShowAllWithdrawals(true)}>
                 <Text style={styles.viewAllText}>{t('withdrawal_history')}</Text>
              </TouchableOpacity>
+          </View>
+
+          {withdrawals.length === 0 ? (
+            <View style={styles.emptyContainer}>
+               <Ionicons name="cash-outline" size={48} color={colors.textMuted} style={{ marginBottom: 12 }} />
+               <Text style={styles.emptyText}>No withdrawal requests found</Text>
+            </View>
+          ) : (
+            withdrawals.slice(0, 3).map((item, i) => (
+              <React.Fragment key={item.id || i}>
+                {renderWithdrawItem({ item })}
+              </React.Fragment>
+            ))
+          )}
+
+          {/* ── Recent Transactions ─────────────────────────────────────── */}
+          <View style={[styles.sectionHeader, { marginTop: 20 }]}>
+             <Text style={styles.sectionTitle}>Recent Transactions</Text>
           </View>
 
           {/* ── Transaction List ────────────────────────────────────────── */}
@@ -263,6 +289,128 @@ const WalletScreen = ({ onBack }) => {
         </View>
       </Modal>
 
+      {/* Earning Breakup Modal */}
+      <Modal visible={!!selectedWithdrawal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.breakupModalBox}>
+            <View style={styles.breakupHeader}>
+              <Text style={styles.breakupTitle}>Earning Breakup</Text>
+              <TouchableOpacity onPress={() => setSelectedWithdrawal(null)} style={styles.breakupCloseBtn}>
+                <Ionicons name="close" size={20} color={colors.white} />
+              </TouchableOpacity>
+            </View>
+
+            {selectedWithdrawal && (() => {
+              const withdrawAmount = parseFloat(selectedWithdrawal.withdrawAmount || 0);
+              const payAmount = parseFloat(selectedWithdrawal.pay_amount || selectedWithdrawal.withdrawAmount || 0);
+              const tdsAmount = parseFloat(selectedWithdrawal.tds_pay_amount || 0);
+              const pgCharge = Math.max(0, withdrawAmount - payAmount - tdsAmount);
+              const subTotal = withdrawAmount - pgCharge;
+
+              return (
+                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
+                  <View style={styles.breakupRow}>
+                    <Text style={styles.breakupLabel}>Available Balance</Text>
+                    <Text style={styles.breakupValue}>₹{withdrawAmount.toLocaleString('en-IN')}</Text>
+                  </View>
+
+                  <View style={styles.breakupRowWithSub}>
+                    <View style={styles.breakupRowHeader}>
+                      <Text style={styles.breakupLabel}>PG Charge:</Text>
+                      <Text style={styles.breakupValue}>- ₹{pgCharge.toLocaleString('en-IN')}</Text>
+                    </View>
+                    <Text style={styles.breakupSubtitle}>
+                      2.5% charge deducted by Payment Gateways for accepting online payments
+                    </Text>
+                  </View>
+
+                  <View style={styles.breakupDivider} />
+
+                  <View style={styles.breakupRow}>
+                    <Text style={styles.breakupLabel}>Sub Total :</Text>
+                    <Text style={styles.breakupValue}>₹{subTotal.toLocaleString('en-IN')}</Text>
+                  </View>
+
+                  <View style={styles.breakupRowWithSub}>
+                    <View style={styles.breakupRowHeader}>
+                      <Text style={styles.breakupLabel}>TDS:</Text>
+                      <Text style={styles.breakupValue}>- ₹{tdsAmount.toLocaleString('en-IN')}</Text>
+                    </View>
+                    <Text style={styles.breakupSubtitle}>
+                      10% of subtotal. Tax deducted as per government regulations
+                    </Text>
+                  </View>
+
+                  <View style={styles.breakupRowWithSub}>
+                    <View style={styles.breakupRowHeader}>
+                      <Text style={styles.breakupLabel}>GST:</Text>
+                      <Text style={styles.breakupValue}>₹0</Text>
+                    </View>
+                    <Text style={styles.breakupSubtitle}>
+                      GST certificate mandatory for astrologers who earn more than INR 20 lacs per year
+                    </Text>
+                  </View>
+
+                  <View style={styles.breakupDivider} />
+
+                  <View style={[styles.breakupRowWithSub, { marginTop: 8 }]}>
+                    <View style={styles.breakupRowHeader}>
+                      <Text style={[styles.breakupLabel, styles.boldLabel]}>Payable Amount</Text>
+                      <Text style={[styles.breakupValue, styles.boldValue]}>₹{payAmount.toLocaleString('en-IN')}</Text>
+                    </View>
+                    <Text style={[styles.breakupSubtitle, { fontWeight: '500', marginTop: 4 }]}>
+                      Final Amount that gets transferred to your bank account on payout date
+                    </Text>
+                  </View>
+
+                  {/* Additional info section: Payment Details & Status */}
+                  <View style={styles.paymentInfoSection}>
+                    <Text style={styles.paymentInfoTitle}>Payment Information</Text>
+                    <View style={styles.paymentInfoRow}>
+                      <Text style={styles.paymentInfoLabel}>Method:</Text>
+                      <Text style={styles.paymentInfoValue}>
+                        {selectedWithdrawal.paymentMethod === 'upi' ? '📱 UPI' : '🏦 Bank Transfer'}
+                      </Text>
+                    </View>
+                    {selectedWithdrawal.paymentMethod === 'upi' ? (
+                      <View style={styles.paymentInfoRow}>
+                        <Text style={styles.paymentInfoLabel}>UPI ID:</Text>
+                        <Text style={styles.paymentInfoValue}>{selectedWithdrawal.upiId || 'N/A'}</Text>
+                      </View>
+                    ) : (
+                      <>
+                        <View style={styles.paymentInfoRow}>
+                          <Text style={styles.paymentInfoLabel}>Account No:</Text>
+                          <Text style={styles.paymentInfoValue}>{selectedWithdrawal.accountNumber || 'N/A'}</Text>
+                        </View>
+                        <View style={styles.paymentInfoRow}>
+                          <Text style={styles.paymentInfoLabel}>IFSC Code:</Text>
+                          <Text style={styles.paymentInfoValue}>{selectedWithdrawal.ifscCode || 'N/A'}</Text>
+                        </View>
+                      </>
+                    )}
+                    <View style={styles.paymentInfoRow}>
+                      <Text style={styles.paymentInfoLabel}>Status:</Text>
+                      <View style={[styles.statusBadge, { backgroundColor: getStatusColor(selectedWithdrawal.status) + '15' }]}>
+                        <Text style={[styles.statusBadgeText, { color: getStatusColor(selectedWithdrawal.status) }]}>
+                          {selectedWithdrawal.status}
+                        </Text>
+                      </View>
+                    </View>
+                    {selectedWithdrawal.Note && (
+                      <View style={[styles.paymentInfoRow, { flexDirection: 'column', alignItems: 'flex-start', gap: 4 }]}>
+                        <Text style={styles.paymentInfoLabel}>Note:</Text>
+                        <Text style={styles.noteText}>{selectedWithdrawal.Note}</Text>
+                      </View>
+                    )}
+                  </View>
+                </ScrollView>
+              );
+            })()}
+          </View>
+        </View>
+      </Modal>
+
       <WithdrawModal
         visible={showWithdraw}
         balance={balance}
@@ -355,11 +503,128 @@ const styles = StyleSheet.create({
   modalCloseBtn: { marginTop: 24, backgroundColor: '#FF6B6B', borderRadius: 16, paddingVertical: 16, alignItems: 'center' },
   modalCloseBtnText: { color: colors.white, fontSize: 16, fontWeight: '800' },
 
-  withdrawItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
-  itemIconWrap: { width: 40, height: 40, borderRadius: 10, backgroundColor: colors.goldBg, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  withdrawItem: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: colors.white, borderRadius: 16, padding: 12, marginBottom: 12,
+    borderWidth: 1, borderColor: colors.border,
+  },
+  itemIconWrap: { width: 44, height: 44, borderRadius: 12, backgroundColor: colors.goldBg, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
   withdrawAmount: { fontSize: 16, fontWeight: '700', color: colors.text },
   withdrawMethod: { fontSize: 12, color: colors.textSecondary },
   statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
   statusBadgeText: { fontSize: 11, fontWeight: '700' },
   itemDate: { fontSize: 10, color: colors.textMuted, textAlign: 'right', marginTop: 4 },
+
+  // Earning Breakup Modal Styles
+  breakupModalBox: {
+    backgroundColor: colors.white,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    padding: 24,
+    maxHeight: '90%',
+  },
+  breakupHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  breakupTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: colors.text,
+  },
+  breakupCloseBtn: {
+    backgroundColor: colors.text,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  breakupRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  breakupRowWithSub: {
+    paddingVertical: 10,
+  },
+  breakupRowHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  breakupLabel: {
+    fontSize: 15,
+    color: colors.text,
+    fontWeight: '600',
+  },
+  breakupValue: {
+    fontSize: 15,
+    color: colors.text,
+    fontWeight: '700',
+  },
+  breakupSubtitle: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 4,
+    lineHeight: 16,
+  },
+  breakupDivider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: 12,
+  },
+  boldLabel: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.text,
+  },
+  boldValue: {
+    fontSize: 19,
+    fontWeight: '800',
+    color: colors.text,
+  },
+  paymentInfoSection: {
+    marginTop: 20,
+    backgroundColor: '#F7FAFC',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  paymentInfoTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  paymentInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 6,
+  },
+  paymentInfoLabel: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  paymentInfoValue: {
+    fontSize: 13,
+    color: colors.text,
+    fontWeight: '600',
+  },
+  noteText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+    marginTop: 2,
+  },
 });

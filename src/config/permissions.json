@@ -49,5 +49,8 @@
   "reviews": true,
   "followers": true,
   "notifications": true,
-  "settings": true
+  "settings": true,
+  "waitlist": true,
+  "assistant_chat": false,
+  "support": true
 }

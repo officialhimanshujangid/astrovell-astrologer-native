@@ -1,4 +1,4 @@
-// Theme colors for AstroVell Astrologer (Modernized Astrovell Style)
+// Theme colors for Astrovell Astrologer (Modernized Astrovell Style)
 export const colors = {
   // ── Core Backgrounds (White + Warm Cream) ──────────────────────
   primary: '#FFFFFF',        // Main screen background (white)

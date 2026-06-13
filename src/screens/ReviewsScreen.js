@@ -29,14 +29,22 @@ const ReviewsScreen = ({ onBack }) => {
   const [replyingId, setReplyingId] = useState(null);
 
   const load = async () => {
+    console.log('[ReviewsScreen] load called for astrologer:', astrologer?.id);
     try {
+      console.log('[ReviewsScreen] Calling reviewApi.getReviews...');
       const res = await reviewApi.getReviews({ astrologerId: astrologer?.id, startIndex: 0, fetchRecord: 50 });
+      console.log('[ReviewsScreen] getReviews success, response items count:', (res.data?.recordList || res.data?.data || []).length);
       setReviews(res.data?.recordList || res.data?.data || []);
-    } catch (_) {}
+    } catch (err) {
+      console.warn('[ReviewsScreen] getReviews failed:', err);
+    }
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    console.log('[ReviewsScreen] mounted');
+    load();
+  }, []);
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 
   const handleReply = async (reviewId) => {
