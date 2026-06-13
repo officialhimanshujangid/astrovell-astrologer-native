@@ -184,7 +184,11 @@ const ZegoBridge = React.forwardRef(({ config, onMessage }, ref) => {
 const CallRoomScreen = ({ route, navigation }) => {
   const insets = useSafeAreaInsets();
   const { callId, isAccepted = false, initialData = null } = route?.params || {};
-  const onBack = () => navigation.goBack();
+  const onBack = () => {
+    if (navigation && navigation.goBack) {
+      navigation.goBack();
+    }
+  };
   const { astrologer, token: authToken } = useSelector((s) => s.auth);
 
   const [phase, setPhase] = useState(isAccepted ? 'connecting' : 'incoming');

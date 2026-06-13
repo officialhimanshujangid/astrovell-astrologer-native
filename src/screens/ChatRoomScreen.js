@@ -398,7 +398,7 @@ const ChatRoomScreen = ({ route, navigation }) => {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation?.goBack?.()}>
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <View style={styles.headerUser}>

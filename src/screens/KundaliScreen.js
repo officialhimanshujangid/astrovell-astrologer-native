@@ -18,7 +18,7 @@ import kundaliPermissions from '../config/kundali_permissions.json';
 const { width } = Dimensions.get('window');
 
 const canShow = (tabKey, sectionKey = null) => {
-  const tab = kundaliPermissions.free_kundali.tabs[tabKey];
+  const tab = kundaliPermissions?.free_kundali?.tabs?.[tabKey];
   if (!tab || tab.show === false) return false;
   if (sectionKey && tab.sections && tab.sections[sectionKey] === false) return false;
   return true;
@@ -342,7 +342,7 @@ const cleanSvg = (str) => {
 
 const isRetro = (p) => p?.retro === 1 || p?.retro === '1' || p?.retro === true || p?.isRetro === true || p?.isRetro === 'true';
 const buildDegreeMap = (report) => {
-  if (!report) return {};
+  if (!report || typeof report !== 'object') return {};
   const raw = Array.isArray(report) ? report : Object.values(report);
   const map = {};
   raw.forEach(p => {
@@ -476,6 +476,7 @@ const KundaliScreen = ({ onBack }) => {
   const dpick = (obj, ...paths) => {
     if (!obj) return '-';
     for (const p of paths) {
+      if (typeof p !== 'string') continue;
       const parts = p.split('.');
       let cur = obj;
       let ok = true;
@@ -499,7 +500,7 @@ const KundaliScreen = ({ onBack }) => {
     try {
       const payload = { kundaliId: kundaliRecord.id, style: style || ashtakvargaStyle, lang: overrideLang || lang };
       const res = await kundaliApi.getAshtakvargaFull(payload);
-      const d = res.data?.data || res.data;
+      const d = res?.data?.data || res?.data;
       setAshtakvarga({ sav: d?.sav || null, binnas: d?.binnas || {} });
     } catch (e) {
       console.log('Error fetching ashtakvarga data', e);
@@ -513,7 +514,7 @@ const KundaliScreen = ({ onBack }) => {
     try {
       const payload = { kundaliId: kundaliRecord.id, style: style || kpStyle, lang: overrideLang || lang };
       const res = await kundaliApi.getKpFull(payload);
-      const d = res.data?.data || res.data;
+      const d = res?.data?.data || res?.data;
       setKpData({
         kpPlanets: d?.kpPlanets || null,
         kpCusps: d?.kpCusps || null,
@@ -532,7 +533,7 @@ const KundaliScreen = ({ onBack }) => {
     try {
       const payload = { kundaliId: kundaliRecord.id, lang: overrideLang || lang };
       const res = await kundaliApi.getSadeSati(payload);
-      const d = res.data?.data || res.data;
+      const d = res?.data?.data || res?.data;
       setSadeSati(d?.sadeSati || null);
       setSadeSatiTable(d?.sadeSatiTable || null);
     } catch (e) {
@@ -547,7 +548,7 @@ const KundaliScreen = ({ onBack }) => {
     try {
       const payload = { kundaliId: kundaliRecord.id, lang: overrideLang || lang };
       const res = await kundaliApi.getShadbala(payload);
-      setShadbala(res.data?.shadbala || res.data?.data?.shadbala || res.data?.data || res.data);
+      setShadbala(res?.data?.shadbala || res?.data?.data?.shadbala || res?.data?.data || res?.data);
     } catch (e) {
       console.log('Error fetching Shadbala', e);
     }
@@ -560,7 +561,7 @@ const KundaliScreen = ({ onBack }) => {
     try {
       const payload = { kundaliId: kundaliRecord.id, lang: overrideLang || lang };
       const res = await kundaliApi.getBhavBala(payload);
-      setBhavBala(res.data?.bhavBala || res.data?.data?.bhavBala || res.data?.data || res.data);
+      setBhavBala(res?.data?.bhavBala || res?.data?.data?.bhavBala || res?.data?.data || res?.data);
     } catch (e) {
       console.log('Error fetching Bhav Bala', e);
     }
@@ -573,7 +574,7 @@ const KundaliScreen = ({ onBack }) => {
     try {
       const payload = { kundaliId: kundaliRecord.id, div: div || divisionalDiv, style: style || divisionalStyle, lang: overrideLang || lang };
       const res = await kundaliApi.getChartReport(payload);
-      const d = res.data?.data || res.data;
+      const d = res?.data?.data || res?.data;
       const raw = d?.chartDetails;
       // extractChart: try common svg/url keys, fall back to raw string
       const svgVal = (typeof raw === 'string') ? raw :
@@ -595,7 +596,7 @@ const KundaliScreen = ({ onBack }) => {
     try {
       const payload = { kundaliId: kundaliRecord.id, lang: overrideLang || lang };
       const res = await kundaliApi.getManglikDosh(payload);
-      setManglik(res.data?.manglik || res.data?.data?.manglik || res.data?.data || res.data);
+      setManglik(res?.data?.manglik || res?.data?.data?.manglik || res?.data?.data || res?.data);
     } catch (e) {
       console.log('Error fetching Manglik', e);
     }
@@ -611,9 +612,9 @@ const KundaliScreen = ({ onBack }) => {
         kundaliApi.getTransitChart(payload),
         kundaliApi.getTransitPlanets(payload)
       ]);
-      const chartDetails = chartRes.data?.data?.chartDetails || chartRes.data?.chartDetails || chartRes.data?.data?.svg || chartRes.data?.svg || chartRes.data;
+      const chartDetails = chartRes?.data?.data?.chartDetails || chartRes?.data?.chartDetails || chartRes?.data?.data?.svg || chartRes?.data?.svg || chartRes?.data;
       setTransitSvg(typeof chartDetails === 'string' ? chartDetails : (chartDetails?.svg || null));
-      const ptData = planetsRes.data?.data?.planetDetails || planetsRes.data?.planetDetails || planetsRes.data?.data?.transit_planet || planetsRes.data?.transit_planet || planetsRes.data;
+      const ptData = planetsRes?.data?.data?.planetDetails || planetsRes?.data?.planetDetails || planetsRes?.data?.data?.transit_planet || planetsRes?.data?.transit_planet || planetsRes?.data;
       setTransitPlanets(Array.isArray(ptData) ? ptData : (ptData ? Object.values(ptData) : []));
     } catch (e) {
       console.log('Error fetching transit data', e);
@@ -740,8 +741,8 @@ const KundaliScreen = ({ onBack }) => {
         kundaliApi.getBirthPanchang(payload),
         kundaliApi.getAvakhadaDetails(payload)
       ]);
-      setBirthPanchang(panchangRes.data?.data?.panchang || panchangRes.data?.panchang || panchangRes.data);
-      setAvakhada(avakhadaRes.data?.data?.avakhada || avakhadaRes.data?.avakhada || avakhadaRes.data);
+      setBirthPanchang(panchangRes?.data?.data?.panchang || panchangRes?.data?.panchang || panchangRes?.data);
+      setAvakhada(avakhadaRes?.data?.data?.avakhada || avakhadaRes?.data?.avakhada || avakhadaRes?.data);
     } catch (err) {
       console.log('Error fetching basic tab', err);
     }
@@ -765,7 +766,7 @@ const KundaliScreen = ({ onBack }) => {
       const fetchOne = async (div) => {
         try {
           const res = await kundaliApi.getChartReport({ ...payload, div });
-          const cd = res.data?.data || res.data;
+          const cd = res?.data?.data || res?.data;
           const raw = cd?.chartDetails;
           return typeof raw === 'string' ? raw : (raw?.svg || raw?.chart_image || raw?.image_url || null);
         } catch (e) {
@@ -799,7 +800,7 @@ const KundaliScreen = ({ onBack }) => {
         lang: langCode
       };
       const res = await kundaliApi.getBasicReport(payload);
-      const bd = res.data?.data || res.data;
+      const bd = res?.data?.data || res?.data;
       setBasicReport(bd?.planetDetails || bd);
     } catch (err) {
       console.log('Error fetching basic report', err);
@@ -824,7 +825,7 @@ const KundaliScreen = ({ onBack }) => {
         kundali: [{ ...form, pdf_type: 'basic' }]
       }, { headers });
 
-      const record = addRes.data?.data?.recordList?.[0] || addRes.data?.recordList?.[0];
+      const record = addRes?.data?.data?.recordList?.[0] || addRes?.data?.recordList?.[0];
       setKundaliRecord(record);
 
       if (record?.id) {
@@ -850,7 +851,7 @@ const KundaliScreen = ({ onBack }) => {
       setMahadashaLoading(true);
       try {
         const res = await kundaliApi.getMahadashaList({ kundaliId: kundaliRecord.id, lang: reqLang });
-        setMahadashaList(res.data?.data?.mahadasha || res.data?.mahadasha || res.data);
+        setMahadashaList(res?.data?.data?.mahadasha || res?.data?.mahadasha || res?.data);
       } catch (e) { }
       setMahadashaLoading(false);
     }
@@ -859,7 +860,7 @@ const KundaliScreen = ({ onBack }) => {
       setYoginiLoading(true);
       try {
         const res = await kundaliApi.getYoginiDashaList({ kundaliId: kundaliRecord.id, lang: reqLang });
-        setYoginiList(res.data?.data?.yogini || res.data?.yogini || res.data);
+        setYoginiList(res?.data?.data?.yogini || res?.data?.yogini || res?.data);
       } catch (e) { }
       setYoginiLoading(false);
     }
@@ -1025,7 +1026,10 @@ const KundaliScreen = ({ onBack }) => {
               <InfoItem label={l.sunAtRise} value={`${String(dpick(birthPanchang, 'sun_position.sun_degree_at_rise', '0')).slice(0, 5)}°`} />
               <InfoItem label={l.sunNakshatra} value={dpick(birthPanchang, 'sun_position.nakshatra')} />
               <InfoItem label={l.moonDegree} value={`${String(dpick(birthPanchang, 'moon_position.moon_degree', '0')).slice(0, 5)}°`} />
-              <InfoItem label={l.ahargana} value={Math.floor(dpick(birthPanchang, 'advanced_details.ahargana', 0))} />
+              <InfoItem label={l.ahargana} value={(() => {
+                const v = dpick(birthPanchang, 'advanced_details.ahargana');
+                return v !== '-' && !isNaN(v) ? Math.floor(Number(v)) : '-';
+              })()} />
             </View>
           </View>
         )}
@@ -1513,11 +1517,11 @@ const KundaliScreen = ({ onBack }) => {
               {(transitPlanets || []).map((p, i) => (
                 <View key={i} style={[styles.planetGridItem, { width: '48%', backgroundColor: '#faf5ff', borderColor: '#f3e8ff', borderWidth: 1 }]}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <Text style={{ fontSize: 13, fontWeight: '800', color: '#1a0533' }}>{p.name}</Text>
-                    <Text style={{ fontSize: 16, color: '#7c3aed' }}>{PLANET_GLYPHS[p.name] || '•'}</Text>
+                    <Text style={{ fontSize: 13, fontWeight: '800', color: '#1a0533' }}>{p?.name || '-'}</Text>
+                    <Text style={{ fontSize: 16, color: '#7c3aed' }}>{PLANET_GLYPHS[p?.name] || '•'}</Text>
                   </View>
-                  <Text style={{ fontSize: 11, color: '#6b7280', marginBottom: 2 }}>{p.sign || p.zodiac}</Text>
-                  <Text style={{ fontSize: 11, color: '#6b7280' }}>House {p.house}</Text>
+                  <Text style={{ fontSize: 11, color: '#6b7280', marginBottom: 2 }}>{p?.sign || p?.zodiac || '-'}</Text>
+                  <Text style={{ fontSize: 11, color: '#6b7280' }}>House {p?.house || '-'}</Text>
                 </View>
               ))}
             </View>
@@ -2147,10 +2151,10 @@ const KundaliScreen = ({ onBack }) => {
                         <Text key={h} style={{ width: 32, textAlign: 'center', fontWeight: 'bold', color: '#374151', fontSize: 12 }}>{h}</Text>
                       ))}
                     </View>
-                    {Object.keys(binnas[selectedBinna].data).map((sourcePlanet, idx) => (
+                    {binnas[selectedBinna]?.data && typeof binnas[selectedBinna].data === 'object' && Object.keys(binnas[selectedBinna].data).map((sourcePlanet, idx) => (
                       <View key={sourcePlanet} style={{ flexDirection: 'row', paddingVertical: 6, backgroundColor: idx % 2 === 0 ? '#fff' : '#faf5ff' }}>
                         <Text style={{ width: 90, fontWeight: '700', color: '#1a0533', fontSize: 12 }}>{sourcePlanet}</Text>
-                        {binnas[selectedBinna].data[sourcePlanet].map((v, i) => (
+                        {Array.isArray(binnas[selectedBinna].data[sourcePlanet]) && binnas[selectedBinna].data[sourcePlanet].map((v, i) => (
                           <Text key={i} style={{ width: 32, textAlign: 'center', color: v === 1 ? '#16a34a' : '#d1d5db', fontWeight: v === 1 ? '700' : '400', fontSize: 12 }}>
                             {v}
                           </Text>
@@ -2229,8 +2233,10 @@ const KundaliScreen = ({ onBack }) => {
       manglik.is_manglik === true || manglik.manglik === true;
 
     const percentage = get('percentage_manglik_present', 'manglik_percent', 'manglik_percentage');
-    const presentRules = manglik.manglik_present_rule?.based_on_rules || manglik.manglik_present_rule?.rules || manglik.present_rules || [];
-    const cancelRules = manglik.manglik_cancel_rule?.based_on_rules || manglik.manglik_cancel_rule?.rules || manglik.cancel_rules || [];
+    const rawPresentRules = manglik?.manglik_present_rule?.based_on_rules || manglik?.manglik_present_rule?.rules || manglik?.present_rules || [];
+    const presentRules = Array.isArray(rawPresentRules) ? rawPresentRules : [];
+    const rawCancelRules = manglik?.manglik_cancel_rule?.based_on_rules || manglik?.manglik_cancel_rule?.rules || manglik?.cancel_rules || [];
+    const cancelRules = Array.isArray(rawCancelRules) ? rawCancelRules : [];
     const description = get('description', 'desc', 'manglik_status', 'bot_response');
     const remedies = get('remedies', 'remedy_list');
     const remediesArr = Array.isArray(remedies) ? remedies : (typeof remedies === 'object' && remedies ? Object.values(remedies) : []);

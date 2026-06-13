@@ -311,7 +311,7 @@ const KundaliMatchingScreen = ({ onBack }) => {
   const [showPicker, setShowPicker] = useState({ visible: false, mode: 'date', target: null, key: '' });
 
   const canShowMatching = (sectionKey, subKey) => {
-    const sec = matchingPermissions.kundali_matching.sections[sectionKey];
+    const sec = matchingPermissions?.kundali_matching?.sections?.[sectionKey];
     if (!sec || sec.show === false) return false;
     if (subKey && sec.sections && sec.sections[subKey] === false) return false;
     return true;
@@ -614,12 +614,12 @@ const KundaliMatchingScreen = ({ onBack }) => {
             <Text style={[styles.compTh, { flex: 1, color: '#FFF' }]}>👨 {l.boy || 'Boy'}</Text>
             <Text style={[styles.compTh, { flex: 1, color: '#FFF' }]}>👩 {l.girl || 'Girl'}</Text>
           </View>
-          <CompRow label="Rashi" b={boyD.rashi} g={girlD.rashi} />
-          <CompRow label="Nakshatra" b={boyD.nakshatra} g={girlD.nakshatra} />
-          <CompRow label="Nakshatra Lord" b={boyD.nakshatra_lord} g={girlD.nakshatra_lord} />
-          <CompRow label="Element (Tatva)" b={boyD.tatva} g={girlD.tatva} />
-          <CompRow label="Paya" b={boyD.paya} g={girlD.paya} />
-          <CompRow label="Current Dasha" b={boyD.current_dasa} g={girlD.current_dasa} />
+          <CompRow label="Rashi" b={boyD?.rashi} g={girlD?.rashi} />
+          <CompRow label="Nakshatra" b={boyD?.nakshatra} g={girlD?.nakshatra} />
+          <CompRow label="Nakshatra Lord" b={boyD?.nakshatra_lord} g={girlD?.nakshatra_lord} />
+          <CompRow label="Element (Tatva)" b={boyD?.tatva} g={girlD?.tatva} />
+          <CompRow label="Paya" b={boyD?.paya} g={girlD?.paya} />
+          <CompRow label="Current Dasha" b={boyD?.current_dasa} g={girlD?.current_dasa} />
         </View>
       </View>
     );
@@ -639,12 +639,12 @@ const KundaliMatchingScreen = ({ onBack }) => {
             <Text style={[styles.compTh, { flex: 1, color: '#FFF' }]}>👨 {l.boy || 'Boy'}</Text>
             <Text style={[styles.compTh, { flex: 1, color: '#FFF' }]}>👩 {l.girl || 'Girl'}</Text>
           </View>
-          <CompRow label="Tithi" b={boyP.tithi} g={girlP.tithi} />
-          <CompRow label="Yoga" b={boyP.yoga} g={girlP.yoga} />
-          <CompRow label="Karana" b={boyP.karana} g={girlP.karana} />
-          <CompRow label="Sunrise" b={boyP.sunrise_at_birth} g={girlP.sunrise_at_birth} />
-          <CompRow label="Sunset" b={boyP.sunset_at_birth} g={girlP.sunset_at_birth} />
-          <CompRow label="Day" b={boyP.day_of_birth} g={girlP.day_of_birth} />
+          <CompRow label="Tithi" b={boyP?.tithi} g={girlP?.tithi} />
+          <CompRow label="Yoga" b={boyP?.yoga} g={girlP?.yoga} />
+          <CompRow label="Karana" b={boyP?.karana} g={girlP?.karana} />
+          <CompRow label="Sunrise" b={boyP?.sunrise_at_birth} g={girlP?.sunrise_at_birth} />
+          <CompRow label="Sunset" b={boyP?.sunset_at_birth} g={girlP?.sunset_at_birth} />
+          <CompRow label="Day" b={boyP?.day_of_birth} g={girlP?.day_of_birth} />
         </View>
       </View>
     );
@@ -659,12 +659,12 @@ const KundaliMatchingScreen = ({ onBack }) => {
       <View style={[styles.luckyBox, { borderTopColor: accent }]}>
         <Text style={[styles.luckyBoxTitle, { color: accent }]}>{title} - {l.unfavorableFactors}</Text>
         <View style={styles.luckyGrid}>
-          <LuckyItem label="Rasi" value={data.rasi} />
-          <LuckyItem label="Day" value={data.day} />
-          <LuckyItem label="Nakshatra" value={data.nakshatra} />
-          <LuckyItem label="Tatva" value={data.tatva} />
-          <LuckyItem label="Tithi" value={Array.isArray(data.tithi) ? data.tithi.join(', ') : data.tithi} />
-          <LuckyItem label="Lord" value={data.lord} />
+          <LuckyItem label="Rasi" value={data?.rasi} />
+          <LuckyItem label="Day" value={data?.day} />
+          <LuckyItem label="Nakshatra" value={data?.nakshatra} />
+          <LuckyItem label="Tatva" value={data?.tatva} />
+          <LuckyItem label="Tithi" value={Array.isArray(data?.tithi) ? data.tithi.join(', ') : data?.tithi} />
+          <LuckyItem label="Lord" value={data?.lord} />
         </View>
       </View>
     );
@@ -687,6 +687,7 @@ const KundaliMatchingScreen = ({ onBack }) => {
     if (!boyP && !girlP) return null;
 
     const PlanetTable = ({ title, data, accent }) => {
+      if (!data || typeof data !== 'object') return null;
       const planets = Object.keys(data).filter(k => !isNaN(k)).map(k => data[k]);
       if (planets.length === 0) return null;
 
@@ -709,15 +710,15 @@ const KundaliMatchingScreen = ({ onBack }) => {
               </View>
               {planets.map((p, i) => (
                 <View key={i} style={[styles.compRow, { borderBottomWidth: i === planets.length - 1 ? 0 : 1, borderBottomColor: '#EEE', paddingVertical: 10 }]}>
-                  <Text style={[styles.compVal, { width: 45, textAlign: 'left', fontWeight: '800', fontSize: 11 }]}>{p.name}</Text>
-                  <Text style={[styles.compVal, { width: 75, textAlign: 'left', fontSize: 11 }]}>{p.zodiac}</Text>
-                  <Text style={[styles.compVal, { width: 45, fontSize: 11 }]}>{p.house}</Text>
-                  <Text style={[styles.compVal, { width: 90, textAlign: 'left', fontSize: 11 }]}>{p.nakshatra}</Text>
-                  <Text style={[styles.compVal, { width: 35, fontSize: 11 }]}>{p.nakshatra_pada}</Text>
-                  <Text style={[styles.compVal, { width: 60, fontSize: 11 }]}>{p.local_degree ? p.local_degree.toFixed(2) : '-'}</Text>
-                  <Text style={[styles.compVal, { width: 75, fontSize: 10, color: '#6b7280' }]}>{p.basic_avastha || '-'}</Text>
-                  <Text style={[styles.compVal, { width: 65, fontSize: 10, color: p.is_combust ? '#ef4444' : p.retro ? '#3b82f6' : '#10b981', fontWeight: '700' }]}>
-                    {p.is_combust ? l.combust : p.retro ? l.retro : l.direct}
+                  <Text style={[styles.compVal, { width: 45, textAlign: 'left', fontWeight: '800', fontSize: 11 }]}>{p?.name || '-'}</Text>
+                  <Text style={[styles.compVal, { width: 75, textAlign: 'left', fontSize: 11 }]}>{p?.zodiac || '-'}</Text>
+                  <Text style={[styles.compVal, { width: 45, fontSize: 11 }]}>{p?.house || '-'}</Text>
+                  <Text style={[styles.compVal, { width: 90, textAlign: 'left', fontSize: 11 }]}>{p?.nakshatra || '-'}</Text>
+                  <Text style={[styles.compVal, { width: 35, fontSize: 11 }]}>{p?.nakshatra_pada || '-'}</Text>
+                  <Text style={[styles.compVal, { width: 60, fontSize: 11 }]}>{p?.local_degree ? p.local_degree.toFixed(2) : '-'}</Text>
+                  <Text style={[styles.compVal, { width: 75, fontSize: 10, color: '#6b7280' }]}>{p?.basic_avastha || '-'}</Text>
+                  <Text style={[styles.compVal, { width: 65, fontSize: 10, color: p?.is_combust ? '#ef4444' : p?.retro ? '#3b82f6' : '#10b981', fontWeight: '700' }]}>
+                    {p?.is_combust ? l.combust : p?.retro ? l.retro : l.direct}
                   </Text>
                 </View>
               ))}
@@ -759,10 +760,10 @@ const KundaliMatchingScreen = ({ onBack }) => {
         )}
         {data.status ? <Text style={styles.manglikStatus}>{data.status}</Text> : null}
 
-        {(data.factors?.length > 0 || data.aspects?.length > 0) && (
+        {((Array.isArray(data.factors) && data.factors.length > 0) || (Array.isArray(data.aspects) && data.aspects.length > 0)) && (
           <View style={{ marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#f3f4f6' }}>
-            {data.factors?.map((f, i) => <Text key={`f-${i}`} style={styles.manglikDetailText}>• {f}</Text>)}
-            {data.aspects?.map((a, i) => <Text key={`a-${i}`} style={[styles.manglikDetailText, { color: '#6b7280' }]}>◦ {a}</Text>)}
+            {Array.isArray(data.factors) && data.factors.map((f, i) => <Text key={`f-${i}`} style={styles.manglikDetailText}>• {f}</Text>)}
+            {Array.isArray(data.aspects) && data.aspects.map((a, i) => <Text key={`a-${i}`} style={[styles.manglikDetailText, { color: '#6b7280' }]}>◦ {a}</Text>)}
           </View>
         )}
       </View>
@@ -914,7 +915,7 @@ const KundaliMatchingScreen = ({ onBack }) => {
   };
 
   const renderPapasamya = () => {
-    if (!result?.papasamayaMatch) return null;
+    if (!result?.papasamayaMatch || typeof result.papasamayaMatch !== 'object') return null;
     const pp = result.papasamayaMatch;
     const boyPapa = pp.boy_papa_count ?? pp.male_papa_count ?? pp.boy_papasamya;
     const girlPapa = pp.girl_papa_count ?? pp.female_papa_count ?? pp.girl_papasamya;
