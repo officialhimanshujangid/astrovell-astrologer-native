@@ -11,4 +11,22 @@
 -keep class com.swmansion.reanimated.** { *; }
 -keep class com.facebook.react.turbomodule.** { *; }
 
+# react-native-agora (Agora RTC SDK)
+-keep class io.agora.** { *; }
+-keep class com.hyphenate.** { *; }
+
+# AsyncStorage
+-keep class com.reactnativecommunity.asyncstorage.** { *; }
+
+# Redux Persist
+-keepclassmembers class * {
+    @com.facebook.react.bridge.ReactMethod *;
+}
+
+# Socket.io / OkHttp
+-keep class okhttp3.** { *; }
+-keep class okio.** { *; }
+-dontwarn okhttp3.**
+-dontwarn okio.**
+
 # Add any project specific keep options here:
