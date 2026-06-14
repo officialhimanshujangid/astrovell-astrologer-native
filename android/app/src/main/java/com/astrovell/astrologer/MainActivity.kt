@@ -1,4 +1,4 @@
-package com.Astrovell.astrologer
+package com.astrovell.astrologer
 
 import android.os.Build
 import android.os.Bundle

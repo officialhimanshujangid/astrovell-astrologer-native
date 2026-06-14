@@ -1,12 +1,12 @@
 {
   "expo": {
     "name": "Astrovell Astrologer",
-    "slug": "Astrovell-astrologer",
+    "slug": "astrovell-astrologer",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
-    "scheme": "Astrovell-astrologer",
+    "scheme": "astrovell-astrologer",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
@@ -14,14 +14,14 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.Astrovell.astrologer"
+      "bundleIdentifier": "com.astrovell.astrologer"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1a0533"
       },
-      "package": "com.Astrovell.astrologer",
+      "package": "com.astrovell.astrologer",
       "permissions": [
         "android.permission.RECORD_AUDIO",
         "android.permission.CAMERA"

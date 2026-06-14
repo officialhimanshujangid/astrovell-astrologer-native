@@ -26,8 +26,8 @@
         <action android:name="android.intent.action.VIEW"/>
         <category android:name="android.intent.category.DEFAULT"/>
         <category android:name="android.intent.category.BROWSABLE"/>
-        <data android:scheme="Astrovell-astrologer"/>
-        <data android:scheme="exp+Astrovell-astrologer"/>
+        <data android:scheme="astrovell-astrologer"/>
+        <data android:scheme="exp+astrovell-astrologer"/>
       </intent-filter>
     </activity>
   </application>
