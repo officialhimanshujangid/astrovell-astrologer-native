@@ -9,6 +9,8 @@ import { colors } from '../theme/colors';
 import { authApi } from '../api/services';
 import { loginSuccess } from '../store/slices/authSlice';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
 
 const LoginScreen = ({ navigation }) => {
   const dispatch = useDispatch();
@@ -52,7 +54,22 @@ const LoginScreen = ({ navigation }) => {
     }
     setLoading(true);
     try {
-      const res = await authApi.login({ contactNo: phone, otp, countryCode: '+91' });
+      let pushToken = '';
+      try {
+        const projectId = Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId;
+        if (projectId && !projectId.includes("1234") && !projectId.includes("0000")) {
+          pushToken = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+        }
+      } catch (e) { console.log('Push token fetch failed in Login'); }
+
+      const res = await authApi.login({ 
+        contactNo: phone, 
+        otp, 
+        countryCode: '+91',
+        fcmToken: pushToken,
+        deviceToken: pushToken,
+        expoPushToken: pushToken,
+      });
       const d = res.data;
       if (d?.status === 200 && d?.token) {
         await AsyncStorage.setItem('astrologerToken', d.token);

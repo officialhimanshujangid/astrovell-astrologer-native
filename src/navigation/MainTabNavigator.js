@@ -23,6 +23,7 @@ import WaitlistScreen     from '../screens/WaitlistScreen';
 import AssistantChatScreen from '../screens/AssistantChatScreen';
 import SettingsScreen     from '../screens/SettingsScreen';
 import SupportScreen      from '../screens/SupportScreen';
+import FeedbackCeoScreen  from '../screens/FeedbackCeoScreen';
 import BottomTabBar       from '../components/BottomTabBar';
 import { colors }         from '../theme/colors';
 import usePermissions     from '../hooks/usePermissions';
@@ -34,6 +35,7 @@ import { Ionicons } from '@expo/vector-icons';
 const MainTabNavigator = () => {
   const [activeTab, setActiveTab]         = useState('Dashboard');
   const [activeSubScreen, setActiveSubScreen] = useState(null);
+  const [subScreenParams, setSubScreenParams] = useState(null);
   const { can } = usePermissions();
   const navigation = useNavigation();
   const activeSession = useActiveSession();
@@ -59,7 +61,7 @@ const MainTabNavigator = () => {
     return () => subscription.remove();
   }, [activeTab, activeSubScreen]);
 
-  const openSubScreen = (name) => {
+  const openSubScreen = (name, params = null) => {
     console.log('[MainTabNavigator] openSubScreen called with:', name);
     if (name === 'Profile') {
       setActiveTab('Profile');
@@ -85,19 +87,24 @@ const MainTabNavigator = () => {
       AssistantChat: 'assistant_chat',
       Settings:      'settings',
       Support:       'support',
+      FeedbackCeo:   'feedback_ceo',
     };
     const isSettingsSub = name && name.startsWith('Settings_');
     const lookupName = isSettingsSub ? 'Settings' : name;
     const permKey = subPermMap[lookupName];
     if (permKey && !can(permKey)) return; // blocked
     setActiveSubScreen(name);
+    setSubScreenParams(params);
   };
 
-  const closeSubScreen = () => setActiveSubScreen(null);
+  const closeSubScreen = () => {
+    setActiveSubScreen(null);
+    setSubScreenParams(null);
+  };
 
   // ── Sub-screen overlays ───────────────────────────────────────────────────
-  if (activeSubScreen === 'ChatHistory')    return <ChatHistoryScreen onBack={closeSubScreen} />;
-  if (activeSubScreen === 'CallHistory')    return <CallHistoryScreen onBack={closeSubScreen} />;
+  if (activeSubScreen === 'ChatHistory')    return <ChatHistoryScreen onBack={closeSubScreen} onOpenSubScreen={openSubScreen} />;
+  if (activeSubScreen === 'CallHistory')    return <CallHistoryScreen onBack={closeSubScreen} onOpenSubScreen={openSubScreen} />;
   if (activeSubScreen === 'Reviews')        return <ReviewsScreen onBack={closeSubScreen} />;
   if (activeSubScreen === 'Reports')        return <ReportsScreen onBack={closeSubScreen} />;
   if (activeSubScreen === 'Appointments')   return <AppointmentsScreen onBack={closeSubScreen} />;
@@ -105,7 +112,7 @@ const MainTabNavigator = () => {
   if (activeSubScreen === 'PujaOrders')     return <PujaOrdersScreen onBack={closeSubScreen} />;
   if (activeSubScreen === 'Followers')      return <FollowersScreen onBack={closeSubScreen} />;
   if (activeSubScreen === 'Notifications')  return <NotificationsScreen onBack={closeSubScreen} />;
-  if (activeSubScreen === 'Kundali')        return <KundaliScreen onBack={closeSubScreen} />;
+  if (activeSubScreen === 'Kundali')        return <KundaliScreen onBack={closeSubScreen} initialParams={subScreenParams} />;
   if (activeSubScreen === 'KundaliMatching')return <KundaliMatchingScreen onBack={closeSubScreen} />;
   if (activeSubScreen === 'Horoscope')      return <HoroscopeScreen onBack={closeSubScreen} />;
   if (activeSubScreen === 'Panchang')       return <PanchangScreen onBack={closeSubScreen} />;
@@ -117,6 +124,7 @@ const MainTabNavigator = () => {
     return <SettingsScreen onBack={closeSubScreen} initialSubScreen={initialSub} />;
   }
   if (activeSubScreen === 'Support')        return <SupportScreen onBack={closeSubScreen} />;
+  if (activeSubScreen === 'FeedbackCeo')    return <FeedbackCeoScreen onBack={closeSubScreen} />;
 
   const renderScreen = () => {
     switch (activeTab) {
@@ -133,30 +141,6 @@ const MainTabNavigator = () => {
 
   return (
     <View style={styles.container}>
-      {activeSession && (
-        <TouchableOpacity
-          style={styles.activeSessionBanner}
-          activeOpacity={0.9}
-          onPress={() => {
-            if (activeSession.type === 'chat') {
-              navigation.navigate('ChatRoom', { chatId: activeSession.id });
-            } else {
-              navigation.navigate('CallRoom', { callId: activeSession.id, isAccepted: true });
-            }
-          }}
-        >
-          <View style={styles.bannerContent}>
-            <View style={styles.bannerDot} />
-            <Text style={styles.bannerText}>
-              Active {activeSession.type === 'chat' ? 'Chat' : 'Call'} with {activeSession.name} ({activeSession.status})
-            </Text>
-          </View>
-          <View style={styles.resumeBadge}>
-            <Text style={styles.resumeText}>Resume</Text>
-            <Ionicons name="arrow-forward" size={14} color={colors.white} />
-          </View>
-        </TouchableOpacity>
-      )}
       <View style={styles.screenArea}>{renderScreen()}</View>
       <BottomTabBar activeTab={activeTab} onTabPress={setActiveTab} />
     </View>

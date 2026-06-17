@@ -15,6 +15,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useNavigation } from '@react-navigation/native';
 import { io } from 'socket.io-client';
 import { Ionicons } from '@expo/vector-icons';
+import { playRingtone, stopRingtone } from '../utils/audioPlayer';
 
 import { colors } from '../theme/colors';
 import { chatApi, callApi } from '../api/services';
@@ -79,17 +80,24 @@ const WaitlistScreen = ({ onBack }) => {
     });
 
     socket.on('connect', () => console.log('[Waitlist Socket] connected'));
+
     socket.on('new-chat-request', (data) => {
       if (data.astrologerId === astrologer?.id) {
+        playRingtone();
         fetchRequests();
-        Alert.alert('💬 New Chat Request', `${data.request?.userName || 'A customer'} wants to chat!`);
+        Alert.alert('💬 New Chat Request', `${data.request?.userName || 'A customer'} wants to chat!`, [
+          { text: 'OK', onPress: stopRingtone }
+        ]);
       }
     });
     socket.on('new-call-request', (data) => {
       if (data.astrologerId === astrologer?.id) {
+        playRingtone();
         fetchRequests();
         const callType = data.call_type == 11 ? 'Video' : 'Audio';
-        Alert.alert(`📞 New ${callType} Call`, 'A customer wants to connect with you!');
+        Alert.alert(`📞 New ${callType} Call`, 'A customer wants to connect with you!', [
+          { text: 'OK', onPress: stopRingtone }
+        ]);
       }
     });
 
@@ -111,6 +119,7 @@ const WaitlistScreen = ({ onBack }) => {
 
   // ── Actions ──────────────────────────────────────────────────────────────
   const handleAcceptChat = async (req) => {
+    stopRingtone();
     try {
       if (!can('chat_accept')) return Alert.alert('Permission Denied', 'You do not have permission to accept chats.');
       if (socketRef.current?.connected) {
@@ -127,6 +136,7 @@ const WaitlistScreen = ({ onBack }) => {
   };
 
   const handleRejectChat = async (req) => {
+    stopRingtone();
     if (!can('chat_reject')) return Alert.alert('Permission Denied', 'You do not have permission to reject chats.');
     Alert.alert('Reject Chat', 'Are you sure you want to reject this chat request?', [
       { text: 'Cancel', style: 'cancel' },
@@ -150,6 +160,7 @@ const WaitlistScreen = ({ onBack }) => {
   };
 
   const handleAcceptCall = async (req) => {
+    stopRingtone();
     try {
       if (socketRef.current?.connected) {
         socketRef.current.emit('join-call', { callId: req.id });
@@ -169,6 +180,7 @@ const WaitlistScreen = ({ onBack }) => {
   };
 
   const handleRejectCall = async (req) => {
+    stopRingtone();
     if (!can('call_reject')) return Alert.alert('Permission Denied', 'You do not have permission to reject calls.');
     Alert.alert('Reject Call', 'Are you sure you want to reject this call request?', [
       { text: 'Cancel', style: 'cancel' },

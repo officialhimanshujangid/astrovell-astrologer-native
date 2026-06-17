@@ -6,7 +6,6 @@ const BASE_URL = `${BASE_URI}api`;
 const SOCKET_BASE = 'https://astrology-i7c9.onrender.com';
 
 export { SOCKET_BASE };
-// hghgh 
 const API = axios.create({
   baseURL: BASE_URL,
   headers: { 'Content-Type': 'application/json' },

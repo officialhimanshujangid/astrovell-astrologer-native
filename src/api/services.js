@@ -182,3 +182,13 @@ export const appointmentApi = {
 export const notificationApi = {
   get: (data) => API.post('/customer/getNotification', data),
 };
+
+// ── App Review / CEO Feedback ──────────────────────────────────────────────────
+export const appReviewApi = {
+  add: (data) => API.post('/customer/appReview/add', data),
+};
+
+// ── Remedy ──────────────────────────────────────────────────────────────────
+export const remedyApi = {
+  send: (data) => API.post('/astro/remedy/send', data),
+};

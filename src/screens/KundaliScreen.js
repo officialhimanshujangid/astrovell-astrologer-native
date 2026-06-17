@@ -380,7 +380,7 @@ const injectDegreesIntoSvg = (svgStr, degreeMap) => {
   );
 };
 
-const KundaliScreen = ({ onBack }) => {
+const KundaliScreen = ({ onBack, initialParams }) => {
   const { token, globalLang } = useSelector(s => s.auth);
   const [form, setForm] = useState({
     name: '', gender: 'Male', birthDate: '', birthTime: '',
@@ -465,6 +465,55 @@ const KundaliScreen = ({ onBack }) => {
       onChangeLang(globalLang);
     }
   }, [globalLang]);
+
+  useEffect(() => {
+    if (initialParams && initialParams.autoSubmit) {
+      setForm(prev => ({
+        ...prev,
+        name: initialParams.name || prev.name,
+        gender: initialParams.gender || prev.gender,
+        birthDate: initialParams.birthDate || prev.birthDate,
+        birthTime: initialParams.birthTime || prev.birthTime,
+        birthPlace: initialParams.birthPlace || prev.birthPlace,
+        latitude: initialParams.latitude || prev.latitude,
+        longitude: initialParams.longitude || prev.longitude,
+      }));
+      handleDirectSubmit(initialParams);
+    }
+  }, []);
+
+  const handleDirectSubmit = async (params) => {
+    setLoading(true);
+    try {
+      const headers = { Authorization: `Bearer ${token}` };
+      const formData = {
+        name: params.name,
+        gender: params.gender || 'Male',
+        birthDate: params.birthDate,
+        birthTime: params.birthTime,
+        birthPlace: params.birthPlace,
+        latitude: params.latitude,
+        longitude: params.longitude,
+      };
+      const addRes = await apiClient.post('/customer/kundali/add', {
+        kundali: [{ ...formData, pdf_type: 'basic' }]
+      }, { headers });
+
+      const record = addRes?.data?.data?.recordList?.[0] || addRes?.data?.recordList?.[0];
+      setKundaliRecord(record);
+
+      if (record?.id) {
+        await Promise.all([
+          fetchBasic(record.id, lang),
+          fetchLagnaCharts(record.id, chartStyle, lang),
+          fetchBasicTab(record.id, lang),
+        ]);
+      }
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.message || err.message);
+    }
+    setLoading(false);
+  };
 
   const debounceRef = useRef(null);
   const [showPicker, setShowPicker] = useState({ visible: false, mode: 'date', target: '' });

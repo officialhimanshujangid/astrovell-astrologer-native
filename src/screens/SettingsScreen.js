@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Alert, BackHandler, Linking, Image, Modal, Animated, PanResponder } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Alert, BackHandler, Linking, Image, Modal, Animated, PanResponder, Platform } from 'react-native';
 import { useSelector } from 'react-redux';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -11,6 +11,8 @@ import { profileApi, pageApi, authApi } from '../api/services';
 import { SOCKET_BASE } from '../api/apiClient';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 
 const maskAccountNumber = (num) => {
   if (!num) return '•••• •••• •••• ••••';
@@ -243,15 +245,51 @@ const SettingsScreen = ({ onBack, initialSubScreen }) => {
       Alert.alert(t('error'), 'Document link is invalid.');
       return;
     }
+    
+    setForm16aLoading(true);
     try {
-      const supported = await Linking.canOpenURL(url);
-      if (supported) {
-        await Linking.openURL(url);
+      // Create a filename from the URL or use a default
+      let fileName = url.split('/').pop();
+      if (!fileName || !fileName.includes('.')) {
+        fileName = 'Form16A.pdf'; // default fallback
+      }
+      const fileUri = FileSystem.documentDirectory + fileName;
+      
+      // Download the file directly to internal cache first
+      const { uri } = await FileSystem.downloadAsync(url, fileUri);
+      
+      if (Platform.OS === 'android') {
+        try {
+          const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+          if (permissions.granted) {
+            const base64Data = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+            const savedUri = await FileSystem.StorageAccessFramework.createFileAsync(
+              permissions.directoryUri,
+              fileName,
+              'application/pdf'
+            );
+            await FileSystem.writeAsStringAsync(savedUri, base64Data, { encoding: FileSystem.EncodingType.Base64 });
+            Alert.alert(t('success') || 'Success', 'File saved successfully!');
+            setForm16aLoading(false);
+            return;
+          }
+        } catch (e) {
+          console.log('SAF Error:', e);
+        }
+      }
+      
+      // Fallback for iOS or if Android user cancels directory selection
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(uri, { UTI: 'com.adobe.pdf', mimeType: 'application/pdf' });
       } else {
-        Alert.alert(t('error'), 'Cannot open download URL: ' + url);
+        Alert.alert(t('success') || 'Success', 'File downloaded to: ' + uri);
       }
     } catch (err) {
-      Alert.alert(t('error'), 'An error occurred while opening the URL.');
+      console.log('Download error:', err);
+      Alert.alert(t('error'), 'Failed to download: ' + (err.message || 'Unknown error'));
+    } finally {
+      setForm16aLoading(false);
     }
   };
 

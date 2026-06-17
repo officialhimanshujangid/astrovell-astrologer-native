@@ -12,6 +12,8 @@ import { authApi } from '../api/services';
 import { loginSuccess } from '../store/slices/authSlice';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ScreenHeader from '../components/ScreenHeader';
+import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
 
 const RegisterScreen = ({ navigation }) => {
   const dispatch = useDispatch();
@@ -27,6 +29,7 @@ const RegisterScreen = ({ navigation }) => {
     birthDate: '',
     currentCity: '',
     country: 'India',
+    billingAddress: '',
     termsAccepted: false,
   });
   const [otp,       setOtp]       = useState('');
@@ -71,12 +74,27 @@ const RegisterScreen = ({ navigation }) => {
   };
 
   const handleVerifyOtp = async () => {
-    if (!otp.trim()) { Alert.alert('Error', 'Enter OTP'); return; }
+    if (!otp.trim() || otp.length < 4) { Alert.alert('Error', 'Enter the OTP'); return; }
     setLoading(true);
     try {
-      const res = await authApi.login({ contactNo: form.contactNo, otp, countryCode: '+91' });
+      let pushToken = '';
+      try {
+        const projectId = Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId;
+        if (projectId && !projectId.includes("1234") && !projectId.includes("0000")) {
+          pushToken = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+        }
+      } catch (e) { console.log('Push token fetch failed in Register'); }
+
+      const payload = {
+        ...form,
+        otp,
+        fcmToken: pushToken,
+        deviceToken: pushToken,
+        expoPushToken: pushToken,
+      };
+      const res = await authApi.register(payload);
       const d = res.data;
-      if (d?.status === 200 && d?.token) {
+      if (d?.status === 200 || d?.status === 201) {
         // existing user — just log in
         await AsyncStorage.setItem('astrologerToken', d.token);
         const astrologer = d.recordList?.[0] || d.recordList || {};
@@ -114,6 +132,7 @@ const RegisterScreen = ({ navigation }) => {
         birthDate: form.birthDate,
         currentCity: form.currentCity,
         country: form.country,
+        billingAddress: form.billingAddress,
         termsAccepted: form.termsAccepted,
       };
       const res = await authApi.register(payload);
@@ -199,6 +218,7 @@ const RegisterScreen = ({ navigation }) => {
           { key: 'birthDate', label: 'Date of Birth', placeholder: 'Select birth date (YYYY-MM-DD)' },
           { key: 'currentCity', label: 'Current City', placeholder: 'Your current city' },
           { key: 'country', label: 'Country', placeholder: 'Your country' },
+          { key: 'billingAddress', label: 'Billing Address', placeholder: 'Your full billing address', multiline: true },
         ].map(f => (
           <View style={styles.fieldWrap} key={f.key}>
             <View style={styles.labelRow}>
@@ -220,12 +240,14 @@ const RegisterScreen = ({ navigation }) => {
               </TouchableOpacity>
             ) : (
               <TextInput
-                style={styles.input}
+                style={[styles.input, f.multiline && { minHeight: 80, textAlignVertical: 'top' }]}
                 value={form[f.key]}
                 onChangeText={v => update(f.key, v)}
                 placeholder={f.placeholder}
                 placeholderTextColor={colors.textMuted}
                 keyboardType={f.keyboard || 'default'}
+                multiline={f.multiline}
+                numberOfLines={f.multiline ? 3 : 1}
               />
             )}
           </View>

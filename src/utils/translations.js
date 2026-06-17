@@ -13,6 +13,8 @@ export const translations = {
     support: "Support",
     my_profile: "My Profile",
     settings: "Settings",
+    feedback_ceo: "Feedback to CEO",
+    training_videos: "Training Videos",
 
     // More Screen Sections
     consultations: "Consultations",
@@ -130,6 +132,8 @@ export const translations = {
     // History Common
     fetching_records: "Fetching your records...",
     no_sessions: "No Sessions Yet",
+    no_messages: "No Messages Found",
+    view_chat: "View Chat",
     no_calls: "No Calls Yet",
     chat_history_desc: "Your completed chat consultations will appear here.",
     call_history_desc: "History of your completed voice and video calls will appear here.",
@@ -236,6 +240,8 @@ export const translations = {
     support: "सहायता",
     my_profile: "मेरी प्रोफ़ाइल",
     settings: "सेटिंग्स",
+    feedback_ceo: "सीईओ को फीडबैक",
+    training_videos: "प्रशिक्षण वीडियो",
 
     // More Screen Sections
     consultations: "परामर्श",
@@ -358,6 +364,8 @@ export const translations = {
     // History Common
     fetching_records: "आपके रिकॉर्ड प्राप्त किए जा रहे हैं...",
     no_sessions: "अभी तक कोई सत्र नहीं",
+    no_messages: "कोई संदेश नहीं मिला",
+    view_chat: "चैट देखें",
     no_calls: "अभी तक कोई कॉल नहीं",
     chat_history_desc: "आपके पूर्ण किए गए चैट परामर्श यहां दिखाई देंगे।",
     call_history_desc: "आपके पूर्ण किए गए वॉयस और वीडियो कॉल का इतिहास यहां दिखाई देगा।",

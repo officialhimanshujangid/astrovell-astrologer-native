@@ -1,336 +1,460 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, RefreshControl, Image, Modal, TouchableOpacity, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  FlatList,
+  Image,
+  ActivityIndicator,
+  RefreshControl,
+  Modal,
+  SafeAreaView,
+} from 'react-native';
 import { useSelector } from 'react-redux';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { chatApi } from '../api/services';
 import { colors } from '../theme/colors';
 import ScreenHeader from '../components/ScreenHeader';
 import useTranslation from '../hooks/useTranslation';
 import { BASE_URI } from '../api/apiClient';
+import RemedyModal from '../components/RemedyModal';
 
-const BASE_IMG = BASE_URI;
+const fmtDate = (iso) => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+};
 
-const ChatHistoryScreen = ({ onBack, isSubScreen = false }) => {
-  const { astrologer } = useSelector(s => s.auth);
-  const insets = useSafeAreaInsets();
+const getProfileImageUri = (path) => {
+  if (!path) return null;
+  return path.startsWith('http') ? path : `${BASE_URI}${path}`;
+};
+
+// ─── Chat History Item Accordion ───
+const HistoryItem = ({ item, isOpen, onToggle, t, onViewChat, openKundali, onSuggestRemedy }) => {
+  const avatarUri = getProfileImageUri(item.userProfile);
+  const isCompleted = item.chatStatus === 'Completed';
+  const isFree = item.isFreeSession == 1;
+  const statusColor = isCompleted ? colors.success : colors.error;
+
+  return (
+    <TouchableOpacity
+      style={styles.historyCard}
+      onPress={onToggle}
+      activeOpacity={0.85}
+    >
+      <View style={styles.cardHeaderRow}>
+        {avatarUri ? (
+          <Image source={{ uri: avatarUri }} style={styles.avatar} resizeMode="cover" />
+        ) : (
+          <View style={[styles.avatar, styles.avatarFallback]}>
+            <Ionicons name="person" size={26} color={colors.gold} />
+          </View>
+        )}
+        <View style={styles.cardInfo}>
+          <Text style={styles.userName}>
+            {item.userName || t('user')}
+          </Text>
+          <Text style={styles.topic} numberOfLines={1}>
+            {item.lastMessage || item.intakeTopicOfConcern || 'General Consultation'}
+          </Text>
+          <View style={styles.metaRow}>
+            <Text style={styles.date}>{fmtDate(item.created_at || item.date)}</Text>
+            <Text style={styles.metaDot}>·</Text>
+            <Text style={styles.earningsText}>Earnings: ₹{parseFloat(item.deductionFromAstrologer || 0).toFixed(2)}</Text>
+          </View>
+        </View>
+        <View style={styles.cardRight}>
+          <View
+            style={[
+              styles.statusBadge,
+              { backgroundColor: statusColor + '15', borderColor: statusColor },
+            ]}
+          >
+            <Text style={[styles.statusText, { color: statusColor }]}>
+              {isFree ? t('free_session').toUpperCase() : (isCompleted ? t('success') : item.chatStatus)}
+            </Text>
+          </View>
+          <Ionicons
+            name={isOpen ? "chevron-up" : "chevron-down"}
+            size={16}
+            color={colors.textMuted}
+            style={{ marginTop: 8 }}
+          />
+        </View>
+      </View>
+
+      {isOpen && (
+        <View style={styles.expandedSection}>
+          <View style={styles.detailGrid}>
+            <View style={styles.detailCol}>
+              <Text style={styles.detailLabel}>{t('session_details')}</Text>
+              <Text style={styles.detailVal}>{t('duration')}: {item.totalMin || 0} mins</Text>
+              <Text style={styles.detailVal}>Rate: ₹{item.chatRate || 0}/min</Text>
+              <Text style={styles.detailVal}>{t('net_earning')}: ₹{parseFloat(item.deductionFromAstrologer || 0).toFixed(2)}</Text>
+              {(item.endedBy || item.endReason) && (
+                <Text style={styles.detailVal}>Ended By: {item.endedBy || 'N/A'} ({item.endReason || 'manual'})</Text>
+              )}
+            </View>
+            {(item.intakeName || item.intakeGender || item.intakeBirthDate) ? (
+              <View style={styles.detailCol}>
+                <Text style={styles.detailLabel}>{t('intake_form')}</Text>
+                <Text style={styles.detailVal}>{t('name')}: {item.intakeName || item.userName}</Text>
+                <Text style={styles.detailVal}>{t('gender')}: {item.intakeGender || 'N/A'}</Text>
+                <Text style={styles.detailVal}>{t('dob')}: {item.intakeBirthDate || 'N/A'}</Text>
+                <Text style={styles.detailVal}>{t('tob')}: {item.intakeBirthTime || 'N/A'}</Text>
+                <Text style={styles.detailVal}>{t('pob')}: {item.intakeBirthPlace || 'N/A'}</Text>
+                <Text style={styles.detailVal} numberOfLines={2}>{t('topic_concern')}: {item.intakeTopicOfConcern || 'General'}</Text>
+              </View>
+            ) : null}
+          </View>
+          <View style={styles.actionRow}>
+            <TouchableOpacity style={styles.actionBtn} onPress={() => onViewChat(item.id)}>
+              <Text style={styles.actionBtnText}>{t('view_chat') || 'View Chat'}</Text>
+            </TouchableOpacity>
+            {(item.intakeBirthDate) ? (
+              <TouchableOpacity style={styles.actionBtnOutline} onPress={() => openKundali(item)}>
+                <Text style={styles.actionBtnOutlineText}>{t('open_kundli') || 'Open Kundali'}</Text>
+              </TouchableOpacity>
+            ) : null}
+            <TouchableOpacity style={styles.actionBtnOutline} onPress={() => onSuggestRemedy(item)}>
+              <Text style={styles.actionBtnOutlineText}>{t('suggest_remedy') || 'Suggest Remedy'}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+};
+
+// ─── Main Screen ───
+const ChatHistoryScreen = ({ onBack, isSubScreen = false, onOpenSubScreen }) => {
+  const { astrologer } = useSelector((s) => s.auth);
   const { t } = useTranslation();
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedItem, setSelectedItem] = useState(null);
+  const [collapsedIds, setCollapsedIds] = useState({});
+  const [selectedChatId, setSelectedChatId] = useState(null);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [remedyTarget, setRemedyTarget] = useState(null);
+
+  const fetchMessages = async (id) => {
+    setSelectedChatId(id);
+    setLoadingMessages(true);
+    setChatMessages([]);
+    try {
+      const res = await chatApi.getMessages({ chatRequestId: id });
+      const msgs = res.data?.recordList || res.data?.data || [];
+      setChatMessages(Array.isArray(msgs) ? msgs : []);
+    } catch (_) {}
+    setLoadingMessages(false);
+  };
+
+  const handleOpenKundali = (item) => {
+    if (onOpenSubScreen) {
+      onOpenSubScreen('Kundali', {
+        name: item.intakeName || item.userName,
+        gender: item.intakeGender || 'Male',
+        birthDate: item.intakeBirthDate,
+        birthTime: item.intakeBirthTime || '12:00:00',
+        birthPlace: item.intakeBirthPlace || 'New Delhi',
+        latitude: String(item.intakeLat || item.lat || item.latitude || '28.6139'),
+        longitude: String(item.intakeLon || item.lon || item.longitude || '77.2090'),
+        autoSubmit: true,
+      });
+    }
+  };
+
+  const handleSuggestRemedy = (item) => {
+    setRemedyTarget({
+      chatRequestId: item.id,
+      userId: item.userId,
+      name: item.intakeName || item.userName,
+    });
+  };
 
   const load = async () => {
     try {
       const res = await chatApi.getChatHistory({ astrologerId: astrologer?.id, startIndex: 0, fetchRecord: 50 });
-      setHistory(res.data?.recordList || []);
+      const list = res.data?.recordList || res.data?.chatList || res.data?.data || [];
+      setHistory(Array.isArray(list) ? list : []);
     } catch (_) { }
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
-  const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
-
-  const renderItem = ({ item }) => {
-    const isSuccess = item.chatStatus === 'Completed';
-    const isFree = item.isFreeSession == 1;
-
-    return (
-      <TouchableOpacity
-        activeOpacity={0.8}
-        onPress={() => setSelectedItem(item)}
-        style={styles.orderCard}
-      >
-        <View style={styles.cardHeader}>
-          <View style={styles.brandContainer}>
-            <View style={styles.brandLogo}>
-              <Text style={styles.logoEmoji}>💬</Text>
-            </View>
-            <View>
-              <Text style={styles.brandName}>Astrovell</Text>
-              <Text style={styles.orderId}>#{item.id || 'N/A'}</Text>
-            </View>
-          </View>
-          <View style={[styles.statusBadge, { backgroundColor: isSuccess ? '#ECFDF5' : '#FEF2F2' }]}>
-            <Text style={[styles.statusText, { color: isSuccess ? '#059669' : '#DC2626' }]}>
-              {isFree ? t('free_session').toUpperCase() : (isSuccess ? t('success') : item.chatStatus)}
-            </Text>
-            {isSuccess && <Ionicons name="checkmark-circle" size={14} color="#059669" />}
-          </View>
-        </View>
-
-        <View style={styles.cardBody}>
-          <View style={styles.infoGrid}>
-            <View style={styles.infoItem}>
-              <Ionicons name="person-outline" size={16} color={colors.textLight} />
-              <Text style={styles.infoLabel}>{item.userName || t('user')}</Text>
-            </View>
-            <View style={styles.infoItem}>
-              <Ionicons name="time-outline" size={16} color={colors.textLight} />
-              <Text style={styles.infoLabel}>{item.totalMin || 0} {t('min')}</Text>
-            </View>
-            <View style={styles.infoItem}>
-              <Ionicons name="chatbubble-ellipses-outline" size={16} color={colors.textLight} />
-              <Text style={styles.infoLabel}>{t('chat')}</Text>
-            </View>
-          </View>
-
-          <View style={styles.divider} />
-
-          <View style={styles.cardFooter}>
-            <View>
-              <Text style={styles.dateText}>
-                {item.created_at ? new Date(item.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : ''}
-              </Text>
-              <Text style={styles.timeText}>
-                {item.created_at ? new Date(item.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : ''}
-              </Text>
-            </View>
-            <View style={styles.earningsContainer}>
-              <Text style={styles.earningsLabel}>{t('earnings')}</Text>
-              <Text style={styles.earningsValue}>₹{parseFloat(item.deductionFromAstrologer || 0).toFixed(2)}</Text>
-            </View>
-          </View>
-        </View>
-
-      </TouchableOpacity>
-    );
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
   };
 
   return (
     <View style={styles.container}>
-      {!isSubScreen && <ScreenHeader title={t('chat_history')} subtitle={t('chat_history_desc')} onBack={onBack} />}
+      {!isSubScreen && (
+        <ScreenHeader title={t('chat_history')} subtitle={t('chat_history_desc')} onBack={onBack} />
+      )}
+
       {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={colors.goldDark} size="large" />
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color={colors.goldDark} />
           <Text style={styles.loadingText}>{t('fetching_records')}</Text>
         </View>
       ) : (
         <FlatList
           data={history}
-          keyExtractor={(item, i) => String(item.id ?? i)}
-          renderItem={renderItem}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.gold} />}
-          contentContainerStyle={{ padding: 16, paddingBottom: 60 }}
+          keyExtractor={(item, i) => String(item.id || i)}
+          renderItem={({ item }) => (
+            <HistoryItem
+              item={item}
+              isOpen={!collapsedIds[item.id]}
+              onToggle={() => setCollapsedIds(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
+              t={t}
+              onViewChat={fetchMessages}
+              openKundali={handleOpenKundali}
+              onSuggestRemedy={handleSuggestRemedy}
+            />
+          )}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.goldDark} />
+          }
+          contentContainerStyle={styles.list}
+          showsVerticalScrollIndicator={false}
           ListEmptyComponent={
-            <View style={styles.empty}>
-              <View style={styles.emptyIconCircle}>
-                <Text style={styles.emptyIcon}>💬</Text>
-              </View>
-              <Text style={styles.emptyTitle}>{t('no_sessions')}</Text>
-              <Text style={styles.emptyDesc}>{t('chat_history_desc')}</Text>
+            <View style={styles.centered}>
+              <MaterialCommunityIcons
+                name="chat-remove-outline"
+                size={56}
+                color={colors.textMuted}
+              />
+              <Text style={styles.emptyText}>{t('no_sessions')}</Text>
+              <Text style={styles.emptySubText}>{t('chat_history_desc')}</Text>
             </View>
           }
         />
       )}
 
-      {/* Details Modal */}
-      <Modal
-        visible={!!selectedItem}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setSelectedItem(null)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{t('session_details')}</Text>
-              <TouchableOpacity onPress={() => setSelectedItem(null)}>
-                <Ionicons name="close-circle" size={28} color={colors.textLight} />
-              </TouchableOpacity>
-            </View>
-
-            {selectedItem && (
-              <ScrollView showsVerticalScrollIndicator={false}>
-                <View style={styles.detailUserCard}>
-                  <View style={styles.detailAvatarWrap}>
-                    {selectedItem.userProfile ? (
-                      <Image
-                        source={{ uri: selectedItem.userProfile.startsWith('http') ? selectedItem.userProfile : `${BASE_IMG}${selectedItem.userProfile}` }}
-                        style={styles.detailAvatar}
-                      />
-                    ) : (
-                      <View style={[styles.detailAvatar, styles.detailAvatarPlaceholder]}>
-                        <Text style={styles.detailAvatarLetter}>{(selectedItem.userName || 'U')[0].toUpperCase()}</Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text style={styles.detailUserName}>{selectedItem.userName || t('anonymous')}</Text>
-                  <View style={[styles.statusBadge, { marginTop: 8, alignSelf: 'center' }]}>
-                    <Text style={styles.statusBadgeText}>{t('successful')} {t('consultations')}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.detailSection}>
-                  <DetailRow label={t('transaction_id')} value={`#${selectedItem.id || 'N/A'}`} icon="finger-print-outline" />
-                  <DetailRow label={t('dob')} value={selectedItem.created_at ? new Date(selectedItem.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }) : 'N/A'} icon="calendar-outline" />
-                  <DetailRow label={t('tob')} value={selectedItem.created_at ? new Date(selectedItem.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : 'N/A'} icon="time-outline" />
-                  <DetailRow label={t('duration')} value={`${selectedItem.totalMin || 0} ${t('minutes')}`} icon="hourglass-outline" />
-                  <DetailRow label={t('net_earning')} value={`₹${parseFloat(selectedItem.deductionFromAstrologer || 0).toFixed(2)}`} icon="wallet-outline" color={colors.success} />
-                </View>
-
-                {selectedItem.review && (
-                  <View style={[styles.detailSection, { marginTop: 16 }]}>
-                    <Text style={styles.sectionLabel}>{t('user_review')}</Text>
-                    <View style={styles.reviewBox}>
-                      <Text style={styles.reviewText}>"{selectedItem.review}"</Text>
-                    </View>
-                  </View>
-                )}
-
-                <TouchableOpacity
-                  style={styles.closeBtn}
-                  onPress={() => setSelectedItem(null)}
-                >
-                  <Text style={styles.closeBtnText}>{t('close_details')}</Text>
-                </TouchableOpacity>
-              </ScrollView>
-            )}
+      <Modal visible={!!selectedChatId} transparent={false} animationType="slide" onRequestClose={() => setSelectedChatId(null)}>
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setSelectedChatId(null)} style={styles.modalCloseBtn}>
+              <Ionicons name="close" size={24} color={colors.text} />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>{t('chat_history') || 'Chat History'}</Text>
+            <View style={{ width: 24 }} />
           </View>
-        </View>
+          {loadingMessages ? (
+            <View style={styles.centered}>
+              <ActivityIndicator size="large" color={colors.goldDark} />
+            </View>
+          ) : (
+            <FlatList
+              data={chatMessages}
+              keyExtractor={(item, i) => String(item.id || i)}
+              renderItem={({ item }) => {
+                const isSent = item.senderType === 'astrologer';
+                return (
+                  <View style={[styles.bubble, isSent ? styles.bubbleSent : styles.bubbleReceived]}>
+                    <Text style={[styles.bubbleText, !isSent && styles.bubbleTextReceived]}>{item.message}</Text>
+                    <Text style={[styles.bubbleTime, !isSent && { color: colors.textMuted }]}>{new Date(item.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</Text>
+                  </View>
+                );
+              }}
+              contentContainerStyle={styles.messagesList}
+              ListEmptyComponent={<Text style={styles.emptySubText}>{t('no_messages') || 'No messages found.'}</Text>}
+            />
+          )}
+        </SafeAreaView>
       </Modal>
+
+      <RemedyModal
+        visible={!!remedyTarget}
+        target={remedyTarget}
+        onClose={() => setRemedyTarget(null)}
+      />
     </View>
   );
 };
 
-const DetailRow = ({ label, value, icon, color }) => (
-  <View style={styles.detailRow}>
-    <View style={styles.detailRowLeft}>
-      <Ionicons name={icon} size={20} color={colors.goldDark} style={{ marginRight: 12 }} />
-      <Text style={styles.detailLabel}>{label}</Text>
-    </View>
-    <Text style={[styles.detailValue, color && { color }]}>{value}</Text>
-  </View>
-);
-
 export default ChatHistoryScreen;
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FAFAFA' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingText: { marginTop: 12, color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
-
-  orderCard: {
+  container: { flex: 1, backgroundColor: '#F7F7F7' },
+  list: { padding: 14, gap: 10 },
+  historyCard: {
     backgroundColor: colors.white,
-    borderRadius: 20,
-    marginBottom: 16,
-    marginHorizontal: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
-    overflow: 'hidden',
+    borderColor: '#EFEFEF',
+    padding: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  cardHeader: {
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  avatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+  },
+  avatarFallback: {
+    backgroundColor: colors.goldBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.gold,
+  },
+  cardInfo: { flex: 1 },
+  userName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 3,
+  },
+  topic: { fontSize: 12, color: colors.textMuted, marginBottom: 3 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  date: { fontSize: 11, color: colors.textSecondary },
+  metaDot: { fontSize: 11, color: colors.textMuted },
+  earningsText: { fontSize: 11, color: colors.goldDark, fontWeight: '700' },
+
+  cardRight: { alignItems: 'flex-end' },
+  statusBadge: {
+    borderRadius: 6,
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  statusText: { fontSize: 11, fontWeight: '700' },
+
+  centered: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+  },
+  loadingText: { color: colors.textMuted, marginTop: 12, fontSize: 14 },
+  emptyText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    marginTop: 16,
+  },
+  emptySubText: {
+    fontSize: 13,
+    color: colors.textMuted,
+    marginTop: 6,
+    textAlign: 'center',
+  },
+  expandedSection: {
+    borderTopWidth: 1,
+    borderTopColor: '#F0F0F0',
+    paddingTop: 12,
+    marginTop: 12,
+  },
+  detailGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    gap: 12,
+  },
+  detailCol: {
+    flex: 1,
+    gap: 4,
+  },
+  detailLabel: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  detailVal: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    lineHeight: 15,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+    flexWrap: 'wrap',
+  },
+  actionBtn: {
+    flex: 1,
+    minWidth: '30%',
+    backgroundColor: colors.gold,
+    paddingVertical: 8,
+    borderRadius: 8,
     alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#F8FAFC',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
   },
-  brandContainer: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  brandLogo: {
-    width: 36, height: 36, borderRadius: 10,
-    backgroundColor: colors.white,
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: '#E2E8F0',
+  actionBtnText: {
+    color: colors.white,
+    fontWeight: '700',
+    fontSize: 13,
   },
-  logoEmoji: { fontSize: 18 },
-  brandName: { fontSize: 15, fontWeight: '800', color: colors.text },
-  orderId: { fontSize: 12, color: colors.textLight, marginTop: 1 },
-  statusBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8,
+  actionBtnOutline: {
+    flex: 1,
+    minWidth: '30%',
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: colors.gold,
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: 'center',
   },
-  statusText: { fontSize: 12, fontWeight: '700' },
-
-  cardBody: { padding: 16 },
-  infoGrid: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
-  infoItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  infoLabel: { fontSize: 13, color: colors.text, fontWeight: '600' },
-
-  divider: { height: 1, backgroundColor: '#F1F5F9', marginBottom: 16 },
-
-  cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  dateText: { fontSize: 13, color: colors.text, fontWeight: '700' },
-  timeText: { fontSize: 12, color: colors.textLight, marginTop: 2 },
-
-  earningsContainer: { alignItems: 'flex-end' },
-  earningsLabel: { fontSize: 11, color: colors.textLight, fontWeight: '700', textTransform: 'uppercase' },
-  earningsValue: { fontSize: 18, fontWeight: '800', color: colors.goldDark },
-
-
-  empty: { alignItems: 'center', marginTop: 80, paddingHorizontal: 40 },
-  emptyIconCircle: {
-    width: 80, height: 80, borderRadius: 40,
-    backgroundColor: '#E0F2FE',
-    alignItems: 'center', justifyContent: 'center',
-    marginBottom: 20,
+  actionBtnOutlineText: {
+    color: colors.goldDark,
+    fontWeight: '700',
+    fontSize: 13,
   },
-  emptyIcon: { fontSize: 32 },
-  emptyTitle: { color: colors.text, fontSize: 18, fontWeight: '800', marginBottom: 8 },
-  emptyDesc: { color: colors.textMuted, fontSize: 14, textAlign: 'center', lineHeight: 20 },
-
-  // Modal Styles
-  modalOverlay: {
-    flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.7)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: colors.white,
-    borderTopLeftRadius: 32, borderTopRightRadius: 32,
-    padding: 24, maxHeight: '85%',
-  },
+  modalContainer: { flex: 1, backgroundColor: '#F7F7F7' },
   modalHeader: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    marginBottom: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#EFEFEF',
+    backgroundColor: colors.white,
   },
-  modalTitle: { color: colors.text, fontSize: 20, fontWeight: '900' },
-  detailUserCard: { alignItems: 'center', marginBottom: 24 },
-  detailAvatarWrap: {
-    width: 80, height: 80, borderRadius: 40,
-    borderWidth: 3, borderColor: colors.gold,
-    padding: 2, backgroundColor: colors.white, marginBottom: 12,
+  modalTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
+  modalCloseBtn: { padding: 4 },
+  messagesList: { padding: 14, paddingBottom: 20 },
+  bubble: {
+    maxWidth: '80%',
+    borderRadius: 16,
+    padding: 12,
+    marginBottom: 8,
   },
-  detailAvatar: { width: '100%', height: '100%', borderRadius: 40 },
-  detailAvatarPlaceholder: {
-    backgroundColor: colors.goldBg,
-    alignItems: 'center', justifyContent: 'center',
+  bubbleSent: {
+    backgroundColor: colors.gold,
+    alignSelf: 'flex-end',
+    borderBottomRightRadius: 4,
   },
-  detailAvatarLetter: { color: colors.goldDark, fontSize: 32, fontWeight: '900' },
-  detailUserName: { color: colors.text, fontSize: 22, fontWeight: '900' },
-
-  detailSection: {
-    backgroundColor: '#F8FAFC', borderRadius: 20,
-    padding: 16, borderWidth: 1, borderColor: '#F1F5F9',
+  bubbleReceived: {
+    backgroundColor: colors.white,
+    alignSelf: 'flex-start',
+    borderBottomLeftRadius: 4,
+    borderWidth: 1,
+    borderColor: '#EFEFEF',
   },
-  detailRow: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#E2E8F0',
+  bubbleText: { color: colors.white, fontSize: 14, lineHeight: 20 },
+  bubbleTextReceived: { color: colors.text },
+  bubbleTime: {
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.7)',
+    marginTop: 4,
+    alignSelf: 'flex-end',
   },
-  detailRowLeft: { flexDirection: 'row', alignItems: 'center' },
-  detailLabel: { color: colors.textSecondary, fontSize: 14, fontWeight: '600' },
-  detailValue: { color: colors.text, fontSize: 15, fontWeight: '800' },
-
-  sectionLabel: { color: colors.textMuted, fontSize: 11, fontWeight: '800', textTransform: 'uppercase', marginBottom: 8, paddingLeft: 4 },
-  reviewBox: {
-    backgroundColor: colors.goldBg,
-    borderRadius: 16, padding: 14,
-    borderLeftWidth: 4, borderLeftColor: colors.gold,
-  },
-  reviewText: { color: colors.text, fontSize: 13, fontStyle: 'italic', lineHeight: 18 },
-
-  closeBtn: {
-    marginTop: 24, backgroundColor: colors.gold,
-    borderRadius: 18, paddingVertical: 16, alignItems: 'center',
-    shadowColor: colors.gold, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3, shadowRadius: 8, elevation: 5,
-  },
-  closeBtnText: { color: colors.text, fontSize: 16, fontWeight: '900' },
 });

@@ -10,9 +10,11 @@ import { io } from 'socket.io-client';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { WebView } from 'react-native-webview';
+import { playRingtone, stopRingtone } from '../utils/audioPlayer';
 
 import { colors } from '../theme/colors';
-import { chatApi, callApi, boostApi } from '../api/services';
+import { chatApi, callApi, boostApi, profileApi } from '../api/services';
 import { BASE_URI, SOCKET_BASE } from '../api/apiClient';
 import {
   setChatRequests, setCallRequests,
@@ -43,6 +45,8 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
   const [boosting, setBoosting] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [showLangModal, setShowLangModal] = useState(false);
+  const [trainingVideos, setTrainingVideos] = useState([]);
+  const [selectedVideo, setSelectedVideo] = useState(null);
 
   // ── Fetch requests ────────────────────────────────────────────────────────
   const fetchRequests = useCallback(async () => {
@@ -70,10 +74,23 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
     } catch (_) { }
   }, [astrologer?.id]);
 
+  const fetchTrainingVideos = useCallback(async () => {
+    try {
+      const res = await profileApi.getTrainingVideos({ type: 'astrologer' });
+      console.log('[DashboardScreen] getTrainingVideos response count:', (res.data?.recordList || []).length);
+      setTrainingVideos(res.data?.recordList || res.data?.data || []);
+    } catch (err) {
+      console.warn('[DashboardScreen] Failed to fetch training videos:', err);
+    }
+  }, []);
+
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchRequests();
-    await fetchBoost();
+    await Promise.allSettled([
+      fetchRequests(),
+      fetchBoost(),
+      fetchTrainingVideos(),
+    ]);
     setRefreshing(false);
   };
 
@@ -85,17 +102,24 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
       transports: ['websocket', 'polling'],
     });
     socket.on('connect', () => console.log('[Astrologer Socket] connected'));
+
     socket.on('new-chat-request', (data) => {
       if (data.astrologerId === astrologer?.id) {
+        playRingtone();
         fetchRequests();
-        Alert.alert('💬 New Chat Request', `${data.request?.userName || 'A customer'} wants to chat!`);
+        Alert.alert('💬 New Chat Request', `${data.request?.userName || 'A customer'} wants to chat!`, [
+          { text: 'OK', onPress: stopRingtone }
+        ]);
       }
     });
     socket.on('new-call-request', (data) => {
       if (data.astrologerId === astrologer?.id) {
+        playRingtone();
         fetchRequests();
         const callType = data.call_type == 11 ? 'Video' : 'Audio';
-        Alert.alert(`📞 New ${callType} Call`, 'A customer wants to connect with you!');
+        Alert.alert(`📞 New ${callType} Call`, 'A customer wants to connect with you!', [
+          { text: 'OK', onPress: stopRingtone }
+        ]);
       }
     });
     socketRef.current = socket;
@@ -105,6 +129,7 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
     dispatch(setLoading(true));
     fetchRequests();
     fetchBoost();
+    fetchTrainingVideos();
     connectSocket();
     pollRef.current = setInterval(fetchRequests, 6000);
     return () => {
@@ -136,6 +161,7 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
 
   // ── Accept / Reject ───────────────────────────────────────────────────────
   const handleAcceptChat = async (req) => {
+    stopRingtone();
     try {
       if (!can('chat_accept')) return Alert.alert('Permission Denied', 'You do not have permission to accept chats.');
       if (socketRef.current?.connected) {
@@ -152,6 +178,7 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
   };
 
   const handleRejectChat = async (req) => {
+    stopRingtone();
     if (!can('chat_reject')) return Alert.alert('Permission Denied', 'You do not have permission to reject chats.');
     Alert.alert('Reject Chat', 'Are you sure you want to reject this chat?', [
       { text: 'Cancel', style: 'cancel' },
@@ -171,6 +198,7 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
   };
 
   const handleAcceptCall = async (req) => {
+    stopRingtone();
     try {
       if (socketRef.current?.connected) {
         socketRef.current.emit('join-call', { callId: req.id });
@@ -191,6 +219,7 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
   };
 
   const handleRejectCall = async (req) => {
+    stopRingtone();
     if (!can('call_reject')) return Alert.alert('Permission Denied', 'You do not have permission to reject calls.');
     Alert.alert('Reject Call', 'Are you sure?', [
       { text: 'Cancel', style: 'cancel' },
@@ -397,6 +426,32 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 40 }}
       >
+        {/* ── Active Session Banner ───────────────────────────────────────── */}
+        {activeSession && (
+          <TouchableOpacity
+            style={styles.activeSessionBanner}
+            activeOpacity={0.9}
+            onPress={() => {
+              if (activeSession.type === 'chat') {
+                navigation.navigate('ChatRoom', { chatId: activeSession.id });
+              } else {
+                navigation.navigate('CallRoom', { callId: activeSession.id, isAccepted: true });
+              }
+            }}
+          >
+            <View style={styles.bannerContent}>
+              <View style={styles.bannerDot} />
+              <Text style={styles.bannerText}>
+                Active {activeSession.type === 'chat' ? 'Chat' : 'Call'} with {activeSession.name} ({activeSession.status})
+              </Text>
+            </View>
+            <View style={styles.resumeBadge}>
+              <Text style={styles.resumeText}>Resume</Text>
+              <Ionicons name="arrow-forward" size={14} color={colors.white} />
+            </View>
+          </TouchableOpacity>
+        )}
+
         {/* ── Availability Switches ───────────────────────────────────────── */}
         {can('dashboard_status_toggles') && (
           <View style={styles.availabilityCard}>
@@ -533,6 +588,82 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
           </>
         )}
 
+        {/* ── Feedback to CEO Section ─────────────────────────────────────── */}
+        {can('feedback_ceo') && (
+          <>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>📬 {t('feedback_ceo')}</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.feedbackCard}
+              activeOpacity={0.85}
+              onPress={() => onOpenSubScreen?.('FeedbackCeo')}
+            >
+              <LinearGradient
+                colors={['#FFF5F5', '#FFF0F0']}
+                style={styles.feedbackCardBg}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              >
+                <View style={styles.feedbackLeft}>
+                  <View style={styles.feedbackIconCircle}>
+                    <Ionicons name="chatbubble-ellipses" size={24} color="#C53030" />
+                  </View>
+                  <View style={styles.feedbackTextWrap}>
+                    <Text style={styles.feedbackTitle}>{t('feedback_ceo')}</Text>
+                    <Text style={styles.feedbackSubtitle}>Direct message to the CEO's office</Text>
+                  </View>
+                </View>
+                <View style={styles.feedbackActionBtn}>
+                  <Ionicons name="chevron-forward" size={20} color="#C53030" />
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
+          </>
+        )}
+
+        {/* ── Training Videos Section ─────────────────────────────────────── */}
+        {trainingVideos.length > 0 && (
+          <>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>🎥 {t('training_videos')}</Text>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.videosScroll}
+            >
+              {trainingVideos.map((video) => {
+                const coverUri = getProfileImageUri(video.cover_image);
+                return (
+                  <TouchableOpacity
+                    key={video.id}
+                    style={styles.videoCard}
+                    activeOpacity={0.85}
+                    onPress={() => setSelectedVideo(video)}
+                  >
+                    <View style={styles.videoCoverWrap}>
+                      {coverUri ? (
+                        <Image source={{ uri: coverUri }} style={styles.videoCover} />
+                      ) : (
+                        <View style={styles.videoCoverPlaceholder}>
+                          <Text style={{ fontSize: 24 }}>🎞️</Text>
+                        </View>
+                      )}
+                      <View style={styles.playIconOverlay}>
+                        <Ionicons name="play" size={20} color={colors.white} />
+                      </View>
+                    </View>
+                    <Text style={styles.videoTitle} numberOfLines={2}>
+                      {video.title}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </>
+        )}
+
         {/* ── Active Requests ────────────────────────────────────────────── */}
         {can('dashboard_active_requests') && (
           <>
@@ -645,6 +776,29 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
+      </Modal>
+
+      {/* Video Player WebView Modal */}
+      <Modal visible={!!selectedVideo} transparent={false} animationType="slide" onRequestClose={() => setSelectedVideo(null)}>
+        <View style={styles.videoPlayerOverlay}>
+          <TouchableOpacity
+            style={styles.videoPlayerCloseBtn}
+            onPress={() => setSelectedVideo(null)}
+          >
+            <Ionicons name="close" size={24} color={colors.white} />
+          </TouchableOpacity>
+          {selectedVideo && (
+            <View style={styles.webviewContainer}>
+              <WebView
+                source={{ uri: selectedVideo.video_link }}
+                style={{ flex: 1 }}
+                javaScriptEnabled={true}
+                domStorageEnabled={true}
+                allowsFullscreenVideo={true}
+              />
+            </View>
+          )}
+        </View>
       </Modal>
     </View>
   );
@@ -932,7 +1086,186 @@ const styles = StyleSheet.create({
     paddingVertical: 14, paddingHorizontal: 16, borderRadius: 12, marginBottom: 8,
     borderWidth: 1, borderColor: '#F1F5F9',
   },
+  activeSessionBanner: {
+    backgroundColor: colors.goldBg,
+    borderRadius: 12,
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 8,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: colors.gold,
+    elevation: 3,
+    shadowColor: colors.gold,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  bannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  bannerDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.success,
+    marginRight: 8,
+  },
+  bannerText: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '600',
+    flex: 1,
+  },
+  resumeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.gold,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 4,
+  },
+  resumeText: {
+    color: colors.white,
+    fontSize: 12,
+    fontWeight: '700',
+  },
   langOptionActive: { backgroundColor: colors.goldBg, borderColor: colors.goldLight },
   langOptionText: { fontSize: 16, fontWeight: '700', color: colors.textSecondary },
   langOptionTextActive: { color: colors.text },
+  feedbackCard: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#FFF0F0',
+  },
+  feedbackCardBg: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+  },
+  feedbackLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  feedbackIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: '#FFE5E5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  feedbackTextWrap: {
+    flex: 1,
+  },
+  feedbackTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: colors.text,
+  },
+  feedbackSubtitle: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  feedbackActionBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FFE5E5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  videosScroll: {
+    paddingHorizontal: 16,
+    gap: 12,
+    paddingBottom: 8,
+  },
+  videoCard: {
+    width: 160,
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 6,
+    elevation: 2,
+    marginBottom: 8,
+  },
+  videoCoverWrap: {
+    width: '100%',
+    height: 90,
+    backgroundColor: colors.border,
+    position: 'relative',
+  },
+  videoCover: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  videoCoverPlaceholder: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  playIconOverlay: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    marginLeft: -18,
+    marginTop: -18,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  videoTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.text,
+    padding: 10,
+    lineHeight: 16,
+    height: 48,
+  },
+  videoPlayerOverlay: {
+    flex: 1,
+    backgroundColor: colors.black,
+    justifyContent: 'center',
+  },
+  videoPlayerCloseBtn: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    zIndex: 999,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  webviewContainer: {
+    flex: 1,
+    marginTop: 100,
+  },
 });

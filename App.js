@@ -10,6 +10,7 @@ import { store, persistor } from './src/store/store';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AppNavigator from './src/navigation/AppNavigator';
+import { Audio } from 'expo-av';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -76,6 +77,15 @@ export default function App() {
   const responseListener = useRef();
 
   useEffect(() => {
+    // Configure global Audio settings so ringtones work on silent mode
+    Audio.setAudioModeAsync({
+      allowsRecordingIOS: false,
+      playsInSilentModeIOS: true,
+      staysActiveInBackground: true,
+      shouldDuckAndroid: true,
+      playThroughEarpieceAndroid: false,
+    }).catch(console.warn);
+
     registerForPushNotificationsAsync().then(token => setExpoPushToken(token));
 
     notificationListener.current = Notifications.addNotificationReceivedListener(noti => {
