@@ -18,6 +18,7 @@ import {
   View, Text, StyleSheet, TouchableOpacity,
   StatusBar, ActivityIndicator, Alert, Dimensions, Platform, PermissionsAndroid,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { WebView } from 'react-native-webview';
 // Agora native SDK — optional, only available in dev builds (not Expo Go)
 let createAgoraRtcEngine, ClientRoleType, ChannelProfileType, RtcSurfaceView;
@@ -219,16 +220,29 @@ const CallRoomScreen = ({ route, navigation }) => {
   const timerValRef = useRef(0);
 
   // ── Timer ───────────────────────────────────────────────────────────────
-  const startTimer = useCallback(() => {
+  const startTimer = useCallback(async () => {
     clearInterval(timerRef.current);
+    const storedStartTimeStr = await AsyncStorage.getItem(`call_start_${callId}`);
+    let startTime = Date.now();
+    if (storedStartTimeStr) {
+      startTime = parseInt(storedStartTimeStr, 10);
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      setTimer(elapsed);
+      timerValRef.current = elapsed;
+    } else {
+      await AsyncStorage.setItem(`call_start_${callId}`, startTime.toString());
+      setTimer(0);
+      timerValRef.current = 0;
+    }
+
     timerRef.current = setInterval(() => {
-      setTimer((p) => {
-        const next = p + 1;
-        timerValRef.current = next;
-        return next;
+      setTimer(() => {
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        timerValRef.current = elapsed;
+        return elapsed;
       });
     }, 1000);
-  }, []);
+  }, [callId]);
 
   const stopTimer = useCallback(() => {
     clearInterval(timerRef.current);
@@ -546,6 +560,7 @@ const CallRoomScreen = ({ route, navigation }) => {
       stopTimer();
       stopHeartbeat();
       stopMetricsFlush();
+      AsyncStorage.removeItem(`call_start_${callId}`).catch(() => {});
     });
 
     socket.on('call-error', (data) => {
@@ -615,6 +630,7 @@ const CallRoomScreen = ({ route, navigation }) => {
           stopTimer();
           stopHeartbeat();
           stopMetricsFlush();
+          AsyncStorage.removeItem(`call_start_${callId}`).catch(() => {});
           setPhase('completed');
         },
       },

@@ -25,6 +25,7 @@ import { setChatStatus, setCallStatus, setGlobalLang } from '../store/slices/aut
 import usePermissions from '../hooks/usePermissions';
 import useActiveSession from '../hooks/useActiveSession';
 import useTranslation from '../hooks/useTranslation';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const BASE_IMG = BASE_URI;
 
@@ -38,6 +39,34 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
   const { can } = usePermissions();
   const activeSession = useActiveSession();
   const { t } = useTranslation();
+  const [bannerTimer, setBannerTimer] = useState(null);
+
+  useEffect(() => {
+    let interval;
+    if (activeSession) {
+      const updateTimer = async () => {
+        const key = activeSession.type === 'chat' ? `chat_start_${activeSession.id}` : `call_start_${activeSession.id}`;
+        const storedStartTimeStr = await AsyncStorage.getItem(key);
+        if (storedStartTimeStr) {
+          const startTime = parseInt(storedStartTimeStr, 10);
+          const elapsed = Math.floor((Date.now() - startTime) / 1000);
+          setBannerTimer(Math.max(0, elapsed));
+        }
+      };
+      updateTimer();
+      interval = setInterval(updateTimer, 1000);
+    } else {
+      setBannerTimer(null);
+    }
+    return () => clearInterval(interval);
+  }, [activeSession]);
+
+  const formatBannerTimer = (sec) => {
+    if (sec == null) return '';
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return ` • ${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
 
   const socketRef = useRef(null);
   const pollRef = useRef(null);
@@ -442,7 +471,7 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
             <View style={styles.bannerContent}>
               <View style={styles.bannerDot} />
               <Text style={styles.bannerText}>
-                Active {activeSession.type === 'chat' ? 'Chat' : 'Call'} with {activeSession.name} ({activeSession.status})
+                Active {activeSession.type === 'chat' ? 'Chat' : 'Call'} with {activeSession.name} ({activeSession.status}){formatBannerTimer(bannerTimer)}
               </Text>
             </View>
             <View style={styles.resumeBadge}>

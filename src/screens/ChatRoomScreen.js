@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { chatApi, pujaApi, kundaliApi, horoscopeApi } from '../api/services';
 import { SOCKET_BASE, BASE_IMG } from '../api/apiClient';
 import usePermissions from '../hooks/usePermissions';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const ChatRoomScreen = ({ route, navigation }) => {
   const { chatId } = route?.params || {};
@@ -72,8 +73,19 @@ const ChatRoomScreen = ({ route, navigation }) => {
         const msgs = d?.recordList || d?.data || [];
         if (Array.isArray(msgs)) setMessages(msgs);
       }
-      // Start elapsed timer
-      timerRef.current = setInterval(() => setTimeElapsed(p => p + 1), 1000);
+      // Start elapsed timer safely using AsyncStorage
+      const storedStartTimeStr = await AsyncStorage.getItem(`chat_start_${chatId}`);
+      let startTime = Date.now();
+      if (storedStartTimeStr) {
+        startTime = parseInt(storedStartTimeStr, 10);
+        setTimeElapsed(Math.floor((Date.now() - startTime) / 1000));
+      } else {
+        await AsyncStorage.setItem(`chat_start_${chatId}`, startTime.toString());
+        setTimeElapsed(0);
+      }
+      timerRef.current = setInterval(() => {
+        setTimeElapsed(Math.floor((Date.now() - startTime) / 1000));
+      }, 1000);
       connectSocket();
     } catch (_) { }
     setLoading(false);
@@ -129,6 +141,7 @@ const ChatRoomScreen = ({ route, navigation }) => {
     // ── Chat ended ───────────────────────────────────────────────────────────
     socket.on('chat-ended', (data) => {
       clearInterval(timerRef.current);
+      AsyncStorage.removeItem(`chat_start_${chatId}`).catch(() => {});
       Alert.alert('Chat Ended', data?.message || 'Chat session ended');
       setChatDetail(prev => ({ ...prev, chatStatus: 'Completed' }));
     });
@@ -138,6 +151,7 @@ const ChatRoomScreen = ({ route, navigation }) => {
       Alert.alert('Chat Cancelled', data?.message || 'Customer cancelled the chat request');
       setChatDetail(prev => ({ ...prev, chatStatus: 'Cancelled' }));
       clearInterval(timerRef.current);
+      AsyncStorage.removeItem(`chat_start_${chatId}`).catch(() => {});
     });
 
     // ── Customer disconnected ────────────────────────────────────────────────
@@ -220,6 +234,7 @@ const ChatRoomScreen = ({ route, navigation }) => {
         text: 'End Chat', style: 'destructive', onPress: () => {
           socketRef.current?.emit('end-chat', { chatRequestId: chatId });
           clearInterval(timerRef.current);
+          AsyncStorage.removeItem(`chat_start_${chatId}`).catch(() => {});
           setChatDetail(prev => ({ ...prev, chatStatus: 'Completed' }));
         },
       },
