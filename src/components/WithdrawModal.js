@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import {
   Modal, View, Text, TextInput, TouchableOpacity,
-  StyleSheet, ScrollView, ActivityIndicator, Alert,
+  StyleSheet, ScrollView, ActivityIndicator,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { walletApi } from '../api/services';
 import { colors } from '../theme/colors';
 
@@ -34,14 +35,14 @@ const WithdrawModal = ({ visible, balance, astrologerId, onClose, onSuccess }) =
   const formValid = isFormValid();
 
   const handleSubmit = async () => {
-    if (!form.amount || parseFloat(form.amount) <= 0) { Alert.alert('Error', 'Enter valid amount'); return; }
-    if (parseFloat(form.amount) > balance) { Alert.alert('Error', 'Insufficient balance'); return; }
+    if (!form.amount || parseFloat(form.amount) <= 0) { Toast.show({ type: 'error', text1: 'Error', text2: 'Enter valid amount' }); return; }
+    if (parseFloat(form.amount) > balance) { Toast.show({ type: 'error', text1: 'Error', text2: 'Insufficient balance' }); return; }
     if (form.paymentMethod === 'bank') {
       if (!form.accountNumber || !form.ifscCode || !form.accountHolderName) {
-        Alert.alert('Error', 'Fill all bank details'); return;
+        Toast.show({ type: 'error', text1: 'Error', text2: 'Fill all bank details' }); return;
       }
     } else {
-      if (!form.upiId) { Alert.alert('Error', 'Enter UPI ID'); return; }
+      if (!form.upiId) { Toast.show({ type: 'error', text1: 'Error', text2: 'Enter UPI ID' }); return; }
     }
     setSubmitting(true);
     try {
@@ -54,11 +55,11 @@ const WithdrawModal = ({ visible, balance, astrologerId, onClose, onSuccess }) =
         accountHolderName: form.accountHolderName,
         upiId: form.upiId,
       });
-      Alert.alert('✅ Success', 'Withdrawal request submitted!');
+      Toast.show({ type: 'success', text1: '✅ Success', text2: 'Withdrawal request submitted!' });
       setForm({ amount: '', paymentMethod: 'bank', accountNumber: '', ifscCode: '', accountHolderName: '', upiId: '' });
       onSuccess();
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.message || 'Failed to submit request');
+      Toast.show({ type: 'error', text1: 'Error', text2: err.response?.data?.message || 'Failed to submit request' });
     }
     setSubmitting(false);
   };

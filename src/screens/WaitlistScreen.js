@@ -7,10 +7,11 @@ import {
   ScrollView,
   Image,
   ActivityIndicator,
-  Alert,
   RefreshControl,
   Modal,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
+import { useAlert } from '../context/AlertContext';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigation } from '@react-navigation/native';
 import { io } from 'socket.io-client';
@@ -40,6 +41,7 @@ const WaitlistScreen = ({ onBack }) => {
   const { chatRequests, callRequests } = useSelector((s) => s.dashboard);
   const { can } = usePermissions();
   const { t } = useTranslation();
+  const { showAlert } = useAlert();
   const activeSession = useActiveSession();
 
   const socketRef = useRef(null);
@@ -85,9 +87,13 @@ const WaitlistScreen = ({ onBack }) => {
       if (data.astrologerId === astrologer?.id) {
         playRingtone();
         fetchRequests();
-        Alert.alert('💬 New Chat Request', `${data.request?.userName || 'A customer'} wants to chat!`, [
-          { text: 'OK', onPress: stopRingtone }
-        ]);
+        showAlert({
+          title: '💬 New Chat Request',
+          message: `${data.request?.userName || 'A customer'} wants to chat!`,
+          showCancelButton: false,
+          confirmText: 'OK',
+          onConfirmPressed: stopRingtone
+        });
       }
     });
     socket.on('new-call-request', (data) => {
@@ -95,9 +101,13 @@ const WaitlistScreen = ({ onBack }) => {
         playRingtone();
         fetchRequests();
         const callType = data.call_type == 11 ? 'Video' : 'Audio';
-        Alert.alert(`📞 New ${callType} Call`, 'A customer wants to connect with you!', [
-          { text: 'OK', onPress: stopRingtone }
-        ]);
+        showAlert({
+          title: `📞 New ${callType} Call`,
+          message: 'A customer wants to connect with you!',
+          showCancelButton: false,
+          confirmText: 'OK',
+          onConfirmPressed: stopRingtone
+        });
       }
     });
 
@@ -121,7 +131,7 @@ const WaitlistScreen = ({ onBack }) => {
   const handleAcceptChat = async (req) => {
     stopRingtone();
     try {
-      if (!can('chat_accept')) return Alert.alert('Permission Denied', 'You do not have permission to accept chats.');
+      if (!can('chat_accept')) return Toast.show({ type: 'error', text1: 'Permission Denied', text2: 'You do not have permission to accept chats.' });
       if (socketRef.current?.connected) {
         socketRef.current.emit('join-chat', { chatRequestId: req.id });
         socketRef.current.emit('accept-chat', { chatRequestId: req.id });
@@ -131,32 +141,31 @@ const WaitlistScreen = ({ onBack }) => {
       dispatch(removeChatRequest(req.id));
       navigation.navigate('ChatRoom', { chatId: req.id });
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.message || 'Failed to accept chat');
+      Toast.show({ type: 'error', text1: 'Error', text2: err.response?.data?.message || 'Failed to accept chat' });
     }
   };
 
   const handleRejectChat = async (req) => {
     stopRingtone();
-    if (!can('chat_reject')) return Alert.alert('Permission Denied', 'You do not have permission to reject chats.');
-    Alert.alert('Reject Chat', 'Are you sure you want to reject this chat request?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Reject',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            if (socketRef.current?.connected) {
-              socketRef.current.emit('reject-chat', { chatRequestId: req.id });
-            } else {
-              await chatApi.rejectRequest({ chatId: req.id });
-            }
-            dispatch(removeChatRequest(req.id));
-          } catch (_) {
-            Alert.alert('Error', 'Failed to reject chat');
+    if (!can('chat_reject')) return Toast.show({ type: 'error', text1: 'Permission Denied', text2: 'You do not have permission to reject chats.' });
+    showAlert({
+      title: 'Reject Chat',
+      message: 'Are you sure you want to reject this chat request?',
+      cancelText: 'Cancel',
+      confirmText: 'Reject',
+      onConfirmPressed: async () => {
+        try {
+          if (socketRef.current?.connected) {
+            socketRef.current.emit('reject-chat', { chatRequestId: req.id });
+          } else {
+            await chatApi.rejectRequest({ chatId: req.id });
           }
-        },
-      },
-    ]);
+          dispatch(removeChatRequest(req.id));
+        } catch (_) {
+          Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to reject chat' });
+        }
+      }
+    });
   };
 
   const handleAcceptCall = async (req) => {
@@ -175,32 +184,31 @@ const WaitlistScreen = ({ onBack }) => {
         initialData: req,
       });
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.message || 'Failed to accept call');
+      Toast.show({ type: 'error', text1: 'Error', text2: err.response?.data?.message || 'Failed to accept call' });
     }
   };
 
   const handleRejectCall = async (req) => {
     stopRingtone();
-    if (!can('call_reject')) return Alert.alert('Permission Denied', 'You do not have permission to reject calls.');
-    Alert.alert('Reject Call', 'Are you sure you want to reject this call request?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Reject',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            if (socketRef.current?.connected) {
-              socketRef.current.emit('reject-call', { callId: req.id });
-            } else {
-              await callApi.rejectRequest({ callId: req.id });
-            }
-            dispatch(removeCallRequest(req.id));
-          } catch (_) {
-            Alert.alert('Error', 'Failed to reject call');
+    if (!can('call_reject')) return Toast.show({ type: 'error', text1: 'Permission Denied', text2: 'You do not have permission to reject calls.' });
+    showAlert({
+      title: 'Reject Call',
+      message: 'Are you sure you want to reject this call request?',
+      cancelText: 'Cancel',
+      confirmText: 'Reject',
+      onConfirmPressed: async () => {
+        try {
+          if (socketRef.current?.connected) {
+            socketRef.current.emit('reject-call', { callId: req.id });
+          } else {
+            await callApi.rejectRequest({ callId: req.id });
           }
-        },
-      },
-    ]);
+          dispatch(removeCallRequest(req.id));
+        } catch (_) {
+          Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to reject call' });
+        }
+      }
+    });
   };
 
   const getProfileImageUri = (path) => {

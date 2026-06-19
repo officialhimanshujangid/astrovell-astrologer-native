@@ -16,8 +16,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  StatusBar, ActivityIndicator, Alert, Dimensions, Platform, PermissionsAndroid,
+  StatusBar, ActivityIndicator, Dimensions, Platform, PermissionsAndroid,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
+import { useAlert } from '../context/AlertContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { WebView } from 'react-native-webview';
 // Agora native SDK — optional, only available in dev builds (not Expo Go)
@@ -184,6 +186,7 @@ const ZegoBridge = React.forwardRef(({ config, onMessage }, ref) => {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 const CallRoomScreen = ({ route, navigation }) => {
   const insets = useSafeAreaInsets();
+  const { showAlert } = useAlert();
   const { callId, isAccepted = false, initialData = null } = route?.params || {};
   const onBack = () => {
     if (navigation && navigation.goBack) {
@@ -415,7 +418,7 @@ const CallRoomScreen = ({ route, navigation }) => {
       } else {
         setPhase('active');
         startTimer();
-        Alert.alert('Voice Error', 'Server failed to provide voice token.');
+        Toast.show({ type: 'error', text1: 'Voice Error', text2: 'Server failed to provide voice token.' });
       }
     } catch (e) {
       setPhase('active');
@@ -456,7 +459,7 @@ const CallRoomScreen = ({ route, navigation }) => {
         },
         onError: (err, msg) => {
           console.warn('[Agora Native] Error:', err, msg);
-          Alert.alert('Call Error', msg || String(err));
+          Toast.show({ type: 'error', text1: 'Call Error', text2: msg || String(err) });
         },
         onTokenPrivilegeWillExpire: () => refreshToken(),
         onConnectionStateChanged: (connection, state, reason) => {
@@ -485,7 +488,7 @@ const CallRoomScreen = ({ route, navigation }) => {
 
     } catch (e) {
       console.error('[Agora Native] Init error:', e);
-      Alert.alert('Agora Error', e.message || String(e));
+      Toast.show({ type: 'error', text1: 'Agora Error', text2: e.message || String(e) });
     }
 
     return () => {
@@ -564,7 +567,7 @@ const CallRoomScreen = ({ route, navigation }) => {
     });
 
     socket.on('call-error', (data) => {
-      Alert.alert('Call Error', data.message || 'An error occurred.');
+      Toast.show({ type: 'error', text1: 'Call Error', text2: data.message || 'An error occurred.' });
     });
 
     return () => {
@@ -591,50 +594,50 @@ const CallRoomScreen = ({ route, navigation }) => {
       connectVoice(isVideoCall);
       startMetricsFlush();
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.message || 'Failed to accept call.');
+      Toast.show({ type: 'error', text1: 'Error', text2: err.response?.data?.message || 'Failed to accept call.' });
     }
     setAccepting(false);
   };
 
   const handleReject = () => {
-    Alert.alert('Reject Call', 'Reject this call request?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Reject', style: 'destructive',
-        onPress: async () => {
-          setRejecting(true);
-          try {
-            if (socketRef.current?.connected) {
-              socketRef.current.emit('reject-call', { callId: parseInt(callId) });
-            } else {
-              await callApi.rejectRequest({ callId: parseInt(callId) });
-            }
-            setPhase('rejected');
-            setTimeout(() => onBack?.(), 1800);
-          } catch (_) {
-            setRejecting(false);
+    showAlert({
+      title: 'Reject Call',
+      message: 'Reject this call request?',
+      cancelText: 'Cancel',
+      confirmText: 'Reject',
+      onConfirmPressed: async () => {
+        setRejecting(true);
+        try {
+          if (socketRef.current?.connected) {
+            socketRef.current.emit('reject-call', { callId: parseInt(callId) });
+          } else {
+            await callApi.rejectRequest({ callId: parseInt(callId) });
           }
-        },
-      },
-    ]);
+          setPhase('rejected');
+          setTimeout(() => onBack?.(), 1800);
+        } catch (_) {
+          setRejecting(false);
+        }
+      }
+    });
   };
 
   const handleEndCall = () => {
-    Alert.alert('End Call', 'End this call session?', [
-      { text: 'Keep Going', style: 'cancel' },
-      {
-        text: 'End Call', style: 'destructive',
-        onPress: () => {
-          socketRef.current?.emit('end-call', { callId: parseInt(callId) });
-          releaseAgora();
-          stopTimer();
-          stopHeartbeat();
-          stopMetricsFlush();
-          AsyncStorage.removeItem(`call_start_${callId}`).catch(() => {});
-          setPhase('completed');
-        },
-      },
-    ]);
+    showAlert({
+      title: 'End Call',
+      message: 'End this call session?',
+      cancelText: 'Keep Going',
+      confirmText: 'End Call',
+      onConfirmPressed: () => {
+        socketRef.current?.emit('end-call', { callId: parseInt(callId) });
+        releaseAgora();
+        stopTimer();
+        stopHeartbeat();
+        stopMetricsFlush();
+        AsyncStorage.removeItem(`call_start_${callId}`).catch(() => {});
+        setPhase('completed');
+      }
+    });
   };
 
   const handleWebViewMessage = (e) => {
@@ -651,7 +654,7 @@ const CallRoomScreen = ({ route, navigation }) => {
           break;
         case 'error':
           console.warn('[ZegoBridge Error]', msg.data);
-          Alert.alert('Voice Error', msg.data);
+          Toast.show({ type: 'error', text1: 'Voice Error', text2: msg.data });
           break;
       }
     } catch (_) { }

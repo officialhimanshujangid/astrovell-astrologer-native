@@ -23,9 +23,9 @@ const LoadingScreen = () => (
 );
 
 const AppNavigator = () => {
-  const { isLoggedIn, setupCompleted, profileCheckLoading } = useSelector((s) => s.auth);
+  const { isLoggedIn, setupCompleted } = useSelector((s) => s.auth);
 
-  console.log('[AppNavigator] Flow Check:', { isLoggedIn, setupCompleted, profileCheckLoading });
+  console.log('[AppNavigator] Flow Check:', { isLoggedIn, setupCompleted });
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -34,8 +34,6 @@ const AppNavigator = () => {
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Register" component={RegisterScreen} />
         </>
-      ) : profileCheckLoading ? (
-        <Stack.Screen name="Loading" component={LoadingScreen} />
       ) : !setupCompleted ? (
         <Stack.Screen name="SetupPreference" component={SetupPreferenceScreen} />
       ) : (

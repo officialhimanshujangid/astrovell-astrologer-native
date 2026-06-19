@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, Modal,
-  TextInput, ActivityIndicator, Alert, RefreshControl, ScrollView, Image,
+  TextInput, ActivityIndicator, RefreshControl, ScrollView, Image,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
+import { useAlert } from '../context/AlertContext';
 import { useSelector } from 'react-redux';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,6 +18,7 @@ const BASE_IMG = BASE_URI;
 const PujaScreen = ({ onBack }) => {
   const { astrologer } = useSelector(s => s.auth);
   const insets = useSafeAreaInsets();
+  const { showAlert } = useAlert();
   const [pujas, setPujas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -41,34 +44,35 @@ const PujaScreen = ({ onBack }) => {
 
   const handleCreate = async () => {
     if (!form.puja_title.trim() || !form.puja_price) {
-      Alert.alert('Error', 'Enter puja title and price'); return;
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Enter puja title and price' }); return;
     }
     setSaving(true);
     try {
       await pujaApi.add({ ...form, astrologerId: astrologer?.id });
-      Alert.alert('✅ Success', 'Puja created! Awaiting admin approval.');
+      Toast.show({ type: 'success', text1: '✅ Success', text2: 'Puja created! Awaiting admin approval.' });
       setShowCreate(false);
       setForm({ puja_title: '', puja_price: '', puja_place: '', short_description: '', long_description: '' });
       load();
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.message || 'Failed to create puja');
+      Toast.show({ type: 'error', text1: 'Error', text2: err.response?.data?.message || 'Failed to create puja' });
     }
     setSaving(false);
   };
 
   const handleDelete = (id) => {
-    Alert.alert('Delete Puja', 'Delete this puja?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete', style: 'destructive', onPress: async () => {
-          try {
-            await pujaApi.delete({ id });
-            setPujas(prev => prev.filter(p => p.id !== id));
-            setSelectedPuja(null);
-          } catch (_) { Alert.alert('Error', 'Failed to delete'); }
-        },
-      },
-    ]);
+    showAlert({
+      title: 'Delete Puja',
+      message: 'Delete this puja?',
+      cancelText: 'Cancel',
+      confirmText: 'Delete',
+      onConfirmPressed: async () => {
+        try {
+          await pujaApi.delete({ id });
+          setPujas(prev => prev.filter(p => p.id !== id));
+          setSelectedPuja(null);
+        } catch (_) { Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to delete' }); }
+      }
+    });
   };
 
   const getPujaImage = (p) => {

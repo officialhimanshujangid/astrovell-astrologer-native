@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TextInput,
-  TouchableOpacity, ActivityIndicator, Alert, ScrollView,
+  TouchableOpacity, ActivityIndicator, ScrollView,
   KeyboardAvoidingView, Platform
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { colors } from '../theme/colors';
 import ScreenHeader from '../components/ScreenHeader';
 import useTranslation from '../hooks/useTranslation';
@@ -17,12 +18,12 @@ const FeedbackCeoScreen = ({ onBack }) => {
   const handleSubmit = async () => {
     const trimmedFeedback = feedback.trim();
     if (!trimmedFeedback) {
-      Alert.alert('Validation Error', 'Please enter your feedback before submitting.');
+      Toast.show({ type: 'error', text1: 'Validation Error', text2: 'Please enter your feedback before submitting.' });
       return;
     }
 
     if (trimmedFeedback.length < 10) {
-      Alert.alert('Validation Error', 'Feedback must be at least 10 characters long.');
+      Toast.show({ type: 'error', text1: 'Validation Error', text2: 'Feedback must be at least 10 characters long.' });
       return;
     }
 
@@ -36,22 +37,15 @@ const FeedbackCeoScreen = ({ onBack }) => {
 
       console.log('[FeedbackCeoScreen] API response:', res.data);
       if (res.data?.status === 200 || res.data?.message?.toLowerCase().includes('sucessfully') || res.data?.message?.toLowerCase().includes('success')) {
-        Alert.alert(
-          'Feedback Submitted',
-          res.data?.message || 'App review add sucessfully',
-          [{ text: 'OK', onPress: () => onBack() }]
-        );
+        Toast.show({ type: 'success', text1: 'Feedback Submitted', text2: res.data?.message || 'App review add sucessfully' });
+        onBack();
       } else {
-        Alert.alert('Feedback Submitted', res.data?.message || 'Feedback added successfully.', [
-          { text: 'OK', onPress: () => onBack() }
-        ]);
+        Toast.show({ type: 'success', text1: 'Feedback Submitted', text2: res.data?.message || 'Feedback added successfully.' });
+        onBack();
       }
     } catch (err) {
       console.warn('[FeedbackCeoScreen] Submit feedback failed:', err);
-      Alert.alert(
-        'Submission Failed',
-        err.response?.data?.message || 'Failed to submit feedback. Please try again.'
-      );
+      Toast.show({ type: 'error', text1: 'Submission Failed', text2: err.response?.data?.message || 'Failed to submit feedback. Please try again.' });
     } finally {
       setLoading(false);
     }

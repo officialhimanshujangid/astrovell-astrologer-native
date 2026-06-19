@@ -44,6 +44,10 @@ const CallItem = ({ item, isOpen, onToggle, t, openKundali, onSuggestRemedy }) =
   const isVideo = item.call_type == 11;
   const statusColor = STATUS_COLORS[item.callStatus] || colors.textMuted;
 
+  const totalAmount = parseFloat(item.deduction || item.amount || 0);
+  const platformFee = parseFloat(item.deductionFromAstrologer || 0);
+  const netEarning = totalAmount - platformFee;
+
   return (
     <TouchableOpacity
       style={styles.card}
@@ -67,7 +71,7 @@ const CallItem = ({ item, isOpen, onToggle, t, openKundali, onSuggestRemedy }) =
             <Ionicons name={isVideo ? "videocam-outline" : "call-outline"} size={12} color={colors.textMuted} />
             <Text style={styles.metaText}>{isVideo ? t('video') : t('voice')}</Text>
             <Text style={styles.metaDot}>·</Text>
-            <Text style={styles.earningsText}>Earnings: ₹{parseFloat(item.deductionFromAstrologer || 0).toFixed(2)}</Text>
+            <Text style={styles.earningsText}>Total: ₹{totalAmount.toFixed(2)} · Net: ₹{netEarning.toFixed(2)}</Text>
           </View>
           {item.created_at ? <Text style={styles.date}>{fmtDate(item.created_at)}</Text> : null}
         </View>
@@ -94,10 +98,12 @@ const CallItem = ({ item, isOpen, onToggle, t, openKundali, onSuggestRemedy }) =
               <Text style={styles.detailVal}>{t('call_type')}: {isVideo ? t('video_call') : t('voice_call')}</Text>
               <Text style={styles.detailVal}>{t('duration')}: {item.totalMin || 0} mins</Text>
               <Text style={styles.detailVal}>Rate: ₹{item.callRate || 0}/min</Text>
-              <Text style={styles.detailVal}>{t('net_earning')}: ₹{parseFloat(item.deductionFromAstrologer || 0).toFixed(2)}</Text>
-              {(item.endedBy || item.endReason) && (
+              <Text style={styles.detailVal}>Total Earning: ₹{totalAmount.toFixed(2)}</Text>
+              <Text style={styles.detailVal}>Platform Fee: ₹{platformFee.toFixed(2)}</Text>
+              <Text style={styles.detailVal}>{t('net_earning')}: ₹{netEarning.toFixed(2)}</Text>
+              {/* {(item.endedBy || item.endReason) && (
                 <Text style={styles.detailVal}>Ended By: {item.endedBy || 'N/A'} ({item.endReason || 'manual'})</Text>
-              )}
+              )} */}
             </View>
             {(item.intakeName || item.intakeGender || item.intakeBirthDate) ? (
               <View style={styles.detailCol}>
@@ -278,6 +284,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
     marginBottom: 3,
+    flexWrap: 'wrap',
   },
   metaText: { fontSize: 12, color: colors.textMuted },
   metaDot: { fontSize: 12, color: colors.textMuted },

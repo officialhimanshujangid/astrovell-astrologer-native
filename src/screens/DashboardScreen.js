@@ -1,9 +1,11 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  RefreshControl, Alert, ScrollView, Switch,
+  RefreshControl, ScrollView, Switch,
   Image, ActivityIndicator, Modal,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
+import { useAlert } from '../context/AlertContext';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigation } from '@react-navigation/native';
 import { io } from 'socket.io-client';
@@ -21,7 +23,7 @@ import {
   removeChatRequest, removeCallRequest,
   setBoostInfo, setLoading,
 } from '../store/slices/dashboardSlice';
-import { setChatStatus, setCallStatus, setGlobalLang } from '../store/slices/authSlice';
+import { setChatStatus, setCallStatus, setGlobalLang, fetchAstrologerProfile } from '../store/slices/authSlice';
 import usePermissions from '../hooks/usePermissions';
 import useActiveSession from '../hooks/useActiveSession';
 import useTranslation from '../hooks/useTranslation';
@@ -36,6 +38,7 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
   const insets = useSafeAreaInsets();
   const { astrologer, token, chatStatus, callStatus, globalLang } = useSelector(s => s.auth);
   const { chatRequests, callRequests, boostInfo, loading } = useSelector(s => s.dashboard);
+  const { showAlert } = useAlert();
   const { can } = usePermissions();
   const activeSession = useActiveSession();
   const { t } = useTranslation();
@@ -116,6 +119,7 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
   const onRefresh = async () => {
     setRefreshing(true);
     await Promise.allSettled([
+      dispatch(fetchAstrologerProfile(astrologer?.id)),
       fetchRequests(),
       fetchBoost(),
       fetchTrainingVideos(),
@@ -136,9 +140,13 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
       if (data.astrologerId === astrologer?.id) {
         playRingtone();
         fetchRequests();
-        Alert.alert('💬 New Chat Request', `${data.request?.userName || 'A customer'} wants to chat!`, [
-          { text: 'OK', onPress: stopRingtone }
-        ]);
+        showAlert({
+          title: '💬 New Chat Request',
+          message: `${data.request?.userName || 'A customer'} wants to chat!`,
+          showCancelButton: false,
+          confirmText: 'OK',
+          onConfirmPressed: stopRingtone
+        });
       }
     });
     socket.on('new-call-request', (data) => {
@@ -146,9 +154,13 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
         playRingtone();
         fetchRequests();
         const callType = data.call_type == 11 ? 'Video' : 'Audio';
-        Alert.alert(`📞 New ${callType} Call`, 'A customer wants to connect with you!', [
-          { text: 'OK', onPress: stopRingtone }
-        ]);
+        showAlert({
+          title: `📞 New ${callType} Call`,
+          message: 'A customer wants to connect with you!',
+          showCancelButton: false,
+          confirmText: 'OK',
+          onConfirmPressed: stopRingtone
+        });
       }
     });
     socketRef.current = socket;
@@ -156,6 +168,7 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
 
   useEffect(() => {
     dispatch(setLoading(true));
+    dispatch(fetchAstrologerProfile(astrologer?.id));
     fetchRequests();
     fetchBoost();
     fetchTrainingVideos();
@@ -174,7 +187,7 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
       await chatApi.updateStatus({ astrologerId: astrologer?.id, status: newStatus });
       dispatch(setChatStatus(newStatus));
     } catch (_) {
-      Alert.alert('Error', 'Failed to update chat status');
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to update chat status' });
     }
   };
 
@@ -184,7 +197,7 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
       await chatApi.updateStatus({ astrologerId: astrologer?.id, status: newStatus });
       dispatch(setCallStatus(newStatus));
     } catch (_) {
-      Alert.alert('Error', 'Failed to update call status');
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to update call status' });
     }
   };
 
@@ -192,7 +205,7 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
   const handleAcceptChat = async (req) => {
     stopRingtone();
     try {
-      if (!can('chat_accept')) return Alert.alert('Permission Denied', 'You do not have permission to accept chats.');
+      if (!can('chat_accept')) return Toast.show({ type: 'error', text1: 'Permission Denied', text2: 'You do not have permission to accept chats.' });
       if (socketRef.current?.connected) {
         socketRef.current.emit('join-chat', { chatRequestId: req.id });
         socketRef.current.emit('accept-chat', { chatRequestId: req.id });
@@ -202,28 +215,29 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
       dispatch(removeChatRequest(req.id));
       navigation.navigate('ChatRoom', { chatId: req.id });
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.message || 'Failed to accept chat');
+      Toast.show({ type: 'error', text1: 'Error', text2: err.response?.data?.message || 'Failed to accept chat' });
     }
   };
 
   const handleRejectChat = async (req) => {
     stopRingtone();
-    if (!can('chat_reject')) return Alert.alert('Permission Denied', 'You do not have permission to reject chats.');
-    Alert.alert('Reject Chat', 'Are you sure you want to reject this chat?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Reject', style: 'destructive', onPress: async () => {
-          try {
-            if (socketRef.current?.connected) {
-              socketRef.current.emit('reject-chat', { chatRequestId: req.id });
-            } else {
-              await chatApi.rejectRequest({ chatId: req.id });
-            }
-            dispatch(removeChatRequest(req.id));
-          } catch (_) { Alert.alert('Error', 'Failed to reject chat'); }
-        },
-      },
-    ]);
+    if (!can('chat_reject')) return Toast.show({ type: 'error', text1: 'Permission Denied', text2: 'You do not have permission to reject chats.' });
+    showAlert({
+      title: 'Reject Chat',
+      message: 'Are you sure you want to reject this chat?',
+      cancelText: 'Cancel',
+      confirmText: 'Reject',
+      onConfirmPressed: async () => {
+        try {
+          if (socketRef.current?.connected) {
+            socketRef.current.emit('reject-chat', { chatRequestId: req.id });
+          } else {
+            await chatApi.rejectRequest({ chatId: req.id });
+          }
+          dispatch(removeChatRequest(req.id));
+        } catch (_) { Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to reject chat' }); }
+      }
+    });
   };
 
   const handleAcceptCall = async (req) => {
@@ -243,52 +257,54 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
         initialData: req
       });
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.message || 'Failed to accept call');
+      Toast.show({ type: 'error', text1: 'Error', text2: err.response?.data?.message || 'Failed to accept call' });
     }
   };
 
   const handleRejectCall = async (req) => {
     stopRingtone();
-    if (!can('call_reject')) return Alert.alert('Permission Denied', 'You do not have permission to reject calls.');
-    Alert.alert('Reject Call', 'Are you sure?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Reject', style: 'destructive', onPress: async () => {
-          try {
-            if (socketRef.current?.connected) {
-              socketRef.current.emit('reject-call', { callId: req.id });
-            } else {
-              await callApi.rejectRequest({ callId: req.id });
-            }
-            dispatch(removeCallRequest(req.id));
-          } catch (_) { }
-        },
-      },
-    ]);
+    if (!can('call_reject')) return Toast.show({ type: 'error', text1: 'Permission Denied', text2: 'You do not have permission to reject calls.' });
+    showAlert({
+      title: 'Reject Call',
+      message: 'Are you sure?',
+      cancelText: 'Cancel',
+      confirmText: 'Reject',
+      onConfirmPressed: async () => {
+        try {
+          if (socketRef.current?.connected) {
+            socketRef.current.emit('reject-call', { callId: req.id });
+          } else {
+            await callApi.rejectRequest({ callId: req.id });
+          }
+          dispatch(removeCallRequest(req.id));
+        } catch (_) { }
+      }
+    });
   };
 
   const handleBoost = async () => {
     if (!can('dashboard_boost')) return;
-    Alert.alert('Boost Profile', 'Boost your profile for 24 hours?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Boost Now', onPress: async () => {
-          setBoosting(true);
-          try {
-            const res = await boostApi.boost({ astrologer_id: astrologer?.id });
-            if (res.data?.status === 200) {
-              Alert.alert('🚀 Boosted!', 'Your profile is now boosted for 24 hours!');
-              fetchBoost();
-            } else {
-              Alert.alert('Error', res.data?.message || 'Failed to boost');
-            }
-          } catch (e) {
-            Alert.alert('Error', e.response?.data?.message || 'Failed to boost');
+    showAlert({
+      title: 'Boost Profile',
+      message: 'Boost your profile for 24 hours?',
+      cancelText: 'Cancel',
+      confirmText: 'Boost Now',
+      onConfirmPressed: async () => {
+        setBoosting(true);
+        try {
+          const res = await boostApi.boost({ astrologer_id: astrologer?.id });
+          if (res.data?.status === 200) {
+            Toast.show({ type: 'success', text1: '🚀 Boosted!', text2: 'Your profile is now boosted for 24 hours!' });
+            fetchBoost();
+          } else {
+            Toast.show({ type: 'error', text1: 'Error', text2: res.data?.message || 'Failed to boost' });
           }
-          setBoosting(false);
-        },
-      },
-    ]);
+        } catch (e) {
+          Toast.show({ type: 'error', text1: 'Error', text2: e.response?.data?.message || 'Failed to boost' });
+        }
+        setBoosting(false);
+      }
+    });
   };
 
   const getProfileImageUri = (path) => {

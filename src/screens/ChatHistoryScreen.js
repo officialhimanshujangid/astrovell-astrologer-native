@@ -34,9 +34,13 @@ const getProfileImageUri = (path) => {
 // ─── Chat History Item Accordion ───
 const HistoryItem = ({ item, isOpen, onToggle, t, onViewChat, openKundali, onSuggestRemedy }) => {
   const avatarUri = getProfileImageUri(item.userProfile);
-  const isCompleted = item.chatStatus === 'Completed';
+  const isCompleted = item.chatStatus === 'Completed' || item.chatStatus === 'completed';
   const isFree = item.isFreeSession == 1;
   const statusColor = isCompleted ? colors.success : colors.error;
+
+  const totalAmount = parseFloat(item.deduction || 0);
+  const platformFee = parseFloat(item.deductionFromAstrologer || 0);
+  const netEarning = totalAmount - platformFee;
 
   return (
     <TouchableOpacity
@@ -62,7 +66,7 @@ const HistoryItem = ({ item, isOpen, onToggle, t, onViewChat, openKundali, onSug
           <View style={styles.metaRow}>
             <Text style={styles.date}>{fmtDate(item.created_at || item.date)}</Text>
             <Text style={styles.metaDot}>·</Text>
-            <Text style={styles.earningsText}>Earnings: ₹{parseFloat(item.deductionFromAstrologer || 0).toFixed(2)}</Text>
+            <Text style={styles.earningsText}>Total: ₹{totalAmount.toFixed(2)} · Net: ₹{netEarning.toFixed(2)}</Text>
           </View>
         </View>
         <View style={styles.cardRight}>
@@ -92,10 +96,12 @@ const HistoryItem = ({ item, isOpen, onToggle, t, onViewChat, openKundali, onSug
               <Text style={styles.detailLabel}>{t('session_details')}</Text>
               <Text style={styles.detailVal}>{t('duration')}: {item.totalMin || 0} mins</Text>
               <Text style={styles.detailVal}>Rate: ₹{item.chatRate || 0}/min</Text>
-              <Text style={styles.detailVal}>{t('net_earning')}: ₹{parseFloat(item.deductionFromAstrologer || 0).toFixed(2)}</Text>
-              {(item.endedBy || item.endReason) && (
+              <Text style={styles.detailVal}>Total Earning: ₹{totalAmount.toFixed(2)}</Text>
+              <Text style={styles.detailVal}>Platform Fee: ₹{platformFee.toFixed(2)}</Text>
+              <Text style={styles.detailVal}>{t('net_earning')}: ₹{netEarning.toFixed(2)}</Text>
+              {/* {(item.endedBy || item.endReason) && (
                 <Text style={styles.detailVal}>Ended By: {item.endedBy || 'N/A'} ({item.endReason || 'manual'})</Text>
-              )}
+              )} */}
             </View>
             {(item.intakeName || item.intakeGender || item.intakeBirthDate) ? (
               <View style={styles.detailCol}>
@@ -149,7 +155,7 @@ const ChatHistoryScreen = ({ onBack, isSubScreen = false, onOpenSubScreen }) => 
       const res = await chatApi.getMessages({ chatRequestId: id });
       const msgs = res.data?.recordList || res.data?.data || [];
       setChatMessages(Array.isArray(msgs) ? msgs : []);
-    } catch (_) {}
+    } catch (_) { }
     setLoadingMessages(false);
   };
 
@@ -324,7 +330,7 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   topic: { fontSize: 12, color: colors.textMuted, marginBottom: 3 },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
   date: { fontSize: 11, color: colors.textSecondary },
   metaDot: { fontSize: 11, color: colors.textMuted },
   earningsText: { fontSize: 11, color: colors.goldDark, fontWeight: '700' },

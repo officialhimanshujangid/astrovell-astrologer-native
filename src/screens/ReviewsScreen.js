@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  TextInput, ActivityIndicator, Alert, RefreshControl,
+  TextInput, ActivityIndicator, RefreshControl,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { useSelector } from 'react-redux';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { reviewApi } from '../api/services';
@@ -49,14 +50,14 @@ const ReviewsScreen = ({ onBack }) => {
 
   const handleReply = async (reviewId) => {
     const text = replies[reviewId]?.trim();
-    if (!text) { Alert.alert(t('error'), t('enter_reply')); return; }
+    if (!text) { Toast.show({ type: 'error', text1: t('error'), text2: t('enter_reply') }); return; }
     setReplyingId(reviewId);
     try {
       await reviewApi.reply({ reviewId, reply: text, astrologerId: astrologer?.id });
-      Alert.alert(`✅ ${t('success')}`, t('reply_sent'));
+      Toast.show({ type: 'success', text1: `✅ ${t('success')}`, text2: t('reply_sent') });
       setReplies(prev => ({ ...prev, [reviewId]: '' }));
       load();
-    } catch (_) { Alert.alert(t('error'), t('failed_reply')); }
+    } catch (_) { Toast.show({ type: 'error', text1: t('error'), text2: t('failed_reply') }); }
     setReplyingId(null);
   };
 

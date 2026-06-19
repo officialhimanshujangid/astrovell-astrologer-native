@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, Alert, ActivityIndicator, Image, RefreshControl, Platform
+  TextInput, ActivityIndicator, Image, RefreshControl, Platform
 } from 'react-native';
+import Toast from 'react-native-toast-message';
+import { useAlert } from '../context/AlertContext';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useDispatch, useSelector } from 'react-redux';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -32,6 +34,7 @@ const ProfileScreen = ({ onOpenSubScreen }) => {
   const { astrologer } = useSelector(s => s.auth);
   const { can } = usePermissions();
   const { t } = useTranslation();
+  const { showAlert } = useAlert();
 
   const [mode, setMode] = useState('view'); // 'view' | 'edit'
   const [loading, setLoading] = useState(true);
@@ -118,26 +121,29 @@ const ProfileScreen = ({ onOpenSubScreen }) => {
   const update = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
 
   const handleSave = async () => {
-    if (!form.name.trim()) { Alert.alert(t('error'), t('selection_required')); return; }
+    if (!form.name.trim()) { Toast.show({ type: 'error', text1: t('error'), text2: t('selection_required') }); return; }
     setSaving(true);
     try {
       const payload = { ...form, astrologerId: astrologer?.id };
       await profileApi.update(payload);
       dispatch(updateAstrologer({ name: form.name }));
-      Alert.alert(`✅ ${t('success')}`, t('profile_updated'));
+      Toast.show({ type: 'success', text1: `✅ ${t('success')}`, text2: t('profile_updated') });
       setMode('view');
       loadProfile();
     } catch (err) {
-      Alert.alert(t('error'), err.response?.data?.message || 'Failed to update profile');
+      Toast.show({ type: 'error', text1: t('error'), text2: err.response?.data?.message || 'Failed to update profile' });
     }
     setSaving(false);
   };
 
   const handleLogout = () => {
-    Alert.alert(t('logout_confirm_title'), t('logout_confirm_msg'), [
-      { text: t('cancel'), style: 'cancel' },
-      { text: t('logout_confirm_title'), style: 'destructive', onPress: () => dispatch(logout()) },
-    ]);
+    showAlert({
+      title: t('logout_confirm_title'),
+      message: t('logout_confirm_msg'),
+      cancelText: t('cancel'),
+      confirmText: t('logout_confirm_title'),
+      onConfirmPressed: () => dispatch(logout())
+    });
   };
 
   const profileImg = profile?.profileImage
@@ -220,8 +226,6 @@ const ProfileScreen = ({ onOpenSubScreen }) => {
               { key: 'email', label: t('email'), icon: 'mail', keyboard: 'email-address' },
               { key: 'whatsappNo', label: t('phone'), icon: 'logo-whatsapp', keyboard: 'phone-pad' },
               { key: 'birthDate', label: t('dob'), icon: 'calendar' },
-              { key: 'experience', label: t('experience'), icon: 'briefcase', keyboard: 'number-pad' },
-              { key: 'charge', label: t('chat_charge'), icon: 'cash', keyboard: 'number-pad' },
               { key: 'languageKnown', label: t('language'), icon: 'language' },
               { key: 'currentCity', label: t('current_city'), icon: 'navigate' },
               { key: 'country', label: t('country'), icon: 'globe' },

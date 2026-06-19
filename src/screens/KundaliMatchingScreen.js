@@ -1,9 +1,10 @@
 import React, { useState, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
-  StyleSheet, StatusBar, ActivityIndicator, Alert, Dimensions,
+  StyleSheet, StatusBar, ActivityIndicator, Dimensions,
   Platform, KeyboardAvoidingView, Modal
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { useSelector } from 'react-redux';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import apiClient from '../api/apiClient';
@@ -423,11 +424,11 @@ const KundaliMatchingScreen = ({ onBack }) => {
   const handleSubmit = async () => {
     if (!boy.name || !boy.birthDate || !boy.birthTime || !boy.birthPlace ||
       !girl.name || !girl.birthDate || !girl.birthTime || !girl.birthPlace) {
-      Alert.alert('Missing Fields', 'Please fill all fields for both Boy and Girl.');
+      Toast.show({ type: 'error', text1: 'Missing Fields', text2: 'Please fill all fields for both Boy and Girl.' });
       return;
     }
     if (!boy.latitude || !girl.latitude) {
-      Alert.alert('Location Error', 'Please select locations from suggestions.');
+      Toast.show({ type: 'error', text1: 'Location Error', text2: 'Please select locations from suggestions.' });
       return;
     }
 
@@ -457,7 +458,7 @@ const KundaliMatchingScreen = ({ onBack }) => {
 
       setResult(matchRes.data?.data || matchRes.data);
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.message || err.message);
+      Toast.show({ type: 'error', text1: 'Error', text2: err.response?.data?.message || err.message });
     }
     setLoading(false);
   };

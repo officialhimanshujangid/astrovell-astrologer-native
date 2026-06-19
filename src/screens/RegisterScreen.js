@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ScrollView, ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
+  ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { useDispatch } from 'react-redux';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -53,7 +54,7 @@ const RegisterScreen = ({ navigation }) => {
 
   const handleSendOtp = async () => {
     if (!form.contactNo || form.contactNo.length < 10) {
-      Alert.alert('Error', 'Enter valid 10-digit mobile number'); return;
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Enter valid 10-digit mobile number' }); return;
     }
     setLoading(true);
     try {
@@ -63,18 +64,18 @@ const RegisterScreen = ({ navigation }) => {
       if (res.data?.status === 200) {
         if (res.data?.otp) setDevOtp(String(res.data.otp));
         setOtpSent(true);
-        Alert.alert('✅ OTP Sent', 'Enter OTP to verify your number');
+        Toast.show({ type: 'success', text1: '✅ OTP Sent', text2: 'Enter OTP to verify your number' });
       } else {
-        Alert.alert('Error', res.data?.message || 'Failed to send OTP');
+        Toast.show({ type: 'error', text1: 'Error', text2: res.data?.message || 'Failed to send OTP' });
       }
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.message || 'Failed to send OTP');
+      Toast.show({ type: 'error', text1: 'Error', text2: err.response?.data?.message || 'Failed to send OTP' });
     }
     setLoading(false);
   };
 
   const handleVerifyOtp = async () => {
-    if (!otp.trim() || otp.length < 4) { Alert.alert('Error', 'Enter the OTP'); return; }
+    if (!otp.trim() || otp.length < 4) { Toast.show({ type: 'error', text1: 'Error', text2: 'Enter the OTP' }); return; }
     setLoading(true);
     try {
       let pushToken = '';
@@ -110,16 +111,16 @@ const RegisterScreen = ({ navigation }) => {
         setForm(prev => ({ ...prev, whatsappNo: prev.contactNo }));
         setVerified(true); // new user
       } else {
-        Alert.alert('Error', err.response?.data?.message || 'OTP verification failed');
+        Toast.show({ type: 'error', text1: 'Error', text2: err.response?.data?.message || 'OTP verification failed' });
       }
     }
     setLoading(false);
   };
 
   const handleRegister = async () => {
-    if (!form.name.trim()) { Alert.alert('Error', 'Please enter your full name'); return; }
-    if (!form.gender)      { Alert.alert('Error', 'Please select gender'); return; }
-    if (!form.termsAccepted) { Alert.alert('Error', 'Please accept the Terms and Conditions'); return; }
+    if (!form.name.trim()) { Toast.show({ type: 'error', text1: 'Error', text2: 'Please enter your full name' }); return; }
+    if (!form.gender)      { Toast.show({ type: 'error', text1: 'Error', text2: 'Please select gender' }); return; }
+    if (!form.termsAccepted) { Toast.show({ type: 'error', text1: 'Error', text2: 'Please accept the Terms and Conditions' }); return; }
     setLoading(true);
     try {
       const payload = {
@@ -143,14 +144,14 @@ const RegisterScreen = ({ navigation }) => {
           const astrologer = d.recordList?.[0] || d.recordList || payload;
           dispatch(loginSuccess({ token: d.token, astrologer }));
         } else {
-          Alert.alert('Success', 'Registration submitted! Awaiting approval. Please login.');
+          Toast.show({ type: 'success', text1: 'Success', text2: 'Registration submitted! Awaiting approval. Please login.' });
           navigation.navigate('Login');
         }
       } else {
-        Alert.alert('Error', d?.message || 'Registration failed');
+        Toast.show({ type: 'error', text1: 'Error', text2: d?.message || 'Registration failed' });
       }
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.message || 'Registration failed');
+      Toast.show({ type: 'error', text1: 'Error', text2: err.response?.data?.message || 'Registration failed' });
     }
     setLoading(false);
   };

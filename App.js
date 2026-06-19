@@ -11,6 +11,8 @@ import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AppNavigator from './src/navigation/AppNavigator';
 import { Audio } from 'expo-av';
+import Toast from 'react-native-toast-message';
+import { AlertProvider } from './src/context/AlertContext';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -110,9 +112,12 @@ export default function App() {
     <Provider store={store}>
       <PersistGate loading={<LoadingView />} persistor={persistor}>
         <SafeAreaProvider>
-          <NavigationContainer>
-            <AppNavigator />
-          </NavigationContainer>
+          <AlertProvider>
+            <NavigationContainer>
+              <AppNavigator />
+            </NavigationContainer>
+          </AlertProvider>
+          <Toast />
         </SafeAreaProvider>
       </PersistGate>
     </Provider>

@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  ActivityIndicator, Alert, RefreshControl,
+  ActivityIndicator, RefreshControl,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
+import { useAlert } from '../context/AlertContext';
 import { useSelector } from 'react-redux';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { pujaApi } from '../api/services';
@@ -12,6 +14,7 @@ import ScreenHeader from '../components/ScreenHeader';
 const PujaOrdersScreen = ({ onBack }) => {
   const { astrologer } = useSelector(s => s.auth);
   const insets = useSafeAreaInsets();
+  const { showAlert } = useAlert();
   const [orders,     setOrders]     = useState([]);
   const [loading,    setLoading]    = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -29,20 +32,21 @@ const PujaOrdersScreen = ({ onBack }) => {
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 
   const handleComplete = (orderId) => {
-    Alert.alert('Complete Order', 'Mark this puja order as completed?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Complete', onPress: async () => {
-          setCompleting(orderId);
-          try {
-            await pujaApi.completeOrder({ orderId, astrologerId: astrologer?.id });
-            Alert.alert('✅ Success', 'Puja order marked as completed!');
-            load();
-          } catch (_) { Alert.alert('Error', 'Failed to complete order'); }
-          setCompleting(null);
-        },
-      },
-    ]);
+    showAlert({
+      title: 'Complete Order',
+      message: 'Mark this puja order as completed?',
+      cancelText: 'Cancel',
+      confirmText: 'Complete',
+      onConfirmPressed: async () => {
+        setCompleting(orderId);
+        try {
+          await pujaApi.completeOrder({ orderId, astrologerId: astrologer?.id });
+          Toast.show({ type: 'success', text1: '✅ Success', text2: 'Puja order marked as completed!' });
+          load();
+        } catch (_) { Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to complete order' }); }
+        setCompleting(null);
+      }
+    });
   };
 
   const renderItem = ({ item }) => {

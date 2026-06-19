@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
-  Alert,
   StatusBar,
   Dimensions,
   PermissionsAndroid,
@@ -14,6 +13,7 @@ import {
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import Toast from 'react-native-toast-message';
 import { setGlobalLang, completeSetup } from '../store/slices/authSlice';
 import { fetchLanguages } from '../store/slices/horoscopeSlice';
 import { colors } from '../theme/colors';
@@ -65,7 +65,7 @@ const SetupPreferenceScreen = () => {
         if (granted === PermissionsAndroid.RESULTS.GRANTED) {
           setPermissionGranted(true);
         } else {
-          Alert.alert('Permission Denied', 'Microphone access is recommended for taking calls. You can enable it later in system settings.');
+          Toast.show({ type: 'error', text1: 'Permission Denied', text2: 'Microphone access is recommended for taking calls. You can enable it later in system settings.' });
         }
       } else {
         setPermissionGranted(true);
@@ -79,7 +79,7 @@ const SetupPreferenceScreen = () => {
 
   const handleContinue = () => {
     if (!selectedLang) {
-      Alert.alert(t('selection_required'), t('select_lang_msg'));
+      Toast.show({ type: 'error', text1: t('selection_required'), text2: t('select_lang_msg') });
       return;
     }
     dispatch(setGlobalLang(selectedLang));

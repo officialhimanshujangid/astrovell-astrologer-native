@@ -72,7 +72,8 @@ const authSlice = createSlice({
   extraReducers: (builder) => {
     builder
       .addCase(fetchAstrologerProfile.pending, (state) => {
-        state.profileCheckLoading = true;
+        // Do not set profileCheckLoading to true here to avoid unmounting the app navigator
+        // state.profileCheckLoading = true;
       })
       .addCase(fetchAstrologerProfile.fulfilled, (state, action) => {
         state.profileCheckLoading = false;

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Alert, BackHandler, Linking, Image, Modal, Animated, PanResponder, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, BackHandler, Linking, Image, Modal, Animated, PanResponder, Platform } from 'react-native';
+import Toast from 'react-native-toast-message';
+import { useAlert } from '../context/AlertContext';
 import { useSelector } from 'react-redux';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -80,6 +82,7 @@ const SettingsScreen = ({ onBack, initialSubScreen }) => {
   const { astrologer } = useSelector((s) => s.auth);
   const [activeSubScreen, setActiveSubScreen] = useState(initialSubScreen || null);
   const [openedDirectly] = useState(!!initialSubScreen);
+  const { showAlert } = useAlert();
 
   const handleBack = () => {
     if (openedDirectly) {
@@ -191,7 +194,7 @@ const SettingsScreen = ({ onBack, initialSubScreen }) => {
         whatsappNo: a.whatsappNo || '',
       });
     } catch (err) {
-      Alert.alert(t('error'), 'Failed to load contact information.');
+      Toast.show({ type: 'error', text1: t('error'), text2: 'Failed to load contact information.' });
     } finally {
       setFetchLoading(false);
     }
@@ -217,7 +220,7 @@ const SettingsScreen = ({ onBack, initialSubScreen }) => {
         });
       }
     } catch (err) {
-      Alert.alert(t('error'), 'Failed to load bank details.');
+      Toast.show({ type: 'error', text1: t('error'), text2: 'Failed to load bank details.' });
     } finally {
       setBankFetchLoading(false);
     }
@@ -233,7 +236,7 @@ const SettingsScreen = ({ onBack, initialSubScreen }) => {
         setForm16aList(d.recordList || []);
       }
     } catch (err) {
-      Alert.alert(t('error'), 'Failed to load Form 16A documents.');
+      Toast.show({ type: 'error', text1: t('error'), text2: 'Failed to load Form 16A documents.' });
     } finally {
       setForm16aLoading(false);
     }
@@ -242,7 +245,7 @@ const SettingsScreen = ({ onBack, initialSubScreen }) => {
   const handleDownloadForm16a = async (filePath) => {
     const url = getForm16aUrl(filePath);
     if (!url) {
-      Alert.alert(t('error'), 'Document link is invalid.');
+      Toast.show({ type: 'error', text1: t('error'), text2: 'Document link is invalid.' });
       return;
     }
     
@@ -269,7 +272,7 @@ const SettingsScreen = ({ onBack, initialSubScreen }) => {
               'application/pdf'
             );
             await FileSystem.writeAsStringAsync(savedUri, base64Data, { encoding: FileSystem.EncodingType.Base64 });
-            Alert.alert(t('success') || 'Success', 'File saved successfully!');
+            Toast.show({ type: 'success', text1: t('success') || 'Success', text2: 'File saved successfully!' });
             setForm16aLoading(false);
             return;
           }
@@ -283,11 +286,11 @@ const SettingsScreen = ({ onBack, initialSubScreen }) => {
       if (canShare) {
         await Sharing.shareAsync(uri, { UTI: 'com.adobe.pdf', mimeType: 'application/pdf' });
       } else {
-        Alert.alert(t('success') || 'Success', 'File downloaded to: ' + uri);
+        Toast.show({ type: 'success', text1: t('success') || 'Success', text2: 'File downloaded to: ' + uri });
       }
     } catch (err) {
       console.log('Download error:', err);
-      Alert.alert(t('error'), 'Failed to download: ' + (err.message || 'Unknown error'));
+      Toast.show({ type: 'error', text1: t('error'), text2: 'Failed to download: ' + (err.message || 'Unknown error') });
     } finally {
       setForm16aLoading(false);
     }
@@ -304,7 +307,7 @@ const SettingsScreen = ({ onBack, initialSubScreen }) => {
         setTermsContent(record);
       }
     } catch (err) {
-      Alert.alert(t('error'), 'Failed to load terms and conditions.');
+      Toast.show({ type: 'error', text1: t('error'), text2: 'Failed to load terms and conditions.' });
     } finally {
       setTermsLoading(false);
     }
@@ -320,7 +323,7 @@ const SettingsScreen = ({ onBack, initialSubScreen }) => {
         setVideoList(d.recordList || []);
       }
     } catch (err) {
-      Alert.alert(t('error'), 'Failed to load training videos.');
+      Toast.show({ type: 'error', text1: t('error'), text2: 'Failed to load training videos.' });
     } finally {
       setVideoLoading(false);
     }
@@ -337,10 +340,10 @@ const SettingsScreen = ({ onBack, initialSubScreen }) => {
         if (supported) {
           await Linking.openURL(video.video_link);
         } else {
-          Alert.alert(t('error'), 'Cannot open video URL: ' + video.video_link);
+          Toast.show({ type: 'error', text1: t('error'), text2: 'Cannot open video URL: ' + video.video_link });
         }
       } catch (err) {
-        Alert.alert(t('error'), 'An error occurred while opening the video link.');
+        Toast.show({ type: 'error', text1: t('error'), text2: 'An error occurred while opening the video link.' });
       }
     }
   };
@@ -355,7 +358,7 @@ const SettingsScreen = ({ onBack, initialSubScreen }) => {
         setGalleryList(d.recordList || []);
       }
     } catch (err) {
-      Alert.alert(t('error'), 'Failed to load gallery images.');
+      Toast.show({ type: 'error', text1: t('error'), text2: 'Failed to load gallery images.' });
     } finally {
       setGalleryLoading(false);
     }
@@ -367,47 +370,44 @@ const SettingsScreen = ({ onBack, initialSubScreen }) => {
       const res = await profileApi.toggleGallery({ id });
       if (res.data?.status === 200 || res.status === 200) {
         setGalleryList(prev => prev.map(item => item.id === id ? { ...item, isActive: item.isActive === 1 ? 0 : 1 } : item));
-        Alert.alert(t('success') || 'Success', res.data?.message || 'Status updated');
+        Toast.show({ type: 'success', text1: t('success') || 'Success', text2: res.data?.message || 'Status updated' });
       }
     } catch (err) {
-      Alert.alert(t('error'), 'Failed to toggle image status.');
+      Toast.show({ type: 'error', text1: t('error'), text2: 'Failed to toggle image status.' });
     }
   };
 
   // Delete Gallery image
   const handleDeleteGallery = async (id) => {
-    Alert.alert(
-      globalLang === 'hi' ? 'छवि हटाएं' : 'Delete Image',
-      globalLang === 'hi' ? 'क्या आप वाकई इस छवि को हटाना चाहते हैं?' : 'Are you sure you want to delete this image?',
-      [
-        { text: t('cancel') || 'Cancel', style: 'cancel' },
-        {
-          text: globalLang === 'hi' ? 'हटाएं' : 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const res = await profileApi.deleteGallery({ id });
-              if (res.data?.status === 200 || res.status === 200) {
-                setGalleryList(prev => prev.filter(item => item.id !== id));
-                Alert.alert(t('success') || 'Success', res.data?.message || 'Photo deleted');
-              }
-            } catch (err) {
-              Alert.alert(t('error'), 'Failed to delete image.');
-            }
+    showAlert({
+      title: globalLang === 'hi' ? 'छवि हटाएं' : 'Delete Image',
+      message: globalLang === 'hi' ? 'क्या आप वाकई इस छवि को हटाना चाहते हैं?' : 'Are you sure you want to delete this image?',
+      cancelText: t('cancel') || 'Cancel',
+      confirmText: globalLang === 'hi' ? 'हटाएं' : 'Delete',
+      onConfirmPressed: async () => {
+        try {
+          const res = await profileApi.deleteGallery({ id });
+          if (res.data?.status === 200 || res.status === 200) {
+            setGalleryList(prev => prev.filter(item => item.id !== id));
+            Toast.show({ type: 'success', text1: t('success') || 'Success', text2: res.data?.message || 'Photo deleted' });
           }
+        } catch (err) {
+          Toast.show({ type: 'error', text1: t('error'), text2: 'Failed to delete image.' });
         }
-      ]
-    );
+      }
+    });
   };
 
   // Pick and Upload Image
   const handleUploadGallery = async () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (permissionResult.granted === false) {
-      Alert.alert(
-        globalLang === 'hi' ? 'अनुमति आवश्यक है' : "Permission Required", 
-        globalLang === 'hi' ? 'छवि अपलोड करने के लिए आपको फ़ोटो एक्सेस की अनुमति देनी होगी।' : "You need to allow access to your photos to upload images."
-      );
+      showAlert({
+        title: globalLang === 'hi' ? 'अनुमति आवश्यक है' : "Permission Required",
+        message: globalLang === 'hi' ? 'छवि अपलोड करने के लिए आपको फ़ोटो एक्सेस की अनुमति देनी होगी।' : "You need to allow access to your photos to upload images.",
+        showCancelButton: false,
+        confirmText: 'OK'
+      });
       return;
     }
 
@@ -530,13 +530,13 @@ const SettingsScreen = ({ onBack, initialSubScreen }) => {
       });
 
       if (res.data?.status === 200 || res.status === 200) {
-        Alert.alert(t('success') || 'Success', res.data?.message || 'Photo uploaded');
+        Toast.show({ type: 'success', text1: t('success') || 'Success', text2: res.data?.message || 'Photo uploaded' });
         setAdjustModalVisible(false);
         loadGalleryData(); // Refresh list
       }
     } catch (err) {
       console.log('Image processing error:', err);
-      Alert.alert(t('error'), 'Failed to process and upload image.');
+      Toast.show({ type: 'error', text1: t('error'), text2: 'Failed to process and upload image.' });
     } finally {
       setUploadLoading(false);
     }
@@ -560,7 +560,7 @@ const SettingsScreen = ({ onBack, initialSubScreen }) => {
   // Submit Updated Billing Address
   const handleUpdateBillingAddress = async () => {
     if (!billingAddress.trim()) {
-      Alert.alert(t('error'), globalLang === 'hi' ? 'कृपया बिलिंग पता दर्ज करें।' : 'Please enter a billing address.');
+      Toast.show({ type: 'error', text1: t('error'), text2: globalLang === 'hi' ? 'कृपया बिलिंग पता दर्ज करें।' : 'Please enter a billing address.' });
       return;
     }
     setSaveLoading(true);
@@ -571,16 +571,17 @@ const SettingsScreen = ({ onBack, initialSubScreen }) => {
       });
       const d = res.data;
       if (d?.status === 200 || res.status === 200) {
-        Alert.alert(
-          `✅ ${t('success')}`,
-          d.message || (globalLang === 'hi' ? 'बिलिंग पता सफलतापूर्वक अपडेट किया गया।' : 'Billing address updated successfully.')
-        );
+        Toast.show({
+          type: 'success',
+          text1: `✅ ${t('success')}`,
+          text2: d.message || (globalLang === 'hi' ? 'बिलिंग पता सफलतापूर्वक अपडेट किया गया।' : 'Billing address updated successfully.')
+        });
         handleBack();
       } else {
-        Alert.alert(t('error'), d?.message || 'Failed to update billing address.');
+        Toast.show({ type: 'error', text1: t('error'), text2: d?.message || 'Failed to update billing address.' });
       }
     } catch (err) {
-      Alert.alert(t('error'), err.response?.data?.message || 'Failed to update billing address.');
+      Toast.show({ type: 'error', text1: t('error'), text2: err.response?.data?.message || 'Failed to update billing address.' });
     } finally {
       setSaveLoading(false);
     }
@@ -618,7 +619,7 @@ const SettingsScreen = ({ onBack, initialSubScreen }) => {
 
   const handleSendOtp = async () => {
     if (!newPhone.trim()) {
-      Alert.alert(t('error'), 'Please enter a valid phone number.');
+      Toast.show({ type: 'error', text1: t('error'), text2: 'Please enter a valid phone number.' });
       return;
     }
     setOtpLoading(true);
@@ -634,15 +635,16 @@ const SettingsScreen = ({ onBack, initialSubScreen }) => {
       if (d?.status === 200 || res.status === 200) {
         setReceivedOtp(d.otp);
         setOtpSent(true);
-        Alert.alert(
-          `📩 ${t('success')}`,
-          `${d.message || 'OTP sent successfully.'}\n(For testing: OTP is ${d.otp})`
-        );
+        Toast.show({
+          type: 'success',
+          text1: `📩 ${t('success')}`,
+          text2: `${d.message || 'OTP sent successfully.'}\n(For testing: OTP is ${d.otp})`
+        });
       } else {
-        Alert.alert(t('error'), d?.message || 'Failed to send OTP.');
+        Toast.show({ type: 'error', text1: t('error'), text2: d?.message || 'Failed to send OTP.' });
       }
     } catch (err) {
-      Alert.alert(t('error'), err.response?.data?.message || 'Failed to send OTP.');
+      Toast.show({ type: 'error', text1: t('error'), text2: err.response?.data?.message || 'Failed to send OTP.' });
     } finally {
       setOtpLoading(false);
     }
@@ -650,11 +652,11 @@ const SettingsScreen = ({ onBack, initialSubScreen }) => {
 
   const handleVerifyAndUpdatePhone = async () => {
     if (!otpInput.trim()) {
-      Alert.alert(t('error'), 'Please enter the OTP.');
+      Toast.show({ type: 'error', text1: t('error'), text2: 'Please enter the OTP.' });
       return;
     }
     if (otpInput.trim() !== String(receivedOtp)) {
-      Alert.alert(t('error'), 'Incorrect OTP. Please check and try again.');
+      Toast.show({ type: 'error', text1: t('error'), text2: 'Incorrect OTP. Please check and try again.' });
       return;
     }
     setSaveLoading(true);
@@ -666,7 +668,7 @@ const SettingsScreen = ({ onBack, initialSubScreen }) => {
       const res = await profileApi.changeContactNo(payload);
       const d = res.data;
       if (d?.status === 200 || res.status === 200) {
-        Alert.alert(`✅ ${t('success')}`, d.message || 'Mobile number updated successfully.');
+        Toast.show({ type: 'success', text1: `✅ ${t('success')}`, text2: d.message || 'Mobile number updated successfully.' });
         // Refetch profile details and clear state
         await loadPhoneData();
         setNewPhone('');
@@ -675,10 +677,10 @@ const SettingsScreen = ({ onBack, initialSubScreen }) => {
         setOtpSent(false);
         handleBack();
       } else {
-        Alert.alert(t('error'), d?.message || 'Failed to update phone number.');
+        Toast.show({ type: 'error', text1: t('error'), text2: d?.message || 'Failed to update phone number.' });
       }
     } catch (err) {
-      Alert.alert(t('error'), err.response?.data?.message || 'Failed to update phone number.');
+      Toast.show({ type: 'error', text1: t('error'), text2: err.response?.data?.message || 'Failed to update phone number.' });
     } finally {
       setSaveLoading(false);
     }
@@ -686,7 +688,7 @@ const SettingsScreen = ({ onBack, initialSubScreen }) => {
 
   const handleUpdateBank = async () => {
     if (!bankForm.accountNumber.trim() || !bankForm.ifscCode.trim() || !bankForm.bankName.trim()) {
-      Alert.alert(t('error'), 'Account Number, IFSC Code and Bank Name are required.');
+      Toast.show({ type: 'error', text1: t('error'), text2: 'Account Number, IFSC Code and Bank Name are required.' });
       return;
     }
     setBankSaveLoading(true);
@@ -703,16 +705,17 @@ const SettingsScreen = ({ onBack, initialSubScreen }) => {
       };
       const res = await profileApi.requestBankUpdate(payload);
       if (res.data?.status === 200 || res.status === 200) {
-        Alert.alert(
-          `✅ ${t('success')}`, 
-          res.data?.message || 'Bank update request submitted. Awaiting admin approval.'
-        );
+        Toast.show({
+          type: 'success',
+          text1: `✅ ${t('success')}`,
+          text2: res.data?.message || 'Bank update request submitted. Awaiting admin approval.'
+        });
         handleBack();
       } else {
-        Alert.alert(t('error'), res.data?.message || 'Failed to submit request.');
+        Toast.show({ type: 'error', text1: t('error'), text2: res.data?.message || 'Failed to submit request.' });
       }
     } catch (err) {
-      Alert.alert(t('error'), err.response?.data?.message || 'Failed to submit bank update request.');
+      Toast.show({ type: 'error', text1: t('error'), text2: err.response?.data?.message || 'Failed to submit bank update request.' });
     } finally {
       setBankSaveLoading(false);
     }

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  ActivityIndicator, Alert, RefreshControl,
+  ActivityIndicator, RefreshControl,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { useSelector } from 'react-redux';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { reportApi } from '../api/services';
@@ -78,7 +79,7 @@ const ReportsScreen = ({ onBack }) => {
             {!isCompleted ? (
               <TouchableOpacity
                 style={styles.uploadBtn}
-                onPress={() => Alert.alert('Info', 'File picker would open here to upload PDF report')}
+                onPress={() => Toast.show({ type: 'info', text1: 'Info', text2: 'File picker would open here to upload PDF report' })}
               >
                 <Text style={styles.uploadBtnText}>📄 {t('upload_report') || 'Upload Report PDF'}</Text>
               </TouchableOpacity>

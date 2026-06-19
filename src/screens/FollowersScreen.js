@@ -42,11 +42,13 @@ const FollowersScreen = ({ onBack }) => {
         <Image source={{ uri: getImg(item.profileImage) }} style={styles.avatar} />
       ) : (
         <View style={styles.avatarPlaceholder}>
-          <Text style={styles.avatarLetter}>{(item.name || item.firstName || t('user')[0] || 'U')[0].toUpperCase()}</Text>
+          <Text style={styles.avatarLetter}>
+            {((item.name || item.userName || item.firstName || t('user') || 'U')[0] || 'U').toUpperCase()}
+          </Text>
         </View>
       )}
       <View>
-        <Text style={styles.name}>{item.name || `${item.firstName || ''} ${item.lastName || ''}`.trim() || t('user')}</Text>
+        <Text style={styles.name}>{item.name || item.userName || `${item.firstName || ''} ${item.lastName || ''}`.trim() || t('user')}</Text>
         <Text style={styles.meta}>
           {item.created_at ? `${t('followed_on') || 'Followed on'} ${new Date(item.created_at).toLocaleDateString('en-IN')}` : ''}
         </Text>

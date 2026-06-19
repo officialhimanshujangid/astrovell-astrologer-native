@@ -7,12 +7,12 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   TouchableWithoutFeedback,
   ScrollView
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { Ionicons } from '@expo/vector-icons';
 import { useSelector } from 'react-redux';
 import { remedyApi } from '../api/services';
@@ -29,7 +29,7 @@ const RemedyModal = ({ visible, onClose, target, onSuccess }) => {
 
   const handleSend = async () => {
     if (!remedy.trim()) {
-      Alert.alert('Error', 'Please enter remedy details');
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Please enter remedy details' });
       return;
     }
     setLoading(true);
@@ -49,13 +49,13 @@ const RemedyModal = ({ visible, onClose, target, onSuccess }) => {
       }
 
       await remedyApi.send(payload);
-      Alert.alert('Success', 'Remedy sent successfully');
+      Toast.show({ type: 'success', text1: 'Success', text2: 'Remedy sent successfully' });
       setCategory('Gemstone');
       setRemedy('');
       onSuccess?.();
       onClose();
     } catch (error) {
-      Alert.alert('Error', error?.response?.data?.message || 'Failed to send remedy');
+      Toast.show({ type: 'error', text1: 'Error', text2: error?.response?.data?.message || 'Failed to send remedy' });
     }
     setLoading(false);
   };

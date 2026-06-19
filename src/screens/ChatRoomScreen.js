@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity,
-  KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
+  KeyboardAvoidingView, Platform, ActivityIndicator,
   Image, ScrollView, Modal,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
+import { useAlert } from '../context/AlertContext';
 import { useSelector } from 'react-redux';
 import { io } from 'socket.io-client';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,6 +21,7 @@ const ChatRoomScreen = ({ route, navigation }) => {
   const { chatId } = route?.params || {};
   const { astrologer, token } = useSelector(s => s.auth);
   const insets = useSafeAreaInsets();
+  const { showAlert } = useAlert();
   const { can } = usePermissions();
 
   const [chatDetail, setChatDetail] = useState(null);
@@ -142,13 +145,13 @@ const ChatRoomScreen = ({ route, navigation }) => {
     socket.on('chat-ended', (data) => {
       clearInterval(timerRef.current);
       AsyncStorage.removeItem(`chat_start_${chatId}`).catch(() => {});
-      Alert.alert('Chat Ended', data?.message || 'Chat session ended');
+      Toast.show({ type: 'info', text1: 'Chat Ended', text2: data?.message || 'Chat session ended' });
       setChatDetail(prev => ({ ...prev, chatStatus: 'Completed' }));
     });
 
     // ── Chat cancelled by customer ───────────────────────────────────────────
     socket.on('chat-cancelled', (data) => {
-      Alert.alert('Chat Cancelled', data?.message || 'Customer cancelled the chat request');
+      Toast.show({ type: 'info', text1: 'Chat Cancelled', text2: data?.message || 'Customer cancelled the chat request' });
       setChatDetail(prev => ({ ...prev, chatStatus: 'Cancelled' }));
       clearInterval(timerRef.current);
       AsyncStorage.removeItem(`chat_start_${chatId}`).catch(() => {});
@@ -157,11 +160,7 @@ const ChatRoomScreen = ({ route, navigation }) => {
     // ── Customer disconnected ────────────────────────────────────────────────
     socket.on('user-disconnected', (data) => {
       if (data?.userType !== 'astrologer') {
-        Alert.alert(
-          '⚠️ Customer Disconnected',
-          'The customer lost connection. Waiting up to 30 seconds for reconnect...',
-          [{ text: 'OK' }]
-        );
+        Toast.show({ type: 'error', text1: '⚠️ Customer Disconnected', text2: 'The customer lost connection. Waiting up to 30 seconds for reconnect...' });
       }
     });
 
@@ -207,7 +206,7 @@ const ChatRoomScreen = ({ route, navigation }) => {
           setMessages(prev => [...prev, d.recordList]);
         }
       } catch (_) {
-        Alert.alert('Error', 'Failed to send message');
+        Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to send message' });
         setNewMsg(txt);
       }
     }
@@ -228,17 +227,18 @@ const ChatRoomScreen = ({ route, navigation }) => {
 
   // ── End Chat ─────────────────────────────────────────────────────────────
   const handleEndChat = () => {
-    Alert.alert('End Chat', 'End this consultation session?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'End Chat', style: 'destructive', onPress: () => {
-          socketRef.current?.emit('end-chat', { chatRequestId: chatId });
-          clearInterval(timerRef.current);
-          AsyncStorage.removeItem(`chat_start_${chatId}`).catch(() => {});
-          setChatDetail(prev => ({ ...prev, chatStatus: 'Completed' }));
-        },
-      },
-    ]);
+    showAlert({
+      title: 'End Chat',
+      message: 'End this consultation session?',
+      cancelText: 'Cancel',
+      confirmText: 'End Chat',
+      onConfirmPressed: () => {
+        socketRef.current?.emit('end-chat', { chatRequestId: chatId });
+        clearInterval(timerRef.current);
+        AsyncStorage.removeItem(`chat_start_${chatId}`).catch(() => {});
+        setChatDetail(prev => ({ ...prev, chatStatus: 'Completed' }));
+      }
+    });
   };
 
   // ── Puja ─────────────────────────────────────────────────────────────────
@@ -268,9 +268,9 @@ const ChatRoomScreen = ({ route, navigation }) => {
         created_at: new Date().toISOString(),
       }]);
       setShowPujaModal(false);
-      Alert.alert('✅ Puja Recommended', `${puja.puja_title} sent to customer`);
+      Toast.show({ type: 'success', text1: '✅ Puja Recommended', text2: `${puja.puja_title} sent to customer` });
     } catch (e) {
-      Alert.alert('Error', e.response?.data?.message || 'Failed to recommend puja');
+      Toast.show({ type: 'error', text1: 'Error', text2: e.response?.data?.message || 'Failed to recommend puja' });
     }
     setRecId(null);
   };
@@ -332,7 +332,7 @@ const ChatRoomScreen = ({ route, navigation }) => {
 
   const handleMatch = async () => {
     if (!matchForm.dob) {
-      Alert.alert('Missing Info', 'Please enter partner DOB');
+      Toast.show({ type: 'error', text1: 'Missing Info', text2: 'Please enter partner DOB' });
       return;
     }
     setAstroLoading(true);
@@ -363,7 +363,7 @@ const ChatRoomScreen = ({ route, navigation }) => {
     setNewMsg(text);
     handleSend();
     setShowAstroTools(false);
-    Alert.alert('✅ Shared', 'Report shared with customer');
+    Toast.show({ type: 'success', text1: '✅ Shared', text2: 'Report shared with customer' });
   };
 
   // ── Render Message ────────────────────────────────────────────────────────

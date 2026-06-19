@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ScrollView, ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
+  ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { useDispatch } from 'react-redux';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from '../theme/colors';
@@ -23,7 +24,7 @@ const LoginScreen = ({ navigation }) => {
 
   const handleSendOtp = async () => {
     if (!phone.trim() || phone.length < 10) {
-      Alert.alert('Error', 'Please enter a valid 10-digit mobile number');
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Please enter a valid 10-digit mobile number' });
       return;
     }
     setLoading(true);
@@ -37,19 +38,19 @@ const LoginScreen = ({ navigation }) => {
       if (res.data?.status === 200) {
         if (res.data?.otp) setDevOtp(String(res.data.otp));
         setOtpSent(true);
-        Alert.alert('✅ OTP Sent', 'OTP sent to your registered number');
+        Toast.show({ type: 'success', text1: '✅ OTP Sent', text2: 'OTP sent to your registered number' });
       } else {
-        Alert.alert('Error', res.data?.message || 'Failed to send OTP');
+        Toast.show({ type: 'error', text1: 'Error', text2: res.data?.message || 'Failed to send OTP' });
       }
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.message || 'Failed to send OTP');
+      Toast.show({ type: 'error', text1: 'Error', text2: err.response?.data?.message || 'Failed to send OTP' });
     }
     setLoading(false);
   };
 
   const handleVerifyOtp = async () => {
     if (!otp.trim() || otp.length < 4) {
-      Alert.alert('Error', 'Please enter the OTP');
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Please enter the OTP' });
       return;
     }
     setLoading(true);
@@ -76,10 +77,10 @@ const LoginScreen = ({ navigation }) => {
         const astrologer = d.recordList?.[0] || d.recordList || {};
         dispatch(loginSuccess({ token: d.token, astrologer }));
       } else {
-        Alert.alert('Error', d?.message || 'Login failed. Please check OTP.');
+        Toast.show({ type: 'error', text1: 'Error', text2: d?.message || 'Login failed. Please check OTP.' });
       }
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.message || 'Login failed');
+      Toast.show({ type: 'error', text1: 'Error', text2: err.response?.data?.message || 'Login failed' });
     }
     setLoading(false);
   };

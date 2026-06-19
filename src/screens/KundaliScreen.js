@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
-  StyleSheet, StatusBar, ActivityIndicator, Alert, Dimensions,
+  StyleSheet, StatusBar, ActivityIndicator, Dimensions,
   Platform, Image, Modal, KeyboardAvoidingView
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { useDispatch, useSelector } from 'react-redux';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import apiClient from '../api/apiClient';
@@ -510,7 +511,7 @@ const KundaliScreen = ({ onBack, initialParams }) => {
         ]);
       }
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.message || err.message);
+      Toast.show({ type: 'error', text1: 'Error', text2: err.response?.data?.message || err.message });
     }
     setLoading(false);
   };
@@ -859,11 +860,11 @@ const KundaliScreen = ({ onBack, initialParams }) => {
 
   const handleSubmit = async () => {
     if (!form.name || !form.birthDate || !form.birthTime || !form.birthPlace) {
-      Alert.alert('Missing Fields', 'Please fill in all birth details.');
+      Toast.show({ type: 'error', text1: 'Missing Fields', text2: 'Please fill in all birth details.' });
       return;
     }
     if (!form.latitude) {
-      Alert.alert('Location Not Verified', 'Please select a location from the suggestions.');
+      Toast.show({ type: 'error', text1: 'Location Not Verified', text2: 'Please select a location from the suggestions.' });
       return;
     }
 
@@ -885,7 +886,7 @@ const KundaliScreen = ({ onBack, initialParams }) => {
         ]);
       }
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.message || err.message);
+      Toast.show({ type: 'error', text1: 'Error', text2: err.response?.data?.message || err.message });
     }
     setLoading(false);
   };

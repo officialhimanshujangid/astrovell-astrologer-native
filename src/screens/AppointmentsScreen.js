@@ -1,17 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  ActivityIndicator, Alert, RefreshControl,
+  ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { useSelector } from 'react-redux';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { appointmentApi } from '../api/services';
 import { colors } from '../theme/colors';
 import ScreenHeader from '../components/ScreenHeader';
+import { useAlert } from '../context/AlertContext';
+import Toast from 'react-native-toast-message';
 
 const AppointmentsScreen = ({ onBack }) => {
   const { astrologer } = useSelector(s => s.auth);
   const insets = useSafeAreaInsets();
+  const { showAlert } = useAlert();
   const [items,      setItems]      = useState([]);
   const [loading,    setLoading]    = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -28,17 +31,18 @@ const AppointmentsScreen = ({ onBack }) => {
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 
   const handleDelete = (id) => {
-    Alert.alert('Delete Appointment', 'Delete this scheduled appointment?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete', style: 'destructive', onPress: async () => {
-          try {
-            await appointmentApi.delete(id);
-            setItems(prev => prev.filter(a => a.id !== id));
-          } catch (_) { Alert.alert('Error', 'Failed to delete'); }
-        },
-      },
-    ]);
+    showAlert({
+      title: 'Delete Appointment',
+      message: 'Delete this scheduled appointment?',
+      cancelText: 'Cancel',
+      confirmText: 'Delete',
+      onConfirmPressed: async () => {
+        try {
+          await appointmentApi.delete(id);
+          setItems(prev => prev.filter(a => a.id !== id));
+        } catch (_) { Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to delete' }); }
+      }
+    });
   };
 
   const getStatusColor = (status) => {
