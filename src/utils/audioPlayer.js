@@ -2,7 +2,7 @@ import { Audio } from 'expo-av';
 
 let currentSound = null;
 
-export const playRingtone = async () => {
+export const playRingtone = async (type = 'call') => {
   try {
     // If a sound is already playing, stop and unload it first
     if (currentSound) {
@@ -10,8 +10,12 @@ export const playRingtone = async () => {
       currentSound = null;
     }
 
+    const soundAsset = type === 'chat' 
+      ? require('../../assets/chatsound.mp3') 
+      : require('../../assets/sound.mp3');
+
     const { sound } = await Audio.Sound.createAsync(
-      require('../../assets/sound.mp3'),
+      soundAsset,
       { shouldPlay: true, isLooping: true }
     );
     currentSound = sound;

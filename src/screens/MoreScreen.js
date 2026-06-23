@@ -88,7 +88,7 @@ const MoreScreen = ({ onOpenSubScreen }) => {
           <View style={styles.sectionCard}>
             <TouchableOpacity
               style={styles.menuItem}
-              onPress={() => Linking.openURL('https://wa.me/918560033640?text=' + encodeURIComponent('Hi Astrovell team, I need help with the astrologer app.')).catch(() => {})}
+              onPress={() => Linking.openURL('https://wa.me/918529411977?text=' + encodeURIComponent('Hi Astrovell team, I need help with the astrologer app.')).catch(() => { })}
               activeOpacity={0.7}
             >
               <Text style={styles.menuItemIcon}>🆘</Text>

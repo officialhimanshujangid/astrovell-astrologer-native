@@ -85,7 +85,7 @@ const WaitlistScreen = ({ onBack }) => {
 
     socket.on('new-chat-request', (data) => {
       if (data.astrologerId === astrologer?.id) {
-        playRingtone();
+        playRingtone('chat');
         fetchRequests();
         showAlert({
           title: '💬 New Chat Request',
@@ -98,7 +98,7 @@ const WaitlistScreen = ({ onBack }) => {
     });
     socket.on('new-call-request', (data) => {
       if (data.astrologerId === astrologer?.id) {
-        playRingtone();
+        playRingtone('call');
         fetchRequests();
         const callType = data.call_type == 11 ? 'Video' : 'Audio';
         showAlert({

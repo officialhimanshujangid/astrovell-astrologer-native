@@ -6,14 +6,14 @@ import { colors } from '../theme/colors';
 import ScreenHeader from '../components/ScreenHeader';
 import useTranslation from '../hooks/useTranslation';
 
-const SUPPORT_WHATSAPP = '918560033640';
+const SUPPORT_WHATSAPP = '918529411977';
 
 const SupportScreen = ({ onBack }) => {
   const { t } = useTranslation();
 
   const openWhatsApp = () => {
     const msg = encodeURIComponent('Hi Astrovell team, I need help with the astrologer app.');
-    Linking.openURL(`https://wa.me/${SUPPORT_WHATSAPP}?text=${msg}`).catch(() => {});
+    Linking.openURL(`https://wa.me/${SUPPORT_WHATSAPP}?text=${msg}`).catch(() => { });
   };
 
   return (
@@ -34,7 +34,7 @@ const SupportScreen = ({ onBack }) => {
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.waLabel}>Customer Support (WhatsApp)</Text>
-            <Text style={styles.waValue}>+91 85600 33640</Text>
+            <Text style={styles.waValue}>+91 85294 11977</Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color="#FFF" />
         </TouchableOpacity>

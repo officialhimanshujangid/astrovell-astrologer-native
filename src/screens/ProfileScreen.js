@@ -185,7 +185,7 @@ const ProfileScreen = ({ onOpenSubScreen }) => {
               <View style={styles.profileText}>
                 <Text style={styles.profileName}>{profile?.name || 'Astrologer'} ({profile?.id || '3921'})</Text>
                 <Text style={styles.profileEmail}>{profile?.email || 'user@email.com'}</Text>
-                <Text style={styles.profilePhone}>{profile?.contactNo || '+918560033640'}</Text>
+                <Text style={styles.profilePhone}>{profile?.contactNo || '+918529411977'}</Text>
               </View>
               <TouchableOpacity style={styles.editIconBtn} onPress={() => setMode('edit')}>
                 <Ionicons name="create-outline" size={24} color={colors.textSecondary} />

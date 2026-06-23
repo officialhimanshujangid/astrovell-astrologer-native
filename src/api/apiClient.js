@@ -1,9 +1,9 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export const BASE_URI = 'https://astrology-i7c9.onrender.com/'
+export const BASE_URI = 'https://backend.astrovell.com/'
 const BASE_URL = `${BASE_URI}api`;
-const SOCKET_BASE = 'https://astrology-i7c9.onrender.com';
+const SOCKET_BASE = 'https://backend.astrovell.com';
 
 export { SOCKET_BASE };
 const API = axios.create({
