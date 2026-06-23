@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, ScrollView,
+  View, Text, StyleSheet, TouchableOpacity, ScrollView, Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme/colors';
@@ -81,6 +81,22 @@ const MoreScreen = ({ onOpenSubScreen }) => {
             </View>
           </View>
         ))}
+
+        {/* Always-visible Customer Support — opens WhatsApp directly */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{t('support')}</Text>
+          <View style={styles.sectionCard}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => Linking.openURL('https://wa.me/918560033640?text=' + encodeURIComponent('Hi Astrovell team, I need help with the astrologer app.')).catch(() => {})}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.menuItemIcon}>🆘</Text>
+              <Text style={styles.menuItemLabel}>{t('support')}</Text>
+              <Text style={styles.menuItemArrow}>›</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
 
       </ScrollView>
     </View>

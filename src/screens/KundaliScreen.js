@@ -381,8 +381,12 @@ const injectDegreesIntoSvg = (svgStr, degreeMap) => {
   );
 };
 
-const KundaliScreen = ({ onBack, initialParams }) => {
+const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
   const { token, globalLang } = useSelector(s => s.auth);
+  // Dual-mode: opened as a MainTabNavigator overlay (initialParams + onBack) OR
+  // as an AppNavigator stack route (route.params + navigation.goBack).
+  const params = initialParams || route?.params || null;
+  const goBack = () => { if (onBack) onBack(); else if (navigation?.goBack) navigation.goBack(); };
   const [form, setForm] = useState({
     name: '', gender: 'Male', birthDate: '', birthTime: '',
     birthPlace: '', latitude: '', longitude: ''
@@ -468,18 +472,18 @@ const KundaliScreen = ({ onBack, initialParams }) => {
   }, [globalLang]);
 
   useEffect(() => {
-    if (initialParams && initialParams.autoSubmit) {
+    if (params && params.autoSubmit) {
       setForm(prev => ({
         ...prev,
-        name: initialParams.name || prev.name,
-        gender: initialParams.gender || prev.gender,
-        birthDate: initialParams.birthDate || prev.birthDate,
-        birthTime: initialParams.birthTime || prev.birthTime,
-        birthPlace: initialParams.birthPlace || prev.birthPlace,
-        latitude: initialParams.latitude || prev.latitude,
-        longitude: initialParams.longitude || prev.longitude,
+        name: params.name || prev.name,
+        gender: params.gender || prev.gender,
+        birthDate: params.birthDate || prev.birthDate,
+        birthTime: params.birthTime || prev.birthTime,
+        birthPlace: params.birthPlace || prev.birthPlace,
+        latitude: params.latitude || prev.latitude,
+        longitude: params.longitude || prev.longitude,
       }));
-      handleDirectSubmit(initialParams);
+      handleDirectSubmit(params);
     }
   }, []);
 
@@ -496,6 +500,9 @@ const KundaliScreen = ({ onBack, initialParams }) => {
         latitude: params.latitude,
         longitude: params.longitude,
       };
+      // Keep the visible form in sync with what we're submitting.
+      setForm(formData);
+
       const addRes = await apiClient.post('/customer/kundali/add', {
         kundali: [{ ...formData, pdf_type: 'basic' }]
       }, { headers });
@@ -504,10 +511,12 @@ const KundaliScreen = ({ onBack, initialParams }) => {
       setKundaliRecord(record);
 
       if (record?.id) {
+        // Pass formData explicitly — `form` state isn't committed yet during
+        // auto-submit, so the report fetches must use the submitted values.
         await Promise.all([
-          fetchBasic(record.id, lang),
-          fetchLagnaCharts(record.id, chartStyle, lang),
-          fetchBasicTab(record.id, lang),
+          fetchBasic(record.id, lang, formData),
+          fetchLagnaCharts(record.id, chartStyle, lang, formData),
+          fetchBasicTab(record.id, lang, formData),
         ]);
       }
     } catch (err) {
@@ -775,15 +784,15 @@ const KundaliScreen = ({ onBack, initialParams }) => {
     }
   };
 
-  const fetchBasicTab = async (recordId, langCode) => {
+  const fetchBasicTab = async (recordId, langCode, bd = form) => {
     setBasicTabLoading(true);
     try {
       const payload = {
         kundaliId: recordId,
-        dob: form.birthDate,
-        tob: form.birthTime,
-        lat: form.latitude,
-        lon: form.longitude,
+        dob: bd.birthDate,
+        tob: bd.birthTime,
+        lat: bd.latitude,
+        lon: bd.longitude,
         tz: 5.5,
         lang: langCode
       };
@@ -799,15 +808,15 @@ const KundaliScreen = ({ onBack, initialParams }) => {
     setBasicTabLoading(false);
   };
 
-  const fetchLagnaCharts = async (recordId, style, langCode) => {
+  const fetchLagnaCharts = async (recordId, style, langCode, bd = form) => {
     setLagnaLoading(true);
     try {
       const payload = {
         kundaliId: recordId,
-        dob: form.birthDate,
-        tob: form.birthTime,
-        lat: form.latitude,
-        lon: form.longitude,
+        dob: bd.birthDate,
+        tob: bd.birthTime,
+        lat: bd.latitude,
+        lon: bd.longitude,
         tz: 5.5,
         lang: langCode,
         style
@@ -837,15 +846,15 @@ const KundaliScreen = ({ onBack, initialParams }) => {
     setLagnaLoading(false);
   };
 
-  const fetchBasic = async (recordId, langCode) => {
+  const fetchBasic = async (recordId, langCode, bd = form) => {
     setBasicLoading(true);
     try {
       const payload = {
         kundaliId: recordId,
-        dob: form.birthDate,
-        tob: form.birthTime,
-        lat: form.latitude,
-        lon: form.longitude,
+        dob: bd.birthDate,
+        tob: bd.birthTime,
+        lat: bd.latitude,
+        lon: bd.longitude,
         tz: 5.5,
         lang: langCode
       };
@@ -2388,7 +2397,7 @@ const KundaliScreen = ({ onBack, initialParams }) => {
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={onBack} style={styles.backButton}>
+        <TouchableOpacity onPress={goBack} style={styles.backButton}>
           <Text style={styles.backIcon}>←</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{l.title}</Text>

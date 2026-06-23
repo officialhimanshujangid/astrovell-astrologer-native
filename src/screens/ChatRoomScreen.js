@@ -31,6 +31,7 @@ const ChatRoomScreen = ({ route, navigation }) => {
   const [sending, setSending] = useState(false);
   const [timeElapsed, setTimeElapsed] = useState(0);
   const [typing, setTyping] = useState(false);
+  const [otherOffline, setOtherOffline] = useState(false); // customer presence
   const [showPujaModal, setShowPujaModal] = useState(false);
   const [myPujas, setMyPujas] = useState([]);
   const [recId, setRecId] = useState(null); // recommending puja id
@@ -126,6 +127,8 @@ const ChatRoomScreen = ({ route, navigation }) => {
 
       // If message is from customer (other person), mark as delivered then read
       if (msg.senderType === 'user' && String(msg.senderId) !== String(astrologer?.id)) {
+        setOtherOffline(false); // a message means they're online
+        setTyping(false);
         socket.emit('message-delivered', { chatRequestId: parseInt(chatId), messageIds: [msg.id] });
         // Mark as read after 2 sec (chat screen is open)
         setTimeout(() => {
@@ -157,16 +160,22 @@ const ChatRoomScreen = ({ route, navigation }) => {
       AsyncStorage.removeItem(`chat_start_${chatId}`).catch(() => {});
     });
 
+    // ── Presence: customer joined / online ───────────────────────────────────
+    socket.on('user-joined', (data) => {
+      if (data?.userType !== 'astrologer') setOtherOffline(false);
+    });
+
     // ── Customer disconnected ────────────────────────────────────────────────
     socket.on('user-disconnected', (data) => {
       if (data?.userType !== 'astrologer') {
-        Toast.show({ type: 'error', text1: '⚠️ Customer Disconnected', text2: 'The customer lost connection. Waiting up to 30 seconds for reconnect...' });
+        setOtherOffline(true);
+        setTyping(false);
       }
     });
 
     // ── Typing indicators (only show when customer is typing) ────────────────
     socket.on('user-typing', (data) => {
-      if (data?.userType !== 'astrologer') setTyping(true);
+      if (data?.userType !== 'astrologer') { setTyping(true); setOtherOffline(false); }
     });
     socket.on('user-stop-typing', (data) => {
       if (data?.userType !== 'astrologer') setTyping(false);
@@ -409,6 +418,36 @@ const ChatRoomScreen = ({ route, navigation }) => {
   const status = chatDetail?.chatStatus || 'Accepted';
   const isDone = status === 'Completed' || status === 'Cancelled';
 
+  // Live presence shown in the header. Driven by real-time signals (typing /
+  // disconnect), NOT by chatStatus — on first entry getChatDetail can briefly
+  // return a stale 'Pending', which must not be shown as "waiting". Once the
+  // astrologer is on the chat screen the session is live, so default to online.
+  const isOnline = !isDone && !otherOffline;
+  const presenceText = isDone ? status
+    : typing ? 'typing…'
+    : otherOffline ? 'offline'
+    : 'online';
+  const presenceColor = isDone ? colors.textMuted
+    : isOnline ? colors.success
+    : colors.textMuted;
+
+  // Open the full Kundali screen with the customer's intake details auto-filled
+  // and auto-submitted — same behaviour as the chat/call history "Open Kundali".
+  const handleOpenKundali = () => {
+    // Use intake details when chat was started via the intake form, otherwise
+    // the customer's profile details (the backend COALESCEs intake → profile).
+    navigation.navigate('Kundali', {
+      name: chatDetail?.intakeName || chatDetail?.userName || 'User',
+      gender: chatDetail?.intakeGender || 'Male',
+      birthDate: String(chatDetail?.intakeBirthDate || '').slice(0, 10),
+      birthTime: chatDetail?.intakeBirthTime || '12:00:00',
+      birthPlace: chatDetail?.intakeBirthPlace || 'New Delhi',
+      latitude: String(chatDetail?.intakeLat || '28.6139'),
+      longitude: String(chatDetail?.intakeLon || chatDetail?.intakeLong || '77.2090'),
+      autoSubmit: true,
+    });
+  };
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* ── Header ──────────────────────────────────────────────────────────── */}
@@ -435,8 +474,8 @@ const ChatRoomScreen = ({ route, navigation }) => {
           )}
           <View>
             <Text style={styles.headerName}>{chatDetail?.userName || 'User'}</Text>
-            <Text style={[styles.headerStatus, { color: isDone ? colors.textMuted : colors.success }]}>
-              {status}
+            <Text style={[styles.headerStatus, { color: presenceColor }]}>
+              {presenceText}
             </Text>
           </View>
         </View>
@@ -465,6 +504,15 @@ const ChatRoomScreen = ({ route, navigation }) => {
               <Text style={styles.pujaBtnText}>🙏</Text>
             </TouchableOpacity>
           )} */}
+          {!isDone && (
+            <TouchableOpacity
+              style={styles.kundaliHeaderBtn}
+              onPress={handleOpenKundali}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.kundaliHeaderIcon}>🔮</Text>
+            </TouchableOpacity>
+          )}
           {can('chat') && !isDone && (
             <TouchableOpacity style={styles.endBtn} onPress={handleEndChat} activeOpacity={0.8}>
               <Text style={styles.endBtnText}>End</Text>
@@ -804,6 +852,12 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: colors.danger + '50',
   },
   endBtnText: { color: colors.danger, fontSize: 12, fontWeight: '800' },
+  kundaliHeaderBtn: {
+    width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: (colors.gold || colors.secondary || '#FFCC00') + '22',
+    borderWidth: 1, borderColor: (colors.gold || colors.secondary || '#FFCC00') + '55',
+  },
+  kundaliHeaderIcon: { fontSize: 17 },
 
   loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   messagesList: { padding: 14, paddingBottom: 8 },

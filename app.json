@@ -14,7 +14,10 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.astrovell.astrologer"
+      "bundleIdentifier": "com.astrovell.astrologer",
+      "infoPlist": {
+        "UIBackgroundModes": ["audio", "voip"]
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -24,7 +27,11 @@
       "package": "com.astrovell.astrologer",
       "permissions": [
         "android.permission.RECORD_AUDIO",
-        "android.permission.CAMERA"
+        "android.permission.CAMERA",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MICROPHONE",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.WAKE_LOCK"
       ]
     },
     "web": {

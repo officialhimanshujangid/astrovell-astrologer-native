@@ -88,7 +88,7 @@ const LoginScreen = ({ navigation }) => {
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: colors.primary }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView
         contentContainerStyle={[styles.container, { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 20 }]}

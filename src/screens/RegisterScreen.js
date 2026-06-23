@@ -300,7 +300,7 @@ const RegisterScreen = ({ navigation }) => {
   };
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.primary }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.primary }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScreenHeader title="Register as Astrologer" onBack={() => navigation.navigate('Login')} />
       <ScrollView
         contentContainerStyle={[styles.container, { paddingBottom: insets.bottom + 20 }]}

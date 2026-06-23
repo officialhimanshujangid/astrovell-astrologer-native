@@ -20,8 +20,10 @@ const BottomTabBar = ({ activeTab, onTabPress }) => {
 
   const TABS = ALL_TABS.filter(t => can(t.permKey));
 
+  // System bottom inset is applied once globally by the SafeAreaView in App.js,
+  // so only a small fixed padding is needed here (avoids double padding).
   return (
-    <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, 12), paddingTop: 10 }]}>
+    <View style={[styles.container, { paddingBottom: 12, paddingTop: 10 }]}>
       {TABS.map((tab) => {
         const isActive = activeTab === tab.name;
         return (

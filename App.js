@@ -8,11 +8,15 @@ import Constants from 'expo-constants';
 
 import { store, persistor } from './src/store/store';
 import { NavigationContainer } from '@react-navigation/native';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import AppNavigator from './src/navigation/AppNavigator';
 import { Audio } from 'expo-av';
 import Toast from 'react-native-toast-message';
 import { AlertProvider } from './src/context/AlertContext';
+import { navigationRef } from './src/navigation/navigationRef';
+import { CallProvider } from './src/context/CallContext';
+import OngoingSessionPill from './src/components/OngoingSessionPill';
+import { colors } from './src/theme/colors';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -113,9 +117,18 @@ export default function App() {
       <PersistGate loading={<LoadingView />} persistor={persistor}>
         <SafeAreaProvider>
           <AlertProvider>
-            <NavigationContainer>
-              <AppNavigator />
-            </NavigationContainer>
+            <CallProvider>
+              {/* Global bottom safe-area inset so no screen's content sits behind
+                  the Android system navigation bar (edge-to-edge is mandatory on
+                  Expo SDK 54). Top inset stays per-screen. */}
+              <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: colors.primary }}>
+                <NavigationContainer ref={navigationRef}>
+                  <AppNavigator />
+                </NavigationContainer>
+              </SafeAreaView>
+              {/* Global ongoing call/chat pill — visible on every screen */}
+              <OngoingSessionPill />
+            </CallProvider>
           </AlertProvider>
           <Toast />
         </SafeAreaProvider>

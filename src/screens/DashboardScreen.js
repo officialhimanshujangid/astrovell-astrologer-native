@@ -471,31 +471,9 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 40 }}
       >
-        {/* ── Active Session Banner ───────────────────────────────────────── */}
-        {activeSession && (
-          <TouchableOpacity
-            style={styles.activeSessionBanner}
-            activeOpacity={0.9}
-            onPress={() => {
-              if (activeSession.type === 'chat') {
-                navigation.navigate('ChatRoom', { chatId: activeSession.id });
-              } else {
-                navigation.navigate('CallRoom', { callId: activeSession.id, isAccepted: true });
-              }
-            }}
-          >
-            <View style={styles.bannerContent}>
-              <View style={styles.bannerDot} />
-              <Text style={styles.bannerText}>
-                Active {activeSession.type === 'chat' ? 'Chat' : 'Call'} with {activeSession.name} ({activeSession.status}){formatBannerTimer(bannerTimer)}
-              </Text>
-            </View>
-            <View style={styles.resumeBadge}>
-              <Text style={styles.resumeText}>Resume</Text>
-              <Ionicons name="arrow-forward" size={14} color={colors.white} />
-            </View>
-          </TouchableOpacity>
-        )}
+        {/* Thin active-session banner removed — the global <OngoingSessionPill />
+            now shows the ongoing call/chat on every screen. The richer
+            dashboard_active_session card below is kept. */}
 
         {/* ── Availability Switches ───────────────────────────────────────── */}
         {can('dashboard_status_toggles') && (
