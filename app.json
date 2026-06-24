@@ -16,7 +16,10 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.astrovell.astrologer",
       "infoPlist": {
-        "UIBackgroundModes": ["audio", "voip"]
+        "UIBackgroundModes": [
+          "audio",
+          "voip"
+        ]
       }
     },
     "android": {
@@ -43,7 +46,7 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "28c2e1b9-b7d0-48d6-bf16-0d6a6ee4732e"
+        "projectId": "ffb92568-1517-4ff4-9f0f-228985e9b447"
       }
     }
   }
