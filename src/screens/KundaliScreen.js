@@ -11,6 +11,8 @@ import apiClient from '../api/apiClient';
 import { kundaliApi } from '../api/services';
 import { locationService } from '../api/locationService';
 import { colors } from '../theme/colors';
+import { Ionicons } from '@expo/vector-icons';
+import GoldHeader from '../components/GoldHeader';
 import { LinearGradient } from 'expo-linear-gradient';
 import { WebView } from 'react-native-webview';
 import KundaliChart from '../components/KundaliChart';
@@ -375,7 +377,7 @@ const injectDegreesIntoSvg = (svgStr, degreeMap) => {
       if (!xMatch || !yMatch) return match;
       const x = parseFloat(xMatch[1]);
       const y = parseFloat(yMatch[1]);
-      const degEl = `<text x="${x}" y="${y + 16}" style="font-family:'roboto','Lucida Sans',sans-serif;font-size:13px;fill:#7c3aed;font-weight:600;">${degreeMap[planet]}</text>`;
+      const degEl = `<text x="${x}" y="${y + 16}" style="font-family:'roboto','Lucida Sans',sans-serif;font-size:13px;fill:#E6A800;font-weight:600;">${degreeMap[planet]}</text>`;
       return match + degEl;
     }
   );
@@ -965,8 +967,8 @@ const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
     if (basicTabLoading) {
       return (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 40 }}>
-          <ActivityIndicator size="large" color="#7c3aed" />
-          <Text style={{ color: '#7c3aed', marginTop: 10, fontWeight: '600' }}>{l.loadingBasic}</Text>
+          <ActivityIndicator size="large" color="#E6A800" />
+          <Text style={{ color: '#E6A800', marginTop: 10, fontWeight: '600' }}>{l.loadingBasic}</Text>
         </View>
       );
     }
@@ -1039,7 +1041,7 @@ const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
               <LuckyCard icon="✨" label={l.luckyStone} value={dpick(avakhada, 'lucky_stone')} color="#f59e0b" />
               <LuckyCard icon="💰" label={l.fortuneStone} value={dpick(avakhada, 'fortune_stone')} color="#10b981" />
               <LuckyCard icon="🔢" label={l.luckyNumber} value={dpick(basicReport, 'lucky_num')} color="#3b82f6" />
-              <LuckyCard icon="🎨" label={l.luckyColor} value={dpick(basicReport, 'lucky_colors')} color="#8b5cf6" />
+              <LuckyCard icon="🎨" label={l.luckyColor} value={dpick(basicReport, 'lucky_colors')} color="#E6A800" />
               <LuckyCard icon="🔤" label={l.letters} value={dpick(basicReport, 'lucky_letters')} color="#ec4899" />
             </View>
             {basicReport?.lucky_name_start && (
@@ -1188,8 +1190,8 @@ const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
     if (lagnaLoading) {
       return (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 40 }}>
-          <ActivityIndicator size="large" color="#7c3aed" />
-          <Text style={{ color: '#7c3aed', marginTop: 10, fontWeight: '600' }}>{l.loadingLagna}</Text>
+          <ActivityIndicator size="large" color="#E6A800" />
+          <Text style={{ color: '#E6A800', marginTop: 10, fontWeight: '600' }}>{l.loadingLagna}</Text>
         </View>
       );
     }
@@ -1238,8 +1240,8 @@ const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
     if (basicLoading) {
       return (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 40 }}>
-          <ActivityIndicator size="large" color="#7c3aed" />
-          <Text style={{ color: '#7c3aed', marginTop: 10, fontWeight: '600' }}>{l.loadingPlanets}</Text>
+          <ActivityIndicator size="large" color="#E6A800" />
+          <Text style={{ color: '#E6A800', marginTop: 10, fontWeight: '600' }}>{l.loadingPlanets}</Text>
         </View>
       );
     }
@@ -1305,19 +1307,19 @@ const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
                   const totalDeg = formatDegree(p.global_degree || p.fullDegree || p.degree);
 
                   return (
-                    <View key={i} style={[styles.planetTableRow, i % 2 === 0 ? { backgroundColor: '#fff' } : { backgroundColor: '#faf5ff' }]}>
+                    <View key={i} style={[styles.planetTableRow, i % 2 === 0 ? { backgroundColor: '#fff' } : { backgroundColor: '#F7F7F7' }]}>
                       <View style={[styles.planetTableCol, { width: 110, flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
-                        <Text style={{ fontSize: 16, color: '#7c3aed' }}>{PLANET_GLYPHS[planetName] || '•'}</Text>
-                        <Text style={{ fontSize: 13, fontWeight: '700', color: '#1a0533' }}>{p.full_name || planetName}</Text>
+                        <Text style={{ fontSize: 16, color: '#E6A800' }}>{PLANET_GLYPHS[planetName] || '•'}</Text>
+                        <Text style={{ fontSize: 13, fontWeight: '700', color: '#1A1A1A' }}>{p.full_name || planetName}</Text>
                         {isRetro && <Text style={{ fontSize: 10, color: '#ef4444', fontWeight: 'bold' }}>R</Text>}
                       </View>
 
                       {planetsSubView === 'sign' ? (
                         <>
-                          <Text style={[styles.planetTableCell, { width: 60, fontWeight: '700', color: '#7c3aed' }]}>{p.house || '-'}</Text>
+                          <Text style={[styles.planetTableCell, { width: 60, fontWeight: '700', color: '#E6A800' }]}>{p.house || '-'}</Text>
                           <Text style={[styles.planetTableCell, { width: 90 }]}>{p.zodiac || p.sign || '-'}</Text>
                           <View style={[styles.planetTableCell, { width: 90, flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
-                            <Text style={{ fontSize: 12, color: '#7c3aed' }}>{PLANET_GLYPHS[p.zodiac_lord || p.sign_lord || p.rasi_lord] || ''}</Text>
+                            <Text style={{ fontSize: 12, color: '#E6A800' }}>{PLANET_GLYPHS[p.zodiac_lord || p.sign_lord || p.rasi_lord] || ''}</Text>
                             <Text style={{ fontSize: 12, color: '#4b5563' }}>{p.zodiac_lord || p.sign_lord || p.rasi_lord || '-'}</Text>
                           </View>
                           <Text style={[styles.planetTableCell, { width: 100 }]}>{degInSign}</Text>
@@ -1326,9 +1328,9 @@ const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
                       ) : (
                         <>
                           <Text style={[styles.planetTableCell, { width: 110 }]}>{p.nakshatra || '-'}</Text>
-                          <Text style={[styles.planetTableCell, { width: 60, color: '#7c3aed', fontWeight: 'bold' }]}>{p.nakshatra_pada || p.pada || '-'}</Text>
+                          <Text style={[styles.planetTableCell, { width: 60, color: '#E6A800', fontWeight: 'bold' }]}>{p.nakshatra_pada || p.pada || '-'}</Text>
                           <View style={[styles.planetTableCell, { width: 110, flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
-                            <Text style={{ fontSize: 12, color: '#7c3aed' }}>{PLANET_GLYPHS[p.nakshatra_lord || p.star_lord] || ''}</Text>
+                            <Text style={{ fontSize: 12, color: '#E6A800' }}>{PLANET_GLYPHS[p.nakshatra_lord || p.star_lord] || ''}</Text>
                             <Text style={{ fontSize: 12, color: '#4b5563' }}>{p.nakshatra_lord || p.star_lord || '-'}</Text>
                           </View>
                           <Text style={[styles.planetTableCell, { width: 100 }]}>{degInSign}</Text>
@@ -1394,7 +1396,7 @@ const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
           return (
             <TouchableOpacity
               key={i}
-              style={[styles.dashaItem, isCurrent && { borderColor: '#7c3aed', backgroundColor: '#faf5ff', borderWidth: 1.5 }]}
+              style={[styles.dashaItem, isCurrent && { borderColor: '#E6A800', backgroundColor: '#F7F7F7', borderWidth: 1.5 }]}
               disabled={currentLevel >= 4}
               onPress={() => {
                 if (currentLevel < 4) {
@@ -1402,14 +1404,14 @@ const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
                 }
               }}
             >
-              <View style={[styles.dashaIcon, isCurrent && { backgroundColor: '#7c3aed' }]}>
+              <View style={[styles.dashaIcon, isCurrent && { backgroundColor: '#E6A800' }]}>
                 <Text style={[styles.dashaIconText, isCurrent && { color: '#fff' }]}>{PLANET_GLYPHS[planetName] || '•'}</Text>
               </View>
               <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <Text style={styles.dashaPlanet}>{planetName}</Text>
                   {isCurrent && (
-                    <View style={{ backgroundColor: '#7c3aed', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                    <View style={{ backgroundColor: '#E6A800', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
                       <Text style={{ fontSize: 8, color: '#fff', fontWeight: 'bold' }}>{l.active}</Text>
                     </View>
                   )}
@@ -1431,8 +1433,8 @@ const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
     if (yoginiLoading) {
       return (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 40 }}>
-          <ActivityIndicator size="large" color="#7c3aed" />
-          <Text style={{ color: '#7c3aed', marginTop: 10, fontWeight: '600' }}>{l.loadingYogini}</Text>
+          <ActivityIndicator size="large" color="#E6A800" />
+          <Text style={{ color: '#E6A800', marginTop: 10, fontWeight: '600' }}>{l.loadingYogini}</Text>
         </View>
       );
     }
@@ -1526,8 +1528,8 @@ const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
     if (transitLoading && !transitSvg) {
       return (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 40 }}>
-          <ActivityIndicator size="large" color="#7c3aed" />
-          <Text style={{ color: '#7c3aed', marginTop: 10, fontWeight: '600' }}>{l.loadingTransit}</Text>
+          <ActivityIndicator size="large" color="#E6A800" />
+          <Text style={{ color: '#E6A800', marginTop: 10, fontWeight: '600' }}>{l.loadingTransit}</Text>
         </View>
       );
     }
@@ -1557,7 +1559,7 @@ const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
         </View>
 
         {transitLoading && transitSvg && (
-          <ActivityIndicator size="small" color="#7c3aed" style={{ marginBottom: 10 }} />
+          <ActivityIndicator size="small" color="#E6A800" style={{ marginBottom: 10 }} />
         )}
 
         {canShow('transit', 'chart') && (
@@ -1574,10 +1576,10 @@ const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
             <Text style={styles.sectionTitle}>{l.transitPlanets}</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
               {(transitPlanets || []).map((p, i) => (
-                <View key={i} style={[styles.planetGridItem, { width: '48%', backgroundColor: '#faf5ff', borderColor: '#f3e8ff', borderWidth: 1 }]}>
+                <View key={i} style={[styles.planetGridItem, { width: '48%', backgroundColor: '#F7F7F7', borderColor: '#EEEEEE', borderWidth: 1 }]}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <Text style={{ fontSize: 13, fontWeight: '800', color: '#1a0533' }}>{p?.name || '-'}</Text>
-                    <Text style={{ fontSize: 16, color: '#7c3aed' }}>{PLANET_GLYPHS[p?.name] || '•'}</Text>
+                    <Text style={{ fontSize: 13, fontWeight: '800', color: '#1A1A1A' }}>{p?.name || '-'}</Text>
+                    <Text style={{ fontSize: 16, color: '#E6A800' }}>{PLANET_GLYPHS[p?.name] || '•'}</Text>
                   </View>
                   <Text style={{ fontSize: 11, color: '#6b7280', marginBottom: 2 }}>{p?.sign || p?.zodiac || '-'}</Text>
                   <Text style={{ fontSize: 11, color: '#6b7280' }}>House {p?.house || '-'}</Text>
@@ -1596,8 +1598,8 @@ const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
     if (kpLoading) {
       return (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 40 }}>
-          <ActivityIndicator size="large" color="#7c3aed" />
-          <Text style={{ color: '#7c3aed', marginTop: 10, fontWeight: '600' }}>{l.loadingKP}</Text>
+          <ActivityIndicator size="large" color="#E6A800" />
+          <Text style={{ color: '#E6A800', marginTop: 10, fontWeight: '600' }}>{l.loadingKP}</Text>
         </View>
       );
     }
@@ -1664,7 +1666,7 @@ const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
               {rpList.map((rp, i) => (
                 <View key={i} style={[styles.planetGridItem, { width: '48%' }]}>
                   <Text style={{ fontSize: 10, color: '#6b7280', textTransform: 'uppercase', marginBottom: 2 }}>{rp.label}</Text>
-                  <Text style={{ fontSize: 13, fontWeight: '800', color: '#1a0533' }}>{rp.value || '-'}</Text>
+                  <Text style={{ fontSize: 13, fontWeight: '800', color: '#1A1A1A' }}>{rp.value || '-'}</Text>
                 </View>
               ))}
             </View>
@@ -1695,22 +1697,22 @@ const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
                   const subLord = p.sub_lord || p.subLord || p.sub || '-';
 
                   return (
-                    <View key={i} style={[styles.planetTableRow, i % 2 === 0 ? { backgroundColor: '#fff' } : { backgroundColor: '#faf5ff' }]}>
+                    <View key={i} style={[styles.planetTableRow, i % 2 === 0 ? { backgroundColor: '#fff' } : { backgroundColor: '#F7F7F7' }]}>
                       <View style={[styles.planetTableCol, { width: 100, flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
-                        <Text style={{ fontSize: 16, color: '#7c3aed' }}>{PLANET_GLYPHS[pName] || '•'}</Text>
-                        <Text style={{ fontSize: 13, fontWeight: '700', color: '#1a0533' }}>{pName}</Text>
+                        <Text style={{ fontSize: 16, color: '#E6A800' }}>{PLANET_GLYPHS[pName] || '•'}</Text>
+                        <Text style={{ fontSize: 13, fontWeight: '700', color: '#1A1A1A' }}>{pName}</Text>
                       </View>
                       <Text style={[styles.planetTableCell, { width: 90 }]}>{pSign}</Text>
                       <View style={[styles.planetTableCell, { width: 110, flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
-                        <Text style={{ fontSize: 12, color: '#7c3aed' }}>{PLANET_GLYPHS[sLord] || ''}</Text>
+                        <Text style={{ fontSize: 12, color: '#E6A800' }}>{PLANET_GLYPHS[sLord] || ''}</Text>
                         <Text style={{ fontSize: 12, color: '#4b5563' }}>{sLord}</Text>
                       </View>
                       <View style={[styles.planetTableCell, { width: 110, flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
-                        <Text style={{ fontSize: 12, color: '#7c3aed' }}>{PLANET_GLYPHS[stLord] || ''}</Text>
+                        <Text style={{ fontSize: 12, color: '#E6A800' }}>{PLANET_GLYPHS[stLord] || ''}</Text>
                         <Text style={{ fontSize: 12, color: '#4b5563' }}>{stLord}</Text>
                       </View>
                       <View style={[styles.planetTableCell, { width: 110, flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
-                        <Text style={{ fontSize: 12, color: '#7c3aed' }}>{PLANET_GLYPHS[subLord] || ''}</Text>
+                        <Text style={{ fontSize: 12, color: '#E6A800' }}>{PLANET_GLYPHS[subLord] || ''}</Text>
                         <Text style={{ fontSize: 12, color: '#4b5563' }}>{subLord}</Text>
                       </View>
                     </View>
@@ -1782,8 +1784,8 @@ const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
     if (sadeSatiLoading) {
       return (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 40 }}>
-          <ActivityIndicator size="large" color="#7c3aed" />
-          <Text style={{ color: '#7c3aed', marginTop: 10, fontWeight: '600' }}>{l.loadingSadeSati}</Text>
+          <ActivityIndicator size="large" color="#E6A800" />
+          <Text style={{ color: '#E6A800', marginTop: 10, fontWeight: '600' }}>{l.loadingSadeSati}</Text>
         </View>
       );
     }
@@ -1851,7 +1853,7 @@ const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
                 borderBottomColor: '#f3f4f6'
               }}>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 14, fontWeight: '700', color: '#1a0533', textTransform: 'capitalize' }}>
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: '#1A1A1A', textTransform: 'capitalize' }}>
                     {phase.phase_name || phase.name || `Phase ${idx + 1}`}
                   </Text>
                   <Text style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
@@ -1885,8 +1887,8 @@ const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
     if (shadbalaLoading) {
       return (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 40 }}>
-          <ActivityIndicator size="large" color="#7c3aed" />
-          <Text style={{ color: '#7c3aed', marginTop: 10, fontWeight: '600' }}>{l.loadingShadbala}</Text>
+          <ActivityIndicator size="large" color="#E6A800" />
+          <Text style={{ color: '#E6A800', marginTop: 10, fontWeight: '600' }}>{l.loadingShadbala}</Text>
         </View>
       );
     }
@@ -1971,8 +1973,8 @@ const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
                   ))}
                 </View>
                 {SHADBALA_PLANETS.map((planet, idx) => (
-                  <View key={planet} style={{ flexDirection: 'row', paddingVertical: 8, backgroundColor: idx % 2 === 0 ? '#fff' : '#faf5ff' }}>
-                    <Text style={{ width: 80, fontWeight: '700', color: '#1a0533', fontSize: 12 }}>{planet}</Text>
+                  <View key={planet} style={{ flexDirection: 'row', paddingVertical: 8, backgroundColor: idx % 2 === 0 ? '#fff' : '#F7F7F7' }}>
+                    <Text style={{ width: 80, fontWeight: '700', color: '#1A1A1A', fontSize: 12 }}>{planet}</Text>
                     {SHADBALA_COMPONENTS.map(c => (
                       <Text key={c.key} style={{ width: 75, color: '#4b5563', fontSize: 12 }}>
                         {getVal(planet, c.key)}
@@ -2084,7 +2086,7 @@ const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
                   style={[
                     { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 50, borderWidth: 1.5 },
                     divisionalDiv === opt.div
-                      ? { borderColor: '#7c3aed', backgroundColor: '#f3e8ff' }
+                      ? { borderColor: '#E6A800', backgroundColor: '#EEEEEE' }
                       : { borderColor: '#e5e7eb', backgroundColor: '#fff' }
                   ]}
                   onPress={() => {
@@ -2092,7 +2094,7 @@ const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
                     fetchDivisionalChart(opt.div, divisionalStyle);
                   }}
                 >
-                  <Text style={{ fontSize: 13, fontWeight: '800', color: divisionalDiv === opt.div ? '#7c3aed' : '#6b7280' }}>
+                  <Text style={{ fontSize: 13, fontWeight: '800', color: divisionalDiv === opt.div ? '#E6A800' : '#6b7280' }}>
                     {label}
                   </Text>
                 </TouchableOpacity>
@@ -2109,7 +2111,7 @@ const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
               <Text style={{ fontSize: 12, color: '#6b7280', textAlign: 'center' }}>{currentOpt.desc}</Text>
             </View>
             {divisionalLoading && !divisionalChart ? (
-              <ActivityIndicator size="large" color="#7c3aed" style={{ marginVertical: 40 }} />
+              <ActivityIndicator size="large" color="#E6A800" style={{ marginVertical: 40 }} />
             ) : (
               <View style={{ alignItems: 'center', height: width - 80, width: width - 80, alignSelf: 'center', overflow: 'hidden' }}>
                 {renderChart(divisionalChart)}
@@ -2126,8 +2128,8 @@ const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
     if (ashtakvargaLoading) {
       return (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 40 }}>
-          <ActivityIndicator size="large" color="#7c3aed" />
-          <Text style={{ color: '#7c3aed', marginTop: 10, fontWeight: '600' }}>{l.loadingAshtakvarga}</Text>
+          <ActivityIndicator size="large" color="#E6A800" />
+          <Text style={{ color: '#E6A800', marginTop: 10, fontWeight: '600' }}>{l.loadingAshtakvarga}</Text>
         </View>
       );
     }
@@ -2171,12 +2173,12 @@ const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
                   style={[
                     { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 50, borderWidth: 1.5 },
                     selectedBinna === planet
-                      ? { borderColor: '#7c3aed', backgroundColor: '#f3e8ff' }
+                      ? { borderColor: '#E6A800', backgroundColor: '#EEEEEE' }
                       : { borderColor: '#e5e7eb', backgroundColor: '#fff' }
                   ]}
                   onPress={() => setAshtakvargaView(planet)}
                 >
-                  <Text style={{ fontSize: 13, fontWeight: '700', color: selectedBinna === planet ? '#7c3aed' : '#6b7280' }}>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: selectedBinna === planet ? '#E6A800' : '#6b7280' }}>
                     {planet}
                   </Text>
                 </TouchableOpacity>
@@ -2211,8 +2213,8 @@ const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
                       ))}
                     </View>
                     {binnas[selectedBinna]?.data && typeof binnas[selectedBinna].data === 'object' && Object.keys(binnas[selectedBinna].data).map((sourcePlanet, idx) => (
-                      <View key={sourcePlanet} style={{ flexDirection: 'row', paddingVertical: 6, backgroundColor: idx % 2 === 0 ? '#fff' : '#faf5ff' }}>
-                        <Text style={{ width: 90, fontWeight: '700', color: '#1a0533', fontSize: 12 }}>{sourcePlanet}</Text>
+                      <View key={sourcePlanet} style={{ flexDirection: 'row', paddingVertical: 6, backgroundColor: idx % 2 === 0 ? '#fff' : '#F7F7F7' }}>
+                        <Text style={{ width: 90, fontWeight: '700', color: '#1A1A1A', fontSize: 12 }}>{sourcePlanet}</Text>
                         {Array.isArray(binnas[selectedBinna].data[sourcePlanet]) && binnas[selectedBinna].data[sourcePlanet].map((v, i) => (
                           <Text key={i} style={{ width: 32, textAlign: 'center', color: v === 1 ? '#16a34a' : '#d1d5db', fontWeight: v === 1 ? '700' : '400', fontSize: 12 }}>
                             {v}
@@ -2234,19 +2236,19 @@ const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
             <Text style={{ fontSize: 12, color: '#6b7280', marginBottom: 12 }}>Combined Ashtakvarga points across all 12 houses</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View>
-                <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#f3e8ff', paddingBottom: 8, marginBottom: 4 }}>
+                <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#EEEEEE', paddingBottom: 8, marginBottom: 4 }}>
                   <Text style={{ width: 90, fontWeight: 'bold', color: '#374151', fontSize: 12 }}>Planet</Text>
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(h => (
                     <Text key={h} style={{ width: 32, textAlign: 'center', fontWeight: 'bold', color: '#374151', fontSize: 12 }}>{h}</Text>
                   ))}
-                  <Text style={{ width: 42, textAlign: 'center', fontWeight: 'bold', color: '#7c3aed', fontSize: 12 }}>Tot</Text>
+                  <Text style={{ width: 42, textAlign: 'center', fontWeight: 'bold', color: '#E6A800', fontSize: 12 }}>Tot</Text>
                 </View>
                 {savOrder.map((planet, idx) => {
                   const pts = savPoints[idx] || [];
                   const tot = savTotal[idx];
                   return (
-                    <View key={planet} style={{ flexDirection: 'row', paddingVertical: 6, backgroundColor: idx % 2 === 0 ? '#fff' : '#faf5ff' }}>
-                      <Text style={{ width: 90, fontWeight: '700', color: '#1a0533', fontSize: 12 }}>{planet}</Text>
+                    <View key={planet} style={{ flexDirection: 'row', paddingVertical: 6, backgroundColor: idx % 2 === 0 ? '#fff' : '#F7F7F7' }}>
+                      <Text style={{ width: 90, fontWeight: '700', color: '#1A1A1A', fontSize: 12 }}>{planet}</Text>
                       {(Array.isArray(pts) ? pts : Object.values(pts)).map((v, i) => {
                         const n = parseInt(v) || 0;
                         const color = n >= 4 ? '#16a34a' : '#dc2626';
@@ -2254,7 +2256,7 @@ const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
                           <Text key={i} style={{ width: 32, textAlign: 'center', color, fontWeight: '700', fontSize: 12 }}>{v}</Text>
                         );
                       })}
-                      <Text style={{ width: 42, textAlign: 'center', fontWeight: '800', color: '#7c3aed', fontSize: 12 }}>{tot ?? '-'}</Text>
+                      <Text style={{ width: 42, textAlign: 'center', fontWeight: '800', color: '#E6A800', fontSize: 12 }}>{tot ?? '-'}</Text>
                     </View>
                   );
                 })}
@@ -2271,8 +2273,8 @@ const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
     if (manglikLoading) {
       return (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 40 }}>
-          <ActivityIndicator size="large" color="#7c3aed" />
-          <Text style={{ color: '#7c3aed', marginTop: 10, fontWeight: '600' }}>{l.loadingManglik}</Text>
+          <ActivityIndicator size="large" color="#E6A800" />
+          <Text style={{ color: '#E6A800', marginTop: 10, fontWeight: '600' }}>{l.loadingManglik}</Text>
         </View>
       );
     }
@@ -2393,16 +2395,8 @@ const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFF" />
-
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={goBack} style={styles.backButton}>
-          <Text style={styles.backIcon}>←</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{l.title}</Text>
-        <View style={{ width: 40 }} />
-      </View>
+      <GoldHeader title={l.title} onBack={goBack} />
 
       {!kundaliRecord ? (
         <KeyboardAvoidingView
@@ -2483,7 +2477,7 @@ const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
                       style={styles.pickerTrigger}
                       onPress={() => setShowPicker({ visible: true, mode: 'date', target: 'birthDate' })}
                     >
-                      <Text style={styles.pickerIcon}>📅</Text>
+                      <Ionicons name="calendar-outline" size={15} color="#888888" />
                       <Text style={[styles.pickerValue, !form.birthDate && { color: '#BBBBBB' }]}>
                         {form.birthDate || 'YYYY-MM-DD'}
                       </Text>
@@ -2495,7 +2489,7 @@ const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
                       style={styles.pickerTrigger}
                       onPress={() => setShowPicker({ visible: true, mode: 'time', target: 'birthTime' })}
                     >
-                      <Text style={styles.pickerIcon}>⏰</Text>
+                      <Ionicons name="time-outline" size={15} color="#888888" />
                       <Text style={[styles.pickerValue, !form.birthTime && { color: '#BBBBBB' }]}>
                         {form.birthTime || 'HH:MM'}
                       </Text>
@@ -2528,7 +2522,7 @@ const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
                           style={[styles.suggestionItem, i === suggestions.length - 1 && { borderBottomWidth: 0 }]}
                           onPress={() => selectPlace(s)}
                         >
-                          <Text style={styles.suggStar}>📍</Text>
+                          <Ionicons name="location-outline" size={15} color="#E6A800" />
                           <Text style={styles.suggestionText}>{s.name}</Text>
                         </TouchableOpacity>
                       ))}
@@ -2536,11 +2530,11 @@ const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
                   )}
                 </View>
 
-                {form.latitude ? (
+                {/* {form.latitude ? (
                   <View style={styles.coordBadge}>
                     <Text style={styles.coordText}>✔ Location verified: {form.latitude}, {form.longitude}</Text>
                   </View>
-                ) : null}
+                ) : null} */}
 
                 {/* Submit */}
                 <TouchableOpacity
@@ -2558,7 +2552,7 @@ const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
                       ? <ActivityIndicator color="#1A1A1A" />
                       : <>
                         <Text style={styles.submitText}>{l.generate}</Text>
-                        <Text style={styles.submitArrow}>→</Text>
+                        <Ionicons name="arrow-forward" size={18} color="#1A1A1A" />
                       </>
                     }
                   </LinearGradient>
@@ -2635,19 +2629,19 @@ const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
           <View style={{ backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '80%', paddingBottom: 20 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: 20, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' }}>
-              <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1a0533' }}>{l.selectLang}</Text>
+              <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1A1A1A' }}>{l.selectLang}</Text>
               <TouchableOpacity onPress={() => setShowLangModal(false)}>
-                <Text style={{ fontSize: 16, color: '#7c3aed', fontWeight: 'bold' }}>{l.close}</Text>
+                <Text style={{ fontSize: 16, color: '#E6A800', fontWeight: 'bold' }}>{l.close}</Text>
               </TouchableOpacity>
             </View>
             <ScrollView>
               {LANGUAGES.map(langOpt => (
                 <TouchableOpacity
                   key={langOpt.code}
-                  style={{ padding: 16, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', backgroundColor: lang === langOpt.code ? '#faf5ff' : '#fff' }}
+                  style={{ padding: 16, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', backgroundColor: lang === langOpt.code ? '#F7F7F7' : '#fff' }}
                   onPress={() => onChangeLang(langOpt.code)}
                 >
-                  <Text style={{ fontSize: 15, fontWeight: lang === langOpt.code ? '700' : '500', color: lang === langOpt.code ? '#7c3aed' : '#1a0533' }}>
+                  <Text style={{ fontSize: 15, fontWeight: lang === langOpt.code ? '700' : '500', color: lang === langOpt.code ? '#E6A800' : '#1A1A1A' }}>
                     {langOpt.label}
                   </Text>
                 </TouchableOpacity>
@@ -2794,34 +2788,34 @@ const styles = StyleSheet.create({
   tabScrollContent: { padding: 16 },
   sectionCard: {
     backgroundColor: '#FFF', borderRadius: 16, padding: 16,
-    marginBottom: 16, borderWidth: 1, borderColor: '#f3e8ff',
-    shadowColor: '#7c3aed', shadowOffset: { width: 0, height: 4 },
+    marginBottom: 16, borderWidth: 1, borderColor: '#EEEEEE',
+    shadowColor: '#E6A800', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.04, shadowRadius: 8, elevation: 2
   },
-  sectionTitle: { fontSize: 16, fontWeight: '800', color: '#1a0533', marginBottom: 16 },
+  sectionTitle: { fontSize: 16, fontWeight: '800', color: '#1A1A1A', marginBottom: 16 },
   sectionDesc: { fontSize: 14, fontWeight: '600', color: '#666', marginBottom: 12 },
 
   infoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  infoItem: { width: '48%', backgroundColor: '#faf5ff', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#f3e8ff' },
-  infoLabel: { fontSize: 10, color: '#7c3aed', textTransform: 'uppercase', marginBottom: 4, fontWeight: '700', letterSpacing: 0.5 },
-  infoValue: { fontSize: 14, fontWeight: '700', color: '#1a0533' },
+  infoItem: { width: '48%', backgroundColor: '#F7F7F7', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#EEEEEE' },
+  infoLabel: { fontSize: 10, color: '#E6A800', textTransform: 'uppercase', marginBottom: 4, fontWeight: '700', letterSpacing: 0.5 },
+  infoValue: { fontSize: 14, fontWeight: '700', color: '#1A1A1A' },
 
   planetCard: {
     backgroundColor: '#fff', borderRadius: 16, padding: 16, marginBottom: 16,
-    borderWidth: 1, borderColor: '#f3e8ff',
-    shadowColor: '#7c3aed', shadowOffset: { width: 0, height: 4 },
+    borderWidth: 1, borderColor: '#EEEEEE',
+    shadowColor: '#E6A800', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.04, shadowRadius: 8, elevation: 2
   },
-  planetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, borderBottomWidth: 1, borderBottomColor: '#f3e8ff', paddingBottom: 12 },
-  planetIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#faf5ff', alignItems: 'center', justifyContent: 'center' },
-  planetIconText: { fontSize: 16, color: '#7c3aed' },
-  planetNameText: { fontSize: 16, fontWeight: '800', color: '#1a0533' },
+  planetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, borderBottomWidth: 1, borderBottomColor: '#EEEEEE', paddingBottom: 12 },
+  planetIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#F7F7F7', alignItems: 'center', justifyContent: 'center' },
+  planetIconText: { fontSize: 16, color: '#E6A800' },
+  planetNameText: { fontSize: 16, fontWeight: '800', color: '#1A1A1A' },
   retroBadge: { backgroundColor: '#fee2e2', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
   retroBadgeText: { fontSize: 10, fontWeight: '800', color: '#ef4444' },
-  planetHouseBadge: { backgroundColor: '#f3e8ff', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
-  planetHouseText: { fontSize: 11, fontWeight: '700', color: '#7c3aed' },
+  planetHouseBadge: { backgroundColor: '#EEEEEE', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  planetHouseText: { fontSize: 11, fontWeight: '700', color: '#E6A800' },
   planetDetailsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 },
-  planetGridItem: { width: '48%', backgroundColor: '#faf5ff', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#f3e8ff' },
+  planetGridItem: { width: '48%', backgroundColor: '#F7F7F7', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#EEEEEE' },
   planetGridLabel: { fontSize: 10, color: '#6b7280', textTransform: 'uppercase', marginBottom: 2, fontWeight: '600' },
   planetGridValue: { fontSize: 13, fontWeight: '700', color: '#1f2937' },
   degreeRow: {},
@@ -2831,25 +2825,25 @@ const styles = StyleSheet.create({
 
   dashaItem: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF',
-    padding: 12, borderRadius: 16, marginBottom: 12, borderWidth: 1, borderColor: '#f3e8ff',
-    shadowColor: '#7c3aed', shadowOffset: { width: 0, height: 2 },
+    padding: 12, borderRadius: 16, marginBottom: 12, borderWidth: 1, borderColor: '#EEEEEE',
+    shadowColor: '#E6A800', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.03, shadowRadius: 4, elevation: 1
   },
-  dashaIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#faf5ff', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  dashaIconText: { fontSize: 20, color: '#7c3aed' },
-  dashaPlanet: { fontSize: 15, fontWeight: '800', color: '#1a0533' },
+  dashaIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#F7F7F7', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  dashaIconText: { fontSize: 20, color: '#E6A800' },
+  dashaPlanet: { fontSize: 15, fontWeight: '800', color: '#1A1A1A' },
   dashaRange: { fontSize: 12, color: '#6b7280', marginTop: 2, fontWeight: '500' },
-  dashaBadge: { backgroundColor: '#f3e8ff', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  dashaBadgeText: { fontSize: 10, color: '#7c3aed', fontWeight: '800' },
+  dashaBadge: { backgroundColor: '#EEEEEE', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  dashaBadgeText: { fontSize: 10, color: '#E6A800', fontWeight: '800' },
 
   breadcrumbPill: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 50, backgroundColor: '#f3f4f6' },
-  breadcrumbPillActive: { backgroundColor: '#f3e8ff', borderWidth: 1, borderColor: '#7c3aed' },
+  breadcrumbPillActive: { backgroundColor: '#EEEEEE', borderWidth: 1, borderColor: '#E6A800' },
   breadcrumbText: { fontSize: 13, color: '#4b5563', fontWeight: '600' },
-  breadcrumbTextActive: { color: '#7c3aed', fontWeight: '800' },
+  breadcrumbTextActive: { color: '#E6A800', fontWeight: '800' },
   breadcrumbArrow: { marginHorizontal: 6, color: '#9ca3af', fontSize: 16 },
 
   chartStyleBtn: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 50, borderWidth: 1.5, borderColor: '#e5e7eb', backgroundColor: '#fff' },
-  chartStyleBtnActive: { borderColor: '#7c3aed', backgroundColor: '#7c3aed' },
+  chartStyleBtnActive: { borderColor: '#E6A800', backgroundColor: '#E6A800' },
   chartStyleText: { fontSize: 13, fontWeight: '600', color: '#6b7280' },
   chartStyleTextActive: { color: '#fff' },
 
@@ -2873,7 +2867,7 @@ const styles = StyleSheet.create({
   muhurtaGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 12 },
   muhurtaItem: { flex: 1, minWidth: '45%', padding: 12, borderRadius: 12, backgroundColor: '#fff', borderWidth: 1, borderColor: '#e5e7eb' },
   muhurtaLabel: { fontSize: 10, color: '#6b7280', textTransform: 'uppercase', fontWeight: '700', marginBottom: 4 },
-  muhurtaValue: { fontSize: 13, fontWeight: '800', color: '#1a0533' },
+  muhurtaValue: { fontSize: 13, fontWeight: '800', color: '#1A1A1A' },
   muhurtaAuspicious: { borderColor: '#bbf7d0', backgroundColor: '#f0fdf4' },
   muhurtaInauspicious: { borderColor: '#fecaca', backgroundColor: '#fef2f2' },
 
@@ -2881,17 +2875,17 @@ const styles = StyleSheet.create({
   luckyCard: { width: '48%', padding: 12, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   luckyCardIcon: { fontSize: 24, marginBottom: 6 },
   luckyCardLabel: { fontSize: 10, fontWeight: '700', color: '#666', textTransform: 'uppercase', textAlign: 'center' },
-  luckyCardValue: { fontSize: 13, fontWeight: '800', color: '#1a0533', textAlign: 'center', marginTop: 2 },
+  luckyCardValue: { fontSize: 13, fontWeight: '800', color: '#1A1A1A', textAlign: 'center', marginTop: 2 },
 
   descSection: { marginTop: 16, borderTopWidth: 1, borderTopColor: '#f3f4f6', paddingTop: 16 },
   descItem: { marginBottom: 12 },
-  descLabel: { fontSize: 13, fontWeight: '800', color: '#1a0533', marginBottom: 4 },
+  descLabel: { fontSize: 13, fontWeight: '800', color: '#1A1A1A', marginBottom: 4 },
   descText: { fontSize: 12, color: '#4b5563', lineHeight: 18 },
 
   ghatkaGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  ghatkaItem: { width: '31%', padding: 10, borderRadius: 10, backgroundColor: '#faf5ff', borderWidth: 1, borderColor: '#f3e8ff' },
-  ghatkaLabel: { fontSize: 9, color: '#7c3aed', textTransform: 'uppercase', fontWeight: '700', marginBottom: 2 },
-  ghatkaValue: { fontSize: 12, fontWeight: '700', color: '#1a0533' },
+  ghatkaItem: { width: '31%', padding: 10, borderRadius: 10, backgroundColor: '#F7F7F7', borderWidth: 1, borderColor: '#EEEEEE' },
+  ghatkaLabel: { fontSize: 9, color: '#E6A800', textTransform: 'uppercase', fontWeight: '700', marginBottom: 2 },
+  ghatkaValue: { fontSize: 12, fontWeight: '700', color: '#1A1A1A' },
 
   pill: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, fontSize: 10, fontWeight: '800' },
   pillRetro: { backgroundColor: '#fee2e2', color: '#ef4444' },
@@ -2923,7 +2917,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   planetSubTabActive: {
-    backgroundColor: '#7c3aed',
+    backgroundColor: '#E6A800',
   },
   planetSubTabText: {
     fontSize: 13,
@@ -2943,7 +2937,7 @@ const styles = StyleSheet.create({
   /* Planet Table */
   planetTableHeader: {
     flexDirection: 'row',
-    backgroundColor: '#7c3aed',
+    backgroundColor: '#E6A800',
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderTopLeftRadius: 12,

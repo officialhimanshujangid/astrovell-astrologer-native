@@ -7,7 +7,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { WebView } from 'react-native-webview';
 import { colors } from '../theme/colors';
-import ScreenHeader from '../components/ScreenHeader';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import useTranslation from '../hooks/useTranslation';
 import { profileApi, pageApi, authApi } from '../api/services';
 import { SOCKET_BASE } from '../api/apiClient';
@@ -125,6 +126,8 @@ const SettingsScreen = ({ onBack, initialSubScreen }) => {
   // Form 16A State
   const [form16aList, setForm16aList] = useState([]);
   const [form16aLoading, setForm16aLoading] = useState(false);
+  const [previewItem, setPreviewItem] = useState(null);   // Form16A PDF preview modal
+  const [previewFailed, setPreviewFailed] = useState(false);
 
   // Terms State
   const [termsContent, setTermsContent] = useState(null);
@@ -725,49 +728,49 @@ const SettingsScreen = ({ onBack, initialSubScreen }) => {
     {
       key: 'phone',
       title: t('update_phone'),
-      emoji: '📱',
+      icon: 'call-outline',
       desc: globalLang === 'hi' ? 'अपने संपर्क विवरण और व्हाट्सएप नंबर अपडेट करें।' : 'Update your contact details and WhatsApp numbers.',
       color: colors.iconPink
     },
     {
       key: 'training',
       title: t('training_video'),
-      emoji: '🎥',
+      icon: 'videocam-outline',
       desc: globalLang === 'hi' ? 'Astrovell के साथ शुरू करने के लिए प्रशिक्षण वीडियो देखें।' : 'Watch training videos to get started with Astrovell.',
       color: colors.iconBlue
     },
     {
       key: 'terms',
       title: t('terms_conditions'),
-      emoji: '📜',
+      icon: 'document-text-outline',
       desc: globalLang === 'hi' ? 'पार्टनर समझौते के नियम और शर्तें पढ़ें।' : 'Read the partner agreement terms and conditions.',
       color: colors.iconYellow
     },
     {
       key: 'bank',
       title: t('bank_details'),
-      emoji: '🏦',
+      icon: 'business-outline',
       desc: globalLang === 'hi' ? 'अपनी भुगतान बैंक खाता जानकारी देखें और अपडेट करें।' : 'View and update your payout bank account information.',
       color: colors.iconPurple
     },
     {
       key: 'form16a',
       title: t('download_form16a'),
-      emoji: '📄',
+      icon: 'receipt-outline',
       desc: globalLang === 'hi' ? 'अपना त्रैमासिक टीडीएस प्रमाणपत्र / फॉर्म 16A डाउनलोड करें।' : 'Download your quarterly TDS certificate / Form 16A.',
       color: colors.iconTeal
     },
     {
       key: 'gallery',
       title: t('gallery'),
-      emoji: '🖼️',
+      icon: 'images-outline',
       desc: globalLang === 'hi' ? 'अपनी प्रोफ़ाइल गैलरी छवियों को प्रबंधित करें।' : 'Manage your profile gallery images.',
       color: colors.iconOrange
     },
     {
       key: 'billing',
       title: t('update_billing'),
-      emoji: '📍',
+      icon: 'location-outline',
       desc: globalLang === 'hi' ? 'अपने व्यावसायिक बिलिंग और जीएसटी पते को अपडेट करें।' : 'Update your business billing and GST address.',
       color: colors.iconPink
     },
@@ -777,7 +780,7 @@ const SettingsScreen = ({ onBack, initialSubScreen }) => {
     if (activeSubScreen === 'phone') {
       return (
         <View style={styles.container}>
-          <ScreenHeader title={t('update_phone')} onBack={handleBack} />
+          <SettingsHeader title={t('update_phone')} onBack={handleBack} />
           {fetchLoading ? (
             <View style={styles.centered}>
               <ActivityIndicator size="large" color={colors.goldDark} />
@@ -791,8 +794,11 @@ const SettingsScreen = ({ onBack, initialSubScreen }) => {
                   <Text style={styles.fieldLabel}>
                     {globalLang === 'hi' ? 'वर्तमान मोबाइल नंबर' : 'Current Mobile Number'}
                   </Text>
-                  <View style={[styles.input, { backgroundColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}>
-                    <Text style={{ color: colors.textSecondary, fontWeight: '700' }}>
+                  <View style={[styles.phoneField, styles.phoneFieldLocked]}>
+                    <Text style={styles.flag}>🇮🇳</Text>
+                    <Text style={styles.cc}>+91</Text>
+                    <View style={styles.sep} />
+                    <Text style={[styles.phoneInput, { color: colors.textSecondary, fontWeight: '700' }]} numberOfLines={1}>
                       {profileDetails?.contactNo || 'Not Configured'}
                     </Text>
                     <Ionicons name="lock-closed" size={16} color={colors.textMuted} />
@@ -804,15 +810,21 @@ const SettingsScreen = ({ onBack, initialSubScreen }) => {
                   <Text style={styles.fieldLabel}>
                     {globalLang === 'hi' ? 'नया मोबाइल नंबर' : 'New Mobile Number'}
                   </Text>
-                  <TextInput
-                    style={styles.input}
-                    value={newPhone}
-                    onChangeText={setNewPhone}
-                    keyboardType="phone-pad"
-                    placeholderTextColor={colors.textLight}
-                    placeholder={globalLang === 'hi' ? 'नया मोबाइल नंबर दर्ज करें' : 'Enter New Mobile Number'}
-                    editable={!otpSent}
-                  />
+                  <View style={[styles.phoneField, otpSent && styles.phoneFieldLocked]}>
+                    <Text style={styles.flag}>🇮🇳</Text>
+                    <Text style={styles.cc}>+91</Text>
+                    <View style={styles.sep} />
+                    <TextInput
+                      style={styles.phoneInput}
+                      value={newPhone}
+                      onChangeText={setNewPhone}
+                      keyboardType="phone-pad"
+                      placeholderTextColor={colors.textLight}
+                      placeholder={globalLang === 'hi' ? 'नया मोबाइल नंबर' : 'New mobile number'}
+                      editable={!otpSent}
+                      maxLength={10}
+                    />
+                  </View>
                 </View>
 
                 {/* OTP Input and Action */}
@@ -886,7 +898,7 @@ const SettingsScreen = ({ onBack, initialSubScreen }) => {
     if (activeSubScreen === 'bank') {
       return (
         <View style={styles.container}>
-          <ScreenHeader title={t('bank_details')} onBack={handleBack} />
+          <SettingsHeader title={t('bank_details')} onBack={handleBack} />
           {bankFetchLoading ? (
             <View style={styles.centered}>
               <ActivityIndicator size="large" color={colors.goldDark} />
@@ -1085,9 +1097,15 @@ const SettingsScreen = ({ onBack, initialSubScreen }) => {
     }
 
     if (activeSubScreen === 'form16a') {
+      // PDF preview URL — Android WebView can't render PDFs directly, so wrap it
+      // in the Google Docs Viewer; iOS renders the PDF URL natively.
+      const pdfUrl = previewItem ? getForm16aUrl(previewItem.filePath) : '';
+      const pdfPreviewUri = Platform.OS === 'android'
+        ? `https://docs.google.com/viewer?url=${encodeURIComponent(pdfUrl)}&embedded=true`
+        : pdfUrl;
       return (
         <View style={styles.container}>
-          <ScreenHeader title={t('download_form16a')} onBack={handleBack} />
+          <SettingsHeader title={t('download_form16a')} onBack={handleBack} />
           {form16aLoading ? (
             <View style={styles.centered}>
               <ActivityIndicator size="large" color={colors.goldDark} />
@@ -1109,7 +1127,7 @@ const SettingsScreen = ({ onBack, initialSubScreen }) => {
                       key={item.id}
                       style={styles.docCard}
                       activeOpacity={0.8}
-                      onPress={() => handleDownloadForm16a(item.filePath)}
+                      onPress={() => { setPreviewFailed(false); setPreviewItem(item); }}
                     >
                       <View style={styles.docCardLeft}>
                         <View style={styles.pdfIconContainer}>
@@ -1137,7 +1155,7 @@ const SettingsScreen = ({ onBack, initialSubScreen }) => {
                       
                       <View style={styles.docCardRight}>
                         <View style={styles.downloadIconCircle}>
-                          <Ionicons name="download-outline" size={20} color={colors.white} />
+                          <Ionicons name="eye-outline" size={20} color={colors.white} />
                         </View>
                       </View>
                     </TouchableOpacity>
@@ -1146,6 +1164,68 @@ const SettingsScreen = ({ onBack, initialSubScreen }) => {
               )}
             </ScrollView>
           )}
+
+          {/* ── PDF Preview Modal ── */}
+          <Modal
+            visible={!!previewItem}
+            animationType="slide"
+            onRequestClose={() => setPreviewItem(null)}
+          >
+            <View style={styles.pdfModal}>
+              <SettingsHeader
+                title={previewItem?.fileName || t('download_form16a')}
+                onBack={() => setPreviewItem(null)}
+              />
+              <View style={styles.pdfInfoBar}>
+                <Ionicons name="calendar-outline" size={14} color={colors.textSecondary} />
+                <Text style={styles.pdfInfoText}>
+                  {t('financial_year')}: {previewItem?.financialYear || '—'}   ·   {t('quarter')}: {previewItem?.quarter || '—'}
+                </Text>
+              </View>
+
+              <View style={styles.pdfViewer}>
+                {previewFailed ? (
+                  <View style={styles.pdfFallback}>
+                    <Ionicons name="document-text-outline" size={56} color="#fff" style={{ opacity: 0.55 }} />
+                    <Text style={styles.pdfFallbackText}>
+                      {globalLang === 'hi' ? 'प्रीव्यू उपलब्ध नहीं है।\nफ़ाइल देखने के लिए नीचे डाउनलोड करें।' : 'Preview not available.\nTap Download below to view the file.'}
+                    </Text>
+                  </View>
+                ) : (
+                  <WebView
+                    source={{ uri: pdfPreviewUri }}
+                    style={{ flex: 1, backgroundColor: '#525659' }}
+                    startInLoadingState
+                    renderLoading={() => (
+                      <View style={styles.pdfLoading}>
+                        <ActivityIndicator size="large" color={colors.gold} />
+                      </View>
+                    )}
+                    onError={() => setPreviewFailed(true)}
+                    onHttpError={() => setPreviewFailed(true)}
+                  />
+                )}
+              </View>
+
+              <View style={styles.pdfFooter}>
+                <TouchableOpacity
+                  style={[styles.pdfDownloadBtn, form16aLoading && { opacity: 0.6 }]}
+                  onPress={() => previewItem && handleDownloadForm16a(previewItem.filePath)}
+                  disabled={form16aLoading}
+                  activeOpacity={0.85}
+                >
+                  {form16aLoading ? (
+                    <ActivityIndicator color={colors.text} />
+                  ) : (
+                    <>
+                      <Ionicons name="download-outline" size={20} color={colors.text} />
+                      <Text style={styles.pdfDownloadText}>{globalLang === 'hi' ? 'डाउनलोड करें' : 'Download PDF'}</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
         </View>
       );
     }
@@ -1153,7 +1233,7 @@ const SettingsScreen = ({ onBack, initialSubScreen }) => {
     if (activeSubScreen === 'gallery') {
       return (
         <View style={styles.container}>
-          <ScreenHeader title={t('gallery')} onBack={handleBack} />
+          <SettingsHeader title={t('gallery')} onBack={handleBack} />
           {galleryLoading ? (
             <View style={styles.centered}>
               <ActivityIndicator size="large" color={colors.goldDark} />
@@ -1429,7 +1509,7 @@ const SettingsScreen = ({ onBack, initialSubScreen }) => {
     if (activeSubScreen === 'terms') {
       return (
         <View style={styles.container}>
-          <ScreenHeader title={t('terms_conditions')} onBack={handleBack} />
+          <SettingsHeader title={t('terms_conditions')} onBack={handleBack} />
           {termsLoading ? (
             <View style={styles.centered}>
               <ActivityIndicator size="large" color={colors.goldDark} />
@@ -1457,7 +1537,7 @@ const SettingsScreen = ({ onBack, initialSubScreen }) => {
     if (activeSubScreen === 'training') {
       return (
         <View style={styles.container}>
-          <ScreenHeader title={t('training_video')} onBack={handleBack} />
+          <SettingsHeader title={t('training_video')} onBack={handleBack} />
           {videoLoading ? (
             <View style={styles.centered}>
               <ActivityIndicator size="large" color={colors.goldDark} />
@@ -1559,7 +1639,7 @@ const SettingsScreen = ({ onBack, initialSubScreen }) => {
     if (activeSubScreen === 'billing') {
       return (
         <View style={styles.container}>
-          <ScreenHeader title={t('update_billing')} onBack={handleBack} />
+          <SettingsHeader title={t('update_billing')} onBack={handleBack} />
           {billingLoading ? (
             <View style={styles.centered}>
               <ActivityIndicator size="large" color={colors.goldDark} />
@@ -1567,7 +1647,15 @@ const SettingsScreen = ({ onBack, initialSubScreen }) => {
           ) : (
             <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
               <View style={styles.formContainer}>
-                
+
+                {/* Info note */}
+                <View style={styles.billingNote}>
+                  <Ionicons name="receipt-outline" size={20} color={colors.goldDark} />
+                  <Text style={styles.billingNoteText}>
+                    {globalLang === 'hi' ? 'यह पता आपके इनवॉइस और GST दस्तावेज़ों पर दिखाई देगा।' : 'This address appears on your invoices and GST documents.'}
+                  </Text>
+                </View>
+
                 {/* Billing Address Input Field */}
                 <View style={styles.field}>
                   <Text style={styles.fieldLabel}>
@@ -1609,7 +1697,7 @@ const SettingsScreen = ({ onBack, initialSubScreen }) => {
     const sub = SETTING_ITEMS.find(item => item.key === activeSubScreen);
     return (
       <View style={styles.container}>
-        <ScreenHeader title={sub.title} onBack={handleBack} />
+        <SettingsHeader title={sub.title} onBack={handleBack} />
         <View style={styles.content}>
           <View style={[styles.iconCircle, { backgroundColor: sub.color }]}>
             <Text style={styles.emoji}>{sub.emoji}</Text>
@@ -1628,22 +1716,24 @@ const SettingsScreen = ({ onBack, initialSubScreen }) => {
 
   return (
     <View style={styles.container}>
-      <ScreenHeader title={t('settings')} onBack={onBack} />
+      <SettingsHeader title={t('settings')} onBack={onBack} />
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <View style={styles.grid}>
+        <View style={styles.list}>
           {SETTING_ITEMS.map((item) => (
             <TouchableOpacity
               key={item.key}
-              style={styles.card}
-              activeOpacity={0.8}
+              style={styles.row}
+              activeOpacity={0.7}
               onPress={() => setActiveSubScreen(item.key)}
             >
-              <View style={[styles.cardIconWrap, { backgroundColor: item.color }]}>
-                <Text style={styles.cardEmoji}>{item.emoji}</Text>
+              <View style={[styles.rowIcon, { backgroundColor: item.color }]}>
+                <Ionicons name={item.icon} size={22} color={colors.text} />
               </View>
-              <Text style={styles.cardTitle} numberOfLines={2}>
-                {item.title}
-              </Text>
+              <View style={styles.rowMid}>
+                <Text style={styles.rowTitle}>{item.title}</Text>
+                <Text style={styles.rowDesc} numberOfLines={2}>{item.desc}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
             </TouchableOpacity>
           ))}
         </View>
@@ -1652,48 +1742,72 @@ const SettingsScreen = ({ onBack, initialSubScreen }) => {
   );
 };
 
+// Header with a gold OS status-bar strip (matches the Dashboard look) + a white
+// title bar. Drop-in replacement for the shared ScreenHeader (title + onBack).
+const SettingsHeader = ({ title, onBack }) => {
+  const insets = useSafeAreaInsets();
+  return (
+    <View>
+      <StatusBar style="dark" />
+      <View style={{ height: insets.top, backgroundColor: colors.gold }} />
+      <View style={styles.shdr}>
+        {onBack ? (
+          <TouchableOpacity onPress={onBack} style={styles.shdrBack} activeOpacity={0.7}>
+            <Ionicons name="arrow-back" size={22} color={colors.text} />
+          </TouchableOpacity>
+        ) : <View style={styles.shdrBack} />}
+        <Text style={styles.shdrTitle} numberOfLines={1}>{title}</Text>
+        <View style={styles.shdrBack} />
+      </View>
+    </View>
+  );
+};
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.secondary },
+
+  // Settings header
+  shdr: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 16, paddingTop: 10, paddingBottom: 12,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1, borderBottomColor: colors.border,
+  },
+  shdrBack: {
+    width: 38, height: 38, borderRadius: 19,
+    backgroundColor: colors.secondary,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: colors.border,
+  },
+  shdrTitle: { flex: 1, textAlign: 'center', color: colors.text, fontSize: 17, fontWeight: '800' },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   scroll: { padding: 16, paddingBottom: 40 },
-  grid: {
+  list: { gap: 12 },
+  row: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  card: {
-    width: '47%', // approx half, minus gap spacing
-    backgroundColor: colors.surface,
-    borderRadius: 20,
-    padding: 20,
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 14,
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 14,
     borderWidth: 1,
     borderColor: colors.border,
-    minHeight: 130,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 6,
     elevation: 2,
-    flexGrow: 1,
   },
-  cardIconWrap: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+  rowIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
   },
-  cardEmoji: { fontSize: 24 },
-  cardTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.text,
-    textAlign: 'center',
-    lineHeight: 18,
-  },
+  rowMid: { flex: 1 },
+  rowTitle: { fontSize: 15, fontWeight: '800', color: colors.text },
+  rowDesc: { fontSize: 12, color: colors.textMuted, marginTop: 3, lineHeight: 16 },
   content: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, gap: 12 },
   iconCircle: {
     width: 100,
@@ -1753,6 +1867,55 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
+
+  // Phone field (flag + +91)
+  phoneField: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: colors.secondary,
+    borderWidth: 1, borderColor: colors.border,
+    borderRadius: 16, paddingHorizontal: 14,
+  },
+  phoneFieldLocked: { backgroundColor: colors.border },
+  flag: { fontSize: 19 },
+  cc: { color: colors.text, fontSize: 15, fontWeight: '800' },
+  sep: { width: 1, height: 24, backgroundColor: colors.borderStrong },
+  phoneInput: { flex: 1, color: colors.text, fontSize: 15, fontWeight: '600', paddingVertical: 14 },
+
+  // Billing note
+  billingNote: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: colors.goldGlow,
+    borderWidth: 1, borderColor: colors.borderGold,
+    borderRadius: 12, padding: 12, marginBottom: 18,
+  },
+  billingNoteText: { flex: 1, color: colors.textSecondary, fontSize: 12.5, lineHeight: 18, fontWeight: '500' },
+
+  // Form16A PDF preview modal
+  pdfModal: { flex: 1, backgroundColor: colors.primary },
+  pdfInfoBar: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: 16, paddingVertical: 10,
+    backgroundColor: colors.secondary,
+    borderBottomWidth: 1, borderBottomColor: colors.border,
+  },
+  pdfInfoText: { color: colors.textSecondary, fontSize: 12.5, fontWeight: '700' },
+  pdfViewer: { flex: 1, backgroundColor: '#525659' },
+  pdfLoading: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: '#525659' },
+  pdfFallback: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 16 },
+  pdfFallbackText: { color: '#fff', fontSize: 14, textAlign: 'center', lineHeight: 21, opacity: 0.85 },
+  pdfFooter: {
+    paddingHorizontal: 16, paddingTop: 12, paddingBottom: 28,
+    backgroundColor: colors.surface,
+    borderTopWidth: 1, borderTopColor: colors.border,
+  },
+  pdfDownloadBtn: {
+    flexDirection: 'row', gap: 8,
+    backgroundColor: colors.gold, borderRadius: 14,
+    paddingVertical: 15, alignItems: 'center', justifyContent: 'center',
+    shadowColor: colors.gold, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3, shadowRadius: 6, elevation: 4,
+  },
+  pdfDownloadText: { color: colors.text, fontSize: 16, fontWeight: '800' },
   saveBtn: {
     backgroundColor: '#fb9494', // Astrovell theme red/pink brand color
     borderRadius: 16,

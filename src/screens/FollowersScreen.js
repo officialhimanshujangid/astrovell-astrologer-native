@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, FlatList, ActivityIndicator, RefreshControl, Image,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useSelector } from 'react-redux';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { followerApi } from '../api/services';
 import { colors } from '../theme/colors';
-import ScreenHeader from '../components/ScreenHeader';
+import GoldHeader from '../components/GoldHeader';
 import useTranslation from '../hooks/useTranslation';
 import { BASE_URI } from '../api/apiClient';
 
@@ -33,22 +34,43 @@ const FollowersScreen = ({ onBack }) => {
 
   const getImg = (path) => {
     if (!path) return null;
-    return path.startsWith('http') ? path : `${BASE_IMG}${path}`;
+    return path.startsWith('http') ? path : `${BASE_IMG}public/${path}`;
   };
 
   const renderItem = ({ item }) => (
     <View style={styles.item}>
-      {item.profileImage ? (
-        <Image source={{ uri: getImg(item.profileImage) }} style={styles.avatar} />
+      {item.profile ? (
+        <Image source={{ uri: getImg(item.profile) }} style={styles.avatar} />
       ) : (
         <View style={styles.avatarPlaceholder}>
           <Text style={styles.avatarLetter}>
             {((item.name || item.userName || item.firstName || t('user') || 'U')[0] || 'U').toUpperCase()}
           </Text>
+         
         </View>
       )}
-      <View>
+      <View style={styles.info}>
         <Text style={styles.name}>{item.name || item.userName || `${item.firstName || ''} ${item.lastName || ''}`.trim() || t('user')}</Text>
+
+        {item.contactNo ? (
+          <View style={styles.detailRow}>
+            <Ionicons name="call-outline" size={13} color={colors.textMuted} />
+            <Text style={styles.detailText} numberOfLines={1}>{item.contactNo}</Text>
+          </View>
+        ) : null}
+        {item.email ? (
+          <View style={styles.detailRow}>
+            <Ionicons name="mail-outline" size={13} color={colors.textMuted} />
+            <Text style={styles.detailText} numberOfLines={1}>{item.email}</Text>
+          </View>
+        ) : null}
+        {item.addressLine1 ? (
+          <View style={styles.detailRow}>
+            <Ionicons name="location-outline" size={13} color={colors.textMuted} />
+            <Text style={styles.detailText} numberOfLines={2}>{item.addressLine1}</Text>
+          </View>
+        ) : null}
+
         <Text style={styles.meta}>
           {item.created_at ? `${t('followed_on') || 'Followed on'} ${new Date(item.created_at).toLocaleDateString('en-IN')}` : ''}
         </Text>
@@ -58,7 +80,7 @@ const FollowersScreen = ({ onBack }) => {
 
   return (
     <View style={styles.container}>
-      <ScreenHeader title={t('followers')} subtitle={`${followers.length} ${t('followers').toLowerCase()}`} onBack={onBack} />
+      <GoldHeader title={t('followers')} subtitle={`${followers.length} ${t('followers').toLowerCase()}`} onBack={onBack} />
       {loading ? (
         <ActivityIndicator color={colors.secondary} style={{ margin: 40 }} />
       ) : (
@@ -87,9 +109,12 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.primary },
   item: {
     backgroundColor: colors.card, borderRadius: 16, padding: 14,
-    flexDirection: 'row', alignItems: 'center', gap: 14,
+    flexDirection: 'row', alignItems: 'flex-start', gap: 14,
     marginBottom: 8, borderWidth: 1, borderColor: colors.border,
   },
+  info: { flex: 1 },
+  detailRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 },
+  detailText: { flex: 1, color: colors.textSecondary, fontSize: 12 },
   avatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: colors.border },
   avatarPlaceholder: {
     width: 50, height: 50, borderRadius: 25,

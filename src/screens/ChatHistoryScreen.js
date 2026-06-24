@@ -15,7 +15,7 @@ import { useSelector } from 'react-redux';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { chatApi } from '../api/services';
 import { colors } from '../theme/colors';
-import ScreenHeader from '../components/ScreenHeader';
+import GoldHeader from '../components/GoldHeader';
 import useTranslation from '../hooks/useTranslation';
 import { BASE_URI } from '../api/apiClient';
 import RemedyModal from '../components/RemedyModal';
@@ -204,7 +204,7 @@ const ChatHistoryScreen = ({ onBack, isSubScreen = false, onOpenSubScreen }) => 
   return (
     <View style={styles.container}>
       {!isSubScreen && (
-        <ScreenHeader title={t('chat_history')} subtitle={t('chat_history_desc')} onBack={onBack} />
+        <GoldHeader title={t('chat_history')} subtitle={t('chat_history_desc')} onBack={onBack} />
       )}
 
       {loading ? (

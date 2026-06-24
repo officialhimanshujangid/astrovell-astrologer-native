@@ -5,6 +5,7 @@ import { useSelector } from 'react-redux';
 import { colors } from '../theme/colors';
 
 import LoginScreen from '../screens/LoginScreen';
+import OtpScreen from '../screens/OtpScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import MainTabNavigator from './MainTabNavigator';
 import ChatRoomScreen from '../screens/ChatRoomScreen';
@@ -33,6 +34,7 @@ const AppNavigator = () => {
       {!isLoggedIn ? (
         <>
           <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="Otp" component={OtpScreen} />
           <Stack.Screen name="Register" component={RegisterScreen} />
         </>
       ) : !setupCompleted ? (

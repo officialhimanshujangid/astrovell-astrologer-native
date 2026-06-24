@@ -4,6 +4,7 @@ import {
   RefreshControl, ScrollView, Switch,
   Image, ActivityIndicator, Modal,
 } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import Toast from 'react-native-toast-message';
 import { useAlert } from '../context/AlertContext';
 import { useDispatch, useSelector } from 'react-redux';
@@ -30,6 +31,21 @@ import useTranslation from '../hooks/useTranslation';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const BASE_IMG = BASE_URI;
+
+// Live ticking clock — isolated so only this re-renders every second (not the
+// whole heavy Dashboard tree).
+const LiveClock = () => {
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  return (
+    <Text style={styles.clockText}>
+      {now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
+    </Text>
+  );
+};
 
 
 const DashboardScreen = ({ onOpenSubScreen }) => {
@@ -77,6 +93,7 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
   const [boosting, setBoosting] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [showLangModal, setShowLangModal] = useState(false);
+  const [showBoostModal, setShowBoostModal] = useState(false);
   const [trainingVideos, setTrainingVideos] = useState([]);
   const [selectedVideo, setSelectedVideo] = useState(null);
 
@@ -282,29 +299,26 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
     });
   };
 
-  const handleBoost = async () => {
+  const handleBoost = () => {
     if (!can('dashboard_boost')) return;
-    showAlert({
-      title: 'Boost Profile',
-      message: 'Boost your profile for 24 hours?',
-      cancelText: 'Cancel',
-      confirmText: 'Boost Now',
-      onConfirmPressed: async () => {
-        setBoosting(true);
-        try {
-          const res = await boostApi.boost({ astrologer_id: astrologer?.id });
-          if (res.data?.status === 200) {
-            Toast.show({ type: 'success', text1: '🚀 Boosted!', text2: 'Your profile is now boosted for 24 hours!' });
-            fetchBoost();
-          } else {
-            Toast.show({ type: 'error', text1: 'Error', text2: res.data?.message || 'Failed to boost' });
-          }
-        } catch (e) {
-          Toast.show({ type: 'error', text1: 'Error', text2: e.response?.data?.message || 'Failed to boost' });
-        }
-        setBoosting(false);
+    setShowBoostModal(true);
+  };
+
+  const confirmBoost = async () => {
+    setBoosting(true);
+    try {
+      const res = await boostApi.boost({ astrologer_id: astrologer?.id });
+      if (res.data?.status === 200) {
+        setShowBoostModal(false);
+        Toast.show({ type: 'success', text1: '🚀 Boosted!', text2: res.data?.message || 'Your profile is now boosted for 24 hours!' });
+        fetchBoost();
+      } else {
+        Toast.show({ type: 'error', text1: 'Error', text2: res.data?.message || 'Failed to boost' });
       }
-    });
+    } catch (e) {
+      Toast.show({ type: 'error', text1: 'Error', text2: e.response?.data?.message || 'Failed to boost' });
+    }
+    setBoosting(false);
   };
 
   const getProfileImageUri = (path) => {
@@ -425,7 +439,11 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
   );
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={styles.container}>
+      {/* Dark icons so the OS time/network/battery stay visible on gold */}
+      <StatusBar style="dark" />
+      {/* Gold status-bar strip above the header (OS time/network area) */}
+      <View style={{ height: insets.top, backgroundColor: colors.gold }} />
       {/* ── Header ────────────────────────────────────────────────────────── */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
@@ -477,40 +495,64 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
 
         {/* ── Availability Switches ───────────────────────────────────────── */}
         {can('dashboard_status_toggles') && (
-          <View style={styles.availabilityCard}>
-            {/* Chat Row */}
+          <View style={styles.availPlain}>
+            {/* Live ticking clock + date */}
+            {/* <View style={styles.availTopRow}>
+              <Text style={styles.availDate}>
+                {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' })}
+              </Text>
+              <LiveClock />
+            </View> */}
+
+            {/* Chat */}
             {can('chat') && (
-              <View style={[styles.availabilityRow, styles.availabilityBorder]}>
-                <View style={styles.availabilityLabelCol}>
-                  <Text style={styles.availabilityLabel}>{t('chat').toUpperCase()}</Text>
+              <View style={styles.availRow}>
+                <View style={[styles.availIcon, { backgroundColor: colors.iconPink }]}>
+                  <Ionicons name="chatbubble-ellipses-outline" size={25} color={colors.text} />
                 </View>
-                <View style={styles.availabilityRight}>
-                  <Text style={styles.availabilityTime}>{new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}, {new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</Text>
-                  <Switch
-                    value={chatStatus === 'Online'}
-                    onValueChange={toggleChatStatus}
-                    trackColor={{ false: colors.border, true: colors.success + '80' }}
-                    thumbColor={chatStatus === 'Online' ? colors.success : colors.textMuted}
-                  />
+                <View style={styles.availItemMid}>
+                  <Text style={styles.availItemLabel}>{t('chat')}</Text>
+                  <View style={styles.statusRow}>
+                    <View style={[styles.statusDotSm, { backgroundColor: chatStatus === 'Online' ? colors.online : colors.offline }]} />
+                    <Text style={[styles.statusText, { color: chatStatus === 'Online' ? colors.success : colors.textMuted }]}>
+                      {chatStatus === 'Online' ? 'Online' : 'Offline'}
+                    </Text>
+                  </View>
                 </View>
+                <Switch
+                  style={styles.availSwitch}
+                  value={chatStatus === 'Online'}
+                  onValueChange={toggleChatStatus}
+                  trackColor={{ false: colors.border, true: colors.success + '80' }}
+                  thumbColor={chatStatus === 'Online' ? colors.success : '#f4f3f4'}
+                />
               </View>
             )}
 
-            {/* Call Row */}
+            {can('chat') && can('call') && <View style={styles.availDivider} />}
+
+            {/* Call */}
             {can('call') && (
-              <View style={styles.availabilityRow}>
-                <View style={styles.availabilityLabelCol}>
-                  <Text style={styles.availabilityLabel}>{t('call').toUpperCase()}</Text>
+              <View style={styles.availRow}>
+                <View style={[styles.availIcon, { backgroundColor: colors.iconGreen }]}>
+                  <Ionicons name="call-outline" size={25} color={colors.text} />
                 </View>
-                <View style={styles.availabilityRight}>
-                  <Text style={styles.availabilityTime}>{new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}, {new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</Text>
-                  <Switch
-                    value={callStatus === 'Online'}
-                    onValueChange={toggleCallStatus}
-                    trackColor={{ false: colors.border, true: colors.success + '80' }}
-                    thumbColor={callStatus === 'Online' ? colors.success : colors.textMuted}
-                  />
+                <View style={styles.availItemMid}>
+                  <Text style={styles.availItemLabel}>{t('call')}</Text>
+                  <View style={styles.statusRow}>
+                    <View style={[styles.statusDotSm, { backgroundColor: callStatus === 'Online' ? colors.online : colors.offline }]} />
+                    <Text style={[styles.statusText, { color: callStatus === 'Online' ? colors.success : colors.textMuted }]}>
+                      {callStatus === 'Online' ? 'Online' : 'Offline'}
+                    </Text>
+                  </View>
                 </View>
+                <Switch
+                  style={styles.availSwitch}
+                  value={callStatus === 'Online'}
+                  onValueChange={toggleCallStatus}
+                  trackColor={{ false: colors.border, true: colors.success + '80' }}
+                  thumbColor={callStatus === 'Online' ? colors.success : '#f4f3f4'}
+                />
               </View>
             )}
           </View>
@@ -575,6 +617,11 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
                 <Text style={styles.boostSubText}>
                   {boostInfo.isBoosted ? t('boostActiveSub') : t('boostSub')}
                 </Text>
+                {!boostInfo.isBoosted && boostInfo.boostPrice != null && (
+                  <Text style={styles.boostPriceLine}>
+                    ₹{boostInfo.boostPrice} · {boostInfo.remainingBoosts ?? 0} left this month
+                  </Text>
+                )}
               </View>
               {!boostInfo.isBoosted ? (
                 <TouchableOpacity style={styles.boostActionBtn} onPress={handleBoost} disabled={boosting}>
@@ -594,7 +641,8 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
         {can('dashboard_service_grid') && (
           <>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>✨ {t('features_tools')}</Text>
+              <Ionicons name="sparkles" size={25} color={colors.goldDark} />
+              <Text style={styles.sectionTitle}>{t('features_tools')}</Text>
             </View>
             <View style={styles.serviceGrid}>
               {can('call_history') && <ServiceItem label={t('call')} icon="call-outline" color={colors.iconGreen} onPress={() => onOpenSubScreen?.('CallHistory')} badge={callRequests.length} />}
@@ -615,7 +663,8 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
         {can('feedback_ceo') && (
           <>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>📬 {t('feedback_ceo')}</Text>
+              <Ionicons name="mail-outline" size={25} color={colors.goldDark} />
+              <Text style={styles.sectionTitle}>{t('feedback_ceo')}</Text>
             </View>
             <TouchableOpacity
               style={styles.feedbackCard}
@@ -649,7 +698,8 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
         {trainingVideos.length > 0 && (
           <>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>🎥 {t('training_videos')}</Text>
+              <Ionicons name="videocam-outline" size={25} color={colors.goldDark} />
+              <Text style={styles.sectionTitle}>{t('training_videos')}</Text>
             </View>
             <ScrollView
               horizontal
@@ -823,6 +873,68 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
           )}
         </View>
       </Modal>
+
+      {/* Profile Boost Modal */}
+      <Modal visible={showBoostModal} transparent animationType="fade" onRequestClose={() => !boosting && setShowBoostModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.boostModalCard}>
+            <View style={styles.boostModalIconWrap}>
+              <Ionicons name="rocket" size={30} color="#D97706" />
+            </View>
+            <Text style={styles.boostModalTitle}>{t('boostTitle')}</Text>
+            <Text style={styles.boostModalSub}>Feature your profile at the top for the next 24 hours</Text>
+
+            {/* Price */}
+            <View style={styles.boostPriceBox}>
+              <Text style={styles.boostPriceBoxLabel}>Boost Price</Text>
+              <Text style={styles.boostPriceBoxValue}>₹{boostInfo?.boostPrice ?? '--'}</Text>
+            </View>
+
+            {/* Info rows */}
+            <View style={styles.boostInfoRow}>
+              <Ionicons name="trending-up-outline" size={16} color={colors.textSecondary} />
+              <Text style={styles.boostInfoText}>Appear at the top of the astrologer list</Text>
+            </View>
+            <View style={styles.boostInfoRow}>
+              <Ionicons name="repeat-outline" size={16} color={colors.textSecondary} />
+              <Text style={styles.boostInfoText}>
+                {boostInfo?.remainingBoosts ?? 0} of {boostInfo?.maxBoosts ?? 0} boosts left this month
+              </Text>
+            </View>
+            <View style={styles.boostInfoRow}>
+              <Ionicons name="wallet-outline" size={16} color={colors.textSecondary} />
+              <Text style={styles.boostInfoText}>Amount is deducted from your wallet</Text>
+            </View>
+
+            {/* Buttons */}
+            <View style={styles.boostModalBtnRow}>
+              <TouchableOpacity
+                style={[styles.boostModalBtn, styles.boostModalCancel]}
+                onPress={() => setShowBoostModal(false)}
+                disabled={boosting}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.boostModalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.boostModalBtn, styles.boostModalConfirm, boosting && { opacity: 0.7 }]}
+                onPress={confirmBoost}
+                disabled={boosting}
+                activeOpacity={0.85}
+              >
+                {boosting ? (
+                  <ActivityIndicator color={colors.text} />
+                ) : (
+                  <>
+                    <Ionicons name="rocket" size={16} color={colors.text} />
+                    <Text style={styles.boostModalConfirmText}>Boost Now</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -879,7 +991,7 @@ const styles = StyleSheet.create({
 
   statusGrid: { flexDirection: 'row', gap: 12, marginHorizontal: 16, marginTop: 16, marginBottom: 8 },
   statusCard: {
-    flex: 1, backgroundColor: colors.white, borderRadius: 20,
+    flex: 1, backgroundColor: colors.accentTeal, borderRadius: 20,
     padding: 12, flexDirection: 'row', alignItems: 'center',
     borderWidth: 1, borderColor: '#F1F5F9',
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 2,
@@ -908,28 +1020,62 @@ const styles = StyleSheet.create({
     backgroundColor: '#ECFDF5', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10,
   },
   boostActiveText: { fontSize: 11, fontWeight: '800', color: '#059669' },
+  boostPriceLine: { fontSize: 12, fontWeight: '800', color: colors.goldDark, marginTop: 4 },
 
-  availabilityCard: {
-    margin: 16,
+  // Boost modal
+  boostModalCard: {
     backgroundColor: colors.surface,
-    borderRadius: 20,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3,
-  },
-  availabilityRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    borderRadius: 22,
+    padding: 24,
     alignItems: 'center',
-    paddingVertical: 12,
   },
-  availabilityBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },
-  availabilityLabelCol: { flex: 1 },
-  availabilityLabel: { fontSize: 15, fontWeight: '700', color: colors.text },
-  availabilityPrice: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
-  availabilityRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  availabilityTime: { fontSize: 11, color: colors.textMuted },
+  boostModalIconWrap: {
+    width: 64, height: 64, borderRadius: 32,
+    backgroundColor: '#FEF3C7',
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 14,
+  },
+  boostModalTitle: { fontSize: 20, fontWeight: '900', color: colors.text, textAlign: 'center' },
+  boostModalSub: { fontSize: 13, color: colors.textSecondary, textAlign: 'center', marginTop: 6, lineHeight: 19, marginBottom: 18 },
+  boostPriceBox: {
+    width: '100%',
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    backgroundColor: colors.goldGlow,
+    borderWidth: 1, borderColor: colors.borderGold,
+    borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, marginBottom: 16,
+  },
+  boostPriceBoxLabel: { fontSize: 13, fontWeight: '700', color: colors.textSecondary },
+  boostPriceBoxValue: { fontSize: 24, fontWeight: '900', color: colors.goldDark },
+  boostInfoRow: { flexDirection: 'row', alignItems: 'center', gap: 10, alignSelf: 'stretch', marginBottom: 10 },
+  boostInfoText: { flex: 1, fontSize: 12.5, color: colors.textSecondary, fontWeight: '500' },
+  boostModalBtnRow: { flexDirection: 'row', gap: 12, marginTop: 14, alignSelf: 'stretch' },
+  boostModalBtn: {
+    flex: 1, flexDirection: 'row', gap: 6,
+    paddingVertical: 14, borderRadius: 14,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  boostModalCancel: { backgroundColor: colors.secondary, borderWidth: 1, borderColor: colors.border },
+  boostModalCancelText: { color: colors.textSecondary, fontSize: 15, fontWeight: '800' },
+  boostModalConfirm: {
+    backgroundColor: colors.gold,
+    shadowColor: colors.gold, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 4,
+  },
+  boostModalConfirmText: { color: colors.text, fontSize: 15, fontWeight: '800' },
+
+  availPlain: { marginHorizontal: 16, marginTop: 4, marginBottom: 2 },
+  availTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 },
+  clockText: { fontSize: 14, fontWeight: '800', color: colors.text, fontVariant: ['tabular-nums'], letterSpacing: 0.5, textTransform: "uppercase" },
+  availDate: { fontSize: 12, color: colors.textMuted, fontWeight: '600' },
+  availSwitch: { transform: [{ scaleX: 1.2 }, { scaleY: 1.2 }] },
+
+  availRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
+  availDivider: { height: 1, backgroundColor: colors.border },
+  availIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  availItemMid: { flex: 1 },
+  availItemLabel: { fontSize: 15, fontWeight: '800', color: colors.text },
+  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 },
+  statusDotSm: { width: 7, height: 7, borderRadius: 3.5 },
+  statusText: { fontSize: 12, fontWeight: '700' },
 
   offerBanner: {
     marginHorizontal: 16,
@@ -1219,7 +1365,7 @@ const styles = StyleSheet.create({
   videoCard: {
     width: 160,
     backgroundColor: colors.surface,
-    borderRadius: 16,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: colors.border,
     overflow: 'hidden',
@@ -1232,7 +1378,7 @@ const styles = StyleSheet.create({
   },
   videoCoverWrap: {
     width: '100%',
-    height: 90,
+    height: 140,
     backgroundColor: colors.border,
     position: 'relative',
   },

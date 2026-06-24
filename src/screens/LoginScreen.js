@@ -1,27 +1,20 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform,
+  ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Image,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
-import { useDispatch } from 'react-redux';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { MaterialIcons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { authApi } from '../api/services';
-import { loginSuccess } from '../store/slices/authSlice';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as Notifications from 'expo-notifications';
-import Constants from 'expo-constants';
 
 const LoginScreen = ({ navigation }) => {
-  const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
   const [phone, setPhone] = useState('');
-  const [otp, setOtp] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
-  const [devOtp, setDevOtp] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // ── Send OTP → navigate to dedicated Otp screen (logic unchanged) ──────────
   const handleSendOtp = async () => {
     if (!phone.trim() || phone.length < 10) {
       Toast.show({ type: 'error', text1: 'Error', text2: 'Please enter a valid 10-digit mobile number' });
@@ -36,9 +29,9 @@ const LoginScreen = ({ navigation }) => {
         countryCode: '91',
       });
       if (res.data?.status === 200) {
-        if (res.data?.otp) setDevOtp(String(res.data.otp));
-        setOtpSent(true);
+        const devOtp = res.data?.otp ? String(res.data.otp) : '';
         Toast.show({ type: 'success', text1: '✅ OTP Sent', text2: 'OTP sent to your registered number' });
+        navigation.navigate('Otp', { phone, devOtp });
       } else {
         Toast.show({ type: 'error', text1: 'Error', text2: res.data?.message || 'Failed to send OTP' });
       }
@@ -48,137 +41,109 @@ const LoginScreen = ({ navigation }) => {
     setLoading(false);
   };
 
-  const handleVerifyOtp = async () => {
-    if (!otp.trim() || otp.length < 4) {
-      Toast.show({ type: 'error', text1: 'Error', text2: 'Please enter the OTP' });
-      return;
-    }
-    setLoading(true);
-    try {
-      let pushToken = '';
-      try {
-        const projectId = Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId;
-        if (projectId && !projectId.includes("1234") && !projectId.includes("0000")) {
-          pushToken = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
-        }
-      } catch (e) { console.log('Push token fetch failed in Login'); }
-
-      const res = await authApi.login({ 
-        contactNo: phone, 
-        otp, 
-        countryCode: '+91',
-        fcmToken: pushToken,
-        deviceToken: pushToken,
-        expoPushToken: pushToken,
-      });
-      const d = res.data;
-      if (d?.status === 200 && d?.token) {
-        await AsyncStorage.setItem('astrologerToken', d.token);
-        const astrologer = d.recordList?.[0] || d.recordList || {};
-        dispatch(loginSuccess({ token: d.token, astrologer }));
-      } else {
-        Toast.show({ type: 'error', text1: 'Error', text2: d?.message || 'Login failed. Please check OTP.' });
-      }
-    } catch (err) {
-      Toast.show({ type: 'error', text1: 'Error', text2: err.response?.data?.message || 'Login failed' });
-    }
-    setLoading(false);
-  };
-
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: colors.primary }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView
-        contentContainerStyle={[styles.container, { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 20 }]}
+        contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        bounces={false}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.emoji}>🔮</Text>
-          <Text style={styles.brand}>Astrovell</Text>
-          <Text style={styles.brandSub}>Astrologer Panel</Text>
+        {/* ── Curved gold header ── */}
+        <View style={[styles.header, { paddingTop: insets.top + 26 }]}>
+          <View style={styles.logoCircle}>
+            <Image source={require('../../assets/icon.png')} style={styles.logo} resizeMode="contain" />
+          </View>
+          <Text style={styles.brand}>ASTROVELL</Text>
         </View>
 
-        {/* Card */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Welcome Back</Text>
-          <Text style={styles.cardSub}>Sign in to manage your consultations</Text>
+        {/* ── Body ── */}
+        <View style={styles.body}>
+          <Text style={styles.title}>Login to Astrologer</Text>
 
-          {/* Phone Field */}
-          <View style={styles.fieldWrap}>
-            <Text style={styles.label}>Mobile Number</Text>
-            <View style={styles.phoneRow}>
-              <View style={styles.countryCode}>
-                <Text style={styles.countryCodeText}>🇮🇳 +91</Text>
-              </View>
-              <TextInput
-                style={[styles.input, styles.phoneInput]}
-                placeholder="10-digit mobile"
-                placeholderTextColor={colors.textMuted}
-                value={phone}
-                onChangeText={setPhone}
-                keyboardType="phone-pad"
-                maxLength={10}
-                editable={!otpSent}
-              />
-            </View>
+          {/* Phone field */}
+          <View style={styles.phoneField}>
+            <Text style={styles.flag}>🇮🇳</Text>
+            <Text style={styles.cc}>+91</Text>
+            <View style={styles.sep} />
+            <TextInput
+              style={styles.phoneInput}
+              placeholder="Phone number"
+              placeholderTextColor={colors.textMuted}
+              value={phone}
+              onChangeText={setPhone}
+              keyboardType="phone-pad"
+              maxLength={10}
+            />
           </View>
 
-          {/* OTP Field */}
-          {otpSent && (
-            <View style={styles.fieldWrap}>
-              <Text style={styles.label}>OTP</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter OTP"
-                placeholderTextColor={colors.textMuted}
-                value={otp}
-                onChangeText={setOtp}
-                keyboardType="number-pad"
-                maxLength={6}
-              />
-              {devOtp ? (
-                <Text style={styles.devOtp}>OTP (dev): {devOtp}</Text>
-              ) : null}
-            </View>
-          )}
-
-          {/* Action Button */}
+          {/* Send OTP */}
           <TouchableOpacity
-            style={[styles.btn, loading && styles.btnDisabled]}
-            onPress={otpSent ? handleVerifyOtp : handleSendOtp}
+            style={[styles.sendBtn, loading && styles.btnDisabled]}
+            onPress={handleSendOtp}
             disabled={loading}
-            activeOpacity={0.8}
+            activeOpacity={0.85}
           >
             {loading ? (
-              <ActivityIndicator color={colors.primary} />
+              <ActivityIndicator color={colors.text} />
             ) : (
-              <Text style={styles.btnText}>{otpSent ? 'Verify & Login' : 'Send OTP'}</Text>
+              <>
+                <Text style={styles.sendBtnText}>SEND OTP</Text>
+                <MaterialIcons name="arrow-forward" size={17} color={colors.text} />
+              </>
             )}
           </TouchableOpacity>
 
-          {/* Edit phone */}
-          {otpSent && (
-            <TouchableOpacity onPress={() => { setOtpSent(false); setOtp(''); setDevOtp(''); }}>
-              <Text style={styles.editPhone}>← Edit mobile number</Text>
-            </TouchableOpacity>
-          )}
+          {/* Continue with Gmail (decorative — no action) */}
+          <View style={styles.gmailBtn}>
+            <MaterialIcons name="email" size={20} color="#EA4335" />
+            <Text style={styles.gmailText}>Continue with Gmail</Text>
+          </View>
 
-          {/* Register link */}
+          {/* Terms */}
+          <Text style={styles.terms}>
+            By signing up, you agree to our{' '}
+            <Text style={styles.termsLink}>Terms of use</Text> and{' '}
+            <Text style={styles.termsLink}>Privacy Policy</Text>
+          </Text>
+
+          {/* First Chat Free banner → Register */}
           <TouchableOpacity
+            style={styles.freeBanner}
+            activeOpacity={0.85}
             onPress={() => navigation.navigate('Register')}
-            style={styles.registerLink}
           >
-            <Text style={styles.registerText}>
-              New astrologer? <Text style={styles.registerHighlight}>Register here</Text>
-            </Text>
+            <Text style={styles.freeBannerText}>Register</Text>
           </TouchableOpacity>
-        </View>
 
-        {/* Footer */}
-        <Text style={styles.footer}>Astrovell Astrologer • Trusted by thousands</Text>
+          {/* Flexible spacer pushes the trust badges down to the bottom */}
+          <View style={styles.spacer} />
+
+          {/* Trust badges (sit at the bottom, just above the nav bar) */}
+          <View style={styles.trustRow}>
+            <View style={styles.trustItem}>
+              <View style={styles.trustIcon}>
+                <MaterialIcons name="lock" size={40} color={colors.goldDark} />
+              </View>
+              <Text style={styles.trustText}>Private &{'\n'}Confidential</Text>
+            </View>
+            <View style={styles.trustItem}>
+              <View style={styles.trustIcon}>
+                <MaterialIcons name="verified" size={40} color={colors.success} />
+              </View>
+              <Text style={styles.trustText}>Verified{'\n'}Astrologer</Text>
+            </View>
+            <View style={styles.trustItem}>
+              <View style={styles.trustIcon}>
+                <MaterialIcons name="payment" size={40} color={colors.info} />
+              </View>
+              <Text style={styles.trustText}>Secure{'\n'}Payments</Text>
+            </View>
+          </View>
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -187,81 +152,86 @@ const LoginScreen = ({ navigation }) => {
 export default LoginScreen;
 
 const styles = StyleSheet.create({
-  container: {
-    flexGrow: 1,
-    paddingHorizontal: 24,
-    alignItems: 'center',
-  },
+  scroll: { flexGrow: 1},
+
+  // Header
   header: {
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  emoji: { fontSize: 56, marginBottom: 8 },
-  brand: { color: colors.goldDark, fontSize: 30, fontWeight: '900', letterSpacing: 1 },
-  brandSub: { color: colors.textSecondary, fontSize: 13, marginTop: 4, letterSpacing: 0.5 },
-
-  card: {
-    width: '100%',
-    backgroundColor: colors.surface,
-    borderRadius: 24,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: colors.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5,
-  },
-  cardTitle: { color: colors.text, fontSize: 22, fontWeight: '800', marginBottom: 6 },
-  cardSub: { color: colors.textMuted, fontSize: 13, marginBottom: 24 },
-
-  fieldWrap: { marginBottom: 16 },
-  label: { color: colors.textSecondary, fontSize: 12, fontWeight: '600', marginBottom: 6, letterSpacing: 0.5 },
-  input: {
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    color: colors.text,
-    fontSize: 15,
-  },
-  phoneRow: { flexDirection: 'row', gap: 8 },
-  countryCode: {
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    justifyContent: 'center',
-  },
-  countryCodeText: { color: colors.text, fontSize: 14, fontWeight: '600' },
-  phoneInput: { flex: 1 },
-
-  devOtp: { color: colors.goldDark, fontSize: 12, fontWeight: '600', marginTop: 6 },
-
-  btn: {
     backgroundColor: colors.gold,
-    borderRadius: 14,
-    paddingVertical: 14,
     alignItems: 'center',
-    marginTop: 8,
-    shadowColor: colors.gold,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 4,
+    paddingBottom: 40,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+  },
+  logoCircle: {
+    width: 152, height: 152, borderRadius: 24,
+    backgroundColor: '#FFF',
+    alignItems: 'center', justifyContent: 'center',
+    overflow: 'hidden',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15, shadowRadius: 8, elevation: 5,
+  },
+  logo: { width: 151, height: 151 },
+  brand: { color: colors.text, fontSize: 27, fontWeight: '900', letterSpacing: 2, marginTop: 14 },
+  brandSub: { color: colors.text, fontSize: 13, fontWeight: '600', marginTop: 3, opacity: 0.8 },
+
+  // Body
+  body: { flexGrow: 1, paddingHorizontal: 24, paddingTop: 28, paddingBottom: 20 },
+  title: { textAlign: 'center', color: colors.text, fontSize: 18, fontWeight: '800', marginBottom: 22 },
+  spacer: { flex: 1 },
+
+  // Phone field
+  phoneField: {
+    flexDirection: 'row', alignItems: 'center',
+    borderWidth: 1, borderColor: colors.borderStrong, borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 4, gap: 8,
+    backgroundColor: colors.white,
+  },
+  flag: { fontSize: 18 },
+  cc: { color: colors.text, fontSize: 15, fontWeight: '700' },
+  sep: { width: 1, height: 22, backgroundColor: colors.borderStrong, marginHorizontal: 2 },
+  phoneInput: { flex: 1, color: colors.text, fontSize: 15, paddingVertical: 12, fontWeight: '600' },
+
+  // Send OTP
+  sendBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: colors.gold, borderRadius: 12, paddingVertical: 15, marginTop: 20,
+    shadowColor: colors.gold, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3, shadowRadius: 6, elevation: 4,
   },
   btnDisabled: { opacity: 0.6 },
-  btnText: { color: colors.text, fontSize: 16, fontWeight: '800', letterSpacing: 0.5 },
+  sendBtnText: { color: colors.text, fontSize: 17, fontWeight: '800', letterSpacing: 0.5 },
 
-  editPhone: { color: colors.goldDark, textAlign: 'center', marginTop: 14, fontSize: 13, fontWeight: '600' },
+  // Gmail (decorative)
+  gmailBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+    borderWidth: 1, borderColor: colors.borderStrong, borderRadius: 12,
+    paddingVertical: 14, marginTop: 14, backgroundColor: colors.white,
+  },
+  gmailG: { fontSize: 16, fontWeight: '900', color: '#4285F4' },
+  gmailText: { color: colors.text, fontSize: 19, fontWeight: '800' },
 
-  registerLink: { marginTop: 20, alignItems: 'center' },
+  // Terms
+  terms: { color: colors.textMuted, fontSize: 14, textAlign: 'center', marginTop: 12, lineHeight: 15 },
+  termsLink: { color: colors.info, textDecorationLine: 'underline' },
+
+  // First Chat Free banner
+  freeBanner: {
+    backgroundColor: colors.accent, borderRadius: 6,
+    paddingVertical: 12, alignItems: 'center', marginTop: 18,
+  },
+  freeBannerText: { color: '#FFF', fontSize: 17, fontWeight: '700', letterSpacing: 0.3 },
+
+  // Trust badges
+  trustRow: { flexDirection: 'row', justifyContent: 'space-evenly', marginTop: 26 },
+  trustItem: { alignItems: 'center', flex: 1 },
+  trustIcon: {
+    width: 75, height: 75, borderRadius: 12, backgroundColor: colors.secondary,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 8,
+  },
+  trustText: { color: colors.textSecondary, fontSize: 12, fontWeight: '600', textAlign: 'center', lineHeight: 16 },
+
+  // Register link
+  registerLink: { marginTop: 22, alignItems: 'center' },
   registerText: { color: colors.textMuted, fontSize: 13 },
   registerHighlight: { color: colors.goldDark, fontWeight: '700' },
-
-  footer: { color: colors.textMuted, fontSize: 11, marginTop: 24, textAlign: 'center' },
 });

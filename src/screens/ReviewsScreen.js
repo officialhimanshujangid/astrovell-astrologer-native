@@ -1,20 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  TextInput, ActivityIndicator, RefreshControl,
+  TextInput, ActivityIndicator, RefreshControl, Image,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import { useSelector } from 'react-redux';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { reviewApi } from '../api/services';
+import { BASE_URI } from '../api/apiClient';
 import { colors } from '../theme/colors';
-import ScreenHeader from '../components/ScreenHeader';
+import GoldHeader from '../components/GoldHeader';
 import useTranslation from '../hooks/useTranslation';
 
-const Stars = ({ rating }) => (
-  <View style={{ flexDirection: 'row', gap: 2 }}>
-    {[1,2,3,4,5].map(i => (
-      <Text key={i} style={{ color: i <= rating ? colors.gold : colors.textMuted, fontSize: 14 }}>★</Text>
+const BASE_IMG = BASE_URI;
+
+const Stars = ({ rating = 0, size = 14 }) => (
+  <View style={{ flexDirection: 'row', gap: 1 }}>
+    {[1, 2, 3, 4, 5].map(i => (
+      <Ionicons
+        key={i}
+        name={i <= rating ? 'star' : 'star-outline'}
+        size={size}
+        color={i <= rating ? colors.gold : colors.borderStrong}
+      />
     ))}
   </View>
 );
@@ -48,6 +57,8 @@ const ReviewsScreen = ({ onBack }) => {
   }, []);
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 
+  const getImg = (path) => (!path ? null : (path.startsWith('http') ? path : `${BASE_IMG}public/${path}`));
+
   const handleReply = async (reviewId) => {
     const text = replies[reviewId]?.trim();
     if (!text) { Toast.show({ type: 'error', text1: t('error'), text2: t('enter_reply') }); return; }
@@ -61,19 +72,32 @@ const ReviewsScreen = ({ onBack }) => {
     setReplyingId(null);
   };
 
-  const renderItem = ({ item }) => (
+  const renderItem = ({ item }) => {
+    const name = item.userName || item.name || t('user');
+    const reviewText = item.review || item.comment;
+    return (
     <View style={styles.reviewCard}>
       <View style={styles.reviewHeader}>
-        <View>
-          <Text style={styles.reviewUser}>{item.userName || item.name || t('user')}</Text>
-          <Stars rating={item.rating || 0} />
+        {item.profile ? (
+          <Image source={{ uri: getImg(item.profile) }} style={styles.avatar} />
+        ) : (
+          <View style={styles.avatarPlaceholder}>
+            <Text style={styles.avatarLetter}>{(name[0] || 'U').toUpperCase()}</Text>
+          </View>
+        )}
+        <View style={styles.headerMid}>
+          <Text style={styles.reviewUser} numberOfLines={1}>{name}</Text>
+          <View style={styles.headerSubRow}>
+            <Stars rating={item.rating || 0} />
+            <Text style={styles.ratingNum}>{Number(item.rating || 0).toFixed(1)}</Text>
+          </View>
         </View>
         <Text style={styles.reviewDate}>
-          {item.created_at ? new Date(item.created_at).toLocaleDateString('en-IN') : ''}
+          {item.created_at ? new Date(item.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : ''}
         </Text>
       </View>
-      {item.review || item.comment ? (
-        <Text style={styles.reviewText}>{item.review || item.comment}</Text>
+      {reviewText ? (
+        <Text style={styles.reviewText}>“{reviewText}”</Text>
       ) : null}
 
       {item.reply ? (
@@ -103,11 +127,12 @@ const ReviewsScreen = ({ onBack }) => {
         </View>
       )}
     </View>
-  );
+    );
+  };
 
   return (
     <View style={styles.container}>
-      <ScreenHeader title={t('user_reviews')} subtitle={`${reviews.length} ${t('reviews_count')}`} onBack={onBack} />
+      <GoldHeader title={t('user_reviews')} subtitle={`${reviews.length} ${t('reviews_count')}`} onBack={onBack} />
       {loading ? (
         <ActivityIndicator color={colors.secondary} style={{ margin: 40 }} />
       ) : (
@@ -140,10 +165,19 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.03, shadowRadius: 5, elevation: 2,
   },
-  reviewHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
-  reviewUser:   { color: colors.text, fontSize: 15, fontWeight: '700', marginBottom: 4 },
+  reviewHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.border },
+  avatarPlaceholder: {
+    width: 44, height: 44, borderRadius: 22, backgroundColor: colors.goldBg,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  avatarLetter: { color: colors.goldDark, fontSize: 18, fontWeight: '800' },
+  headerMid: { flex: 1 },
+  reviewUser:   { color: colors.text, fontSize: 15, fontWeight: '800', marginBottom: 5 },
+  headerSubRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  ratingNum:    { color: colors.textMuted, fontSize: 12, fontWeight: '700' },
   reviewDate:   { color: colors.textMuted, fontSize: 11 },
-  reviewText:   { color: colors.textSecondary, fontSize: 13, lineHeight: 20, marginTop: 6 },
+  reviewText:   { color: colors.textSecondary, fontSize: 13.5, lineHeight: 21, marginTop: 12, fontStyle: 'italic' },
   replyWrap: {
     marginTop: 12, backgroundColor: colors.goldBg,
     borderRadius: 12, padding: 12,

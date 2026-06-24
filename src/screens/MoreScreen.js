@@ -2,51 +2,50 @@ import React from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView, Linking,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
-import ScreenHeader from '../components/ScreenHeader';
+import GoldHeader from '../components/GoldHeader';
 import usePermissions from '../hooks/usePermissions';
 import useTranslation from '../hooks/useTranslation';
 
 const ALL_MENU_ITEMS = [
   {
     sectionKey: 'consultations', items: [
-      { icon: '💬', labelKey: 'chat_history', key: 'ChatHistory', permKey: 'chat' },
-      { icon: '📞', labelKey: 'call_history', key: 'CallHistory', permKey: 'call' },
-      { icon: '📅', labelKey: 'appointments', key: 'Appointments', permKey: 'appointments' },
+      { icon: 'chatbubbles-outline',    color: '#6366F1', labelKey: 'chat_history',  key: 'ChatHistory',  permKey: 'chat' },
+      { icon: 'call-outline',           color: '#EF4444', labelKey: 'call_history',  key: 'CallHistory',  permKey: 'call' },
+      { icon: 'calendar-outline',       color: '#8B5CF6', labelKey: 'appointments',  key: 'Appointments', permKey: 'appointments' },
     ]
   },
   {
     sectionKey: 'puja_services', items: [
-      { icon: '🪔', labelKey: 'my_pujas', key: 'Pujas', permKey: 'puja' },
-      { icon: '📦', labelKey: 'puja_orders', key: 'PujaOrders', permKey: 'puja' },
+      { icon: 'flame-outline',          color: '#EA580C', labelKey: 'my_pujas',      key: 'Pujas',        permKey: 'puja' },
+      { icon: 'cube-outline',           color: '#F59E0B', labelKey: 'puja_orders',   key: 'PujaOrders',   permKey: 'puja' },
     ]
   },
   {
     sectionKey: 'reports_tools', items: [
-      { icon: '📋', labelKey: 'report_requests', key: 'Reports', permKey: 'reports' },
-      { icon: '⭐', labelKey: 'user_reviews', key: 'Reviews', permKey: 'reviews' },
-      { icon: '👥', labelKey: 'followers', key: 'Followers', permKey: 'followers' },
-      { icon: '🔔', labelKey: 'notifications', key: 'Notifications', permKey: 'notifications' },
-      { icon: '📜', labelKey: 'check_kundali', key: 'Kundali', permKey: 'kundali' },
-      { icon: '💖', labelKey: 'match_kundali', key: 'KundaliMatching', permKey: 'kundali_matching' },
+      { icon: 'document-text-outline',  color: '#3B82F6', labelKey: 'report_requests', key: 'Reports',         permKey: 'reports' },
+      { icon: 'star-outline',           color: '#F59E0B', labelKey: 'user_reviews',    key: 'Reviews',         permKey: 'reviews' },
+      { icon: 'people-outline',         color: '#22C55E', labelKey: 'followers',       key: 'Followers',       permKey: 'followers' },
+      { icon: 'notifications-outline',  color: '#4682B4', labelKey: 'notifications',   key: 'Notifications',   permKey: 'notifications' },
+      { icon: 'planet-outline',         color: '#9333EA', labelKey: 'check_kundali',   key: 'Kundali',         permKey: 'kundali' },
+      { icon: 'heart-outline',          color: '#EC4899', labelKey: 'match_kundali',   key: 'KundaliMatching', permKey: 'kundali_matching' },
     ]
   },
   {
     sectionKey: 'settings', items: [
-      { icon: '📱', labelKey: 'update_phone', key: 'Settings_phone', permKey: 'settings' },
-      { icon: '🎥', labelKey: 'training_video', key: 'Settings_training', permKey: 'settings' },
-      { icon: '📜', labelKey: 'terms_conditions', key: 'Settings_terms', permKey: 'settings' },
-      { icon: '🏦', labelKey: 'bank_details', key: 'Settings_bank', permKey: 'settings' },
-      { icon: '📄', labelKey: 'download_form16a', key: 'Settings_form16a', permKey: 'settings' },
-      { icon: '🖼️', labelKey: 'gallery', key: 'Settings_gallery', permKey: 'settings' },
-      { icon: '📍', labelKey: 'update_billing', key: 'Settings_billing', permKey: 'settings' },
+      { icon: 'call-outline',           color: '#DB2777', labelKey: 'update_phone',      key: 'Settings_phone',   permKey: 'settings' },
+      { icon: 'videocam-outline',       color: '#0EA5E9', labelKey: 'training_video',    key: 'Settings_training', permKey: 'settings' },
+      { icon: 'document-text-outline',  color: '#CA8A04', labelKey: 'terms_conditions',  key: 'Settings_terms',   permKey: 'settings' },
+      { icon: 'business-outline',       color: '#7C3AED', labelKey: 'bank_details',      key: 'Settings_bank',    permKey: 'settings' },
+      { icon: 'receipt-outline',        color: '#14B8A6', labelKey: 'download_form16a',  key: 'Settings_form16a', permKey: 'settings' },
+      { icon: 'images-outline',         color: '#E67E22', labelKey: 'gallery',           key: 'Settings_gallery', permKey: 'settings' },
+      { icon: 'location-outline',       color: '#E11D48', labelKey: 'update_billing',    key: 'Settings_billing', permKey: 'settings' },
     ]
   },
 ];
 
 const MoreScreen = ({ onOpenSubScreen }) => {
-  const insets = useSafeAreaInsets();
   const { can } = usePermissions();
   const { t } = useTranslation();
 
@@ -58,25 +57,40 @@ const MoreScreen = ({ onOpenSubScreen }) => {
     }))
     .filter(section => section.items.length > 0);
 
+  const MenuRow = ({ icon, color, label, onPress, bordered }) => (
+    <TouchableOpacity
+      style={[styles.menuItem, bordered && styles.menuItemBordered]}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
+      <View style={[styles.menuIconWrap, { backgroundColor: color + '18' }]}>
+        <Ionicons name={icon} size={20} color={color} />
+      </View>
+      <Text style={styles.menuItemLabel}>{label}</Text>
+      <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
+    </TouchableOpacity>
+  );
+
   return (
     <View style={styles.container}>
-      <ScreenHeader title={t('more')} subtitle={t('features_tools')} />
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
+      <GoldHeader title={t('more')} subtitle={t('features_tools')} />
+      <ScrollView
+        contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+        showsVerticalScrollIndicator={false}
+      >
         {MENU_ITEMS.map(section => (
           <View key={section.sectionKey} style={styles.section}>
             <Text style={styles.sectionTitle}>{t(section.sectionKey)}</Text>
             <View style={styles.sectionCard}>
               {section.items.map((item, idx) => (
-                <TouchableOpacity
+                <MenuRow
                   key={item.key}
-                  style={[styles.menuItem, idx < section.items.length - 1 && styles.menuItemBordered]}
+                  icon={item.icon}
+                  color={item.color}
+                  label={t(item.labelKey)}
+                  bordered={idx < section.items.length - 1}
                   onPress={() => onOpenSubScreen?.(item.key)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.menuItemIcon}>{item.icon}</Text>
-                  <Text style={styles.menuItemLabel}>{t(item.labelKey)}</Text>
-                  <Text style={styles.menuItemArrow}>›</Text>
-                </TouchableOpacity>
+                />
               ))}
             </View>
           </View>
@@ -86,18 +100,14 @@ const MoreScreen = ({ onOpenSubScreen }) => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('support')}</Text>
           <View style={styles.sectionCard}>
-            <TouchableOpacity
-              style={styles.menuItem}
+            <MenuRow
+              icon="logo-whatsapp"
+              color="#25D366"
+              label={t('support')}
               onPress={() => Linking.openURL('https://wa.me/918529411977?text=' + encodeURIComponent('Hi Astrovell team, I need help with the astrologer app.')).catch(() => { })}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.menuItemIcon}>🆘</Text>
-              <Text style={styles.menuItemLabel}>{t('support')}</Text>
-              <Text style={styles.menuItemArrow}>›</Text>
-            </TouchableOpacity>
+            />
           </View>
         </View>
-
       </ScrollView>
     </View>
   );
@@ -106,13 +116,13 @@ const MoreScreen = ({ onOpenSubScreen }) => {
 export default MoreScreen;
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.primary },
+  container: { flex: 1, backgroundColor: colors.secondary },
 
   section: { marginBottom: 20 },
   sectionTitle: {
     color: colors.textSecondary,
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '800',
     letterSpacing: 1,
     textTransform: 'uppercase',
     marginBottom: 8,
@@ -126,30 +136,24 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    shadowOpacity: 0.04,
+    shadowRadius: 5,
     elevation: 2,
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-    paddingVertical: 15,
-    paddingHorizontal: 16,
+    paddingVertical: 13,
+    paddingHorizontal: 14,
   },
   menuItemBordered: {
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: '#F1F1F1',
   },
-  menuItemIcon: { fontSize: 22, width: 28 },
-  menuItemLabel: { flex: 1, color: colors.text, fontSize: 14, fontWeight: '600' },
-  menuItemArrow: { color: colors.textMuted, fontSize: 20 },
-
-  versionCard: {
-    alignItems: 'center',
-    paddingVertical: 20,
-    marginTop: 8,
+  menuIconWrap: {
+    width: 40, height: 40, borderRadius: 11,
+    alignItems: 'center', justifyContent: 'center',
   },
-  versionText: { color: colors.textSecondary, fontSize: 13, fontWeight: '700' },
-  versionSub: { color: colors.textMuted, fontSize: 11, marginTop: 4, opacity: 0.6 },
+  menuItemLabel: { flex: 1, color: colors.text, fontSize: 14.5, fontWeight: '600' },
 });

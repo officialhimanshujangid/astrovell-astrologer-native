@@ -16,6 +16,7 @@ import { AlertProvider } from './src/context/AlertContext';
 import { navigationRef } from './src/navigation/navigationRef';
 import { CallProvider } from './src/context/CallContext';
 import OngoingSessionPill from './src/components/OngoingSessionPill';
+import SplashScreen from './src/screens/SplashScreen';
 import { colors } from './src/theme/colors';
 
 Notifications.setNotificationHandler({
@@ -79,6 +80,7 @@ const LoadingView = () => (
 export default function App() {
   const [expoPushToken, setExpoPushToken] = useState('');
   const [notification, setNotification] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
   const notificationListener = useRef();
   const responseListener = useRef();
 
@@ -133,6 +135,9 @@ export default function App() {
           <Toast />
         </SafeAreaProvider>
       </PersistGate>
+      {/* Animated launch splash — sits above everything (even the PersistGate
+          loader) and fades itself out after ~2.6s. */}
+      {showSplash && <SplashScreen onDone={() => setShowSplash(false)} />}
     </Provider>
   );
 }

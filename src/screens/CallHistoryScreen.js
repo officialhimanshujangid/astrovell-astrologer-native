@@ -13,7 +13,7 @@ import { useSelector } from 'react-redux';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { callApi } from '../api/services';
 import { colors } from '../theme/colors';
-import ScreenHeader from '../components/ScreenHeader';
+import GoldHeader from '../components/GoldHeader';
 import useTranslation from '../hooks/useTranslation';
 import { BASE_URI } from '../api/apiClient';
 import RemedyModal from '../components/RemedyModal';
@@ -188,7 +188,7 @@ const CallHistoryScreen = ({ onBack, isSubScreen = false, onOpenSubScreen }) => 
   return (
     <View style={styles.container}>
       {!isSubScreen && (
-        <ScreenHeader title={t('call_history')} subtitle={t('call_history_desc')} onBack={onBack} />
+        <GoldHeader title={t('call_history')} subtitle={t('call_history_desc')} onBack={onBack} />
       )}
 
       {loading ? (

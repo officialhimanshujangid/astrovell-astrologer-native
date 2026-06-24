@@ -1,19 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity,
+  View, Text, StyleSheet, FlatList,
   ActivityIndicator, RefreshControl,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useSelector } from 'react-redux';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { notificationApi } from '../api/services';
 import { colors } from '../theme/colors';
-import ScreenHeader from '../components/ScreenHeader';
+import GoldHeader from '../components/GoldHeader';
 import useTranslation from '../hooks/useTranslation';
+
+const getNotif = (type) => {
+  switch ((type || '').toLowerCase()) {
+    case 'chat':   return { icon: 'chatbubble-ellipses', color: '#DB2777', bg: colors.iconPink };
+    case 'call':   return { icon: 'call', color: '#059669', bg: colors.iconGreen };
+    case 'wallet': return { icon: 'wallet', color: '#0891B2', bg: colors.iconTeal };
+    case 'puja':   return { icon: 'flame', color: '#EA580C', bg: colors.iconOrange };
+    case 'review': return { icon: 'star', color: '#D97706', bg: colors.iconYellow };
+    default:       return { icon: 'notifications', color: colors.goldDark, bg: colors.goldBg };
+  }
+};
 
 const NotificationsScreen = ({ onBack }) => {
   const { astrologer } = useSelector(s => s.auth);
   const { t } = useTranslation();
-  const insets = useSafeAreaInsets();
   const [items,      setItems]      = useState([]);
   const [loading,    setLoading]    = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -29,49 +39,49 @@ const NotificationsScreen = ({ onBack }) => {
   useEffect(() => { load(); }, []);
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 
-  const getNotifIcon = (type) => {
-    switch ((type || '').toLowerCase()) {
-      case 'chat':    return '💬';
-      case 'call':    return '📞';
-      case 'wallet':  return '💰';
-      case 'puja':    return '🪔';
-      case 'review':  return '⭐';
-      default:        return '🔔';
-    }
+  const renderItem = ({ item }) => {
+    const n = getNotif(item.notificationType);
+    return (
+      <View style={styles.notifItem}>
+        <View style={[styles.notifIcon, { backgroundColor: n.bg }]}>
+          <Ionicons name={n.icon} size={20} color={n.color} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.notifTitle}>{item.title || item.message || t('notifications')}</Text>
+          {item.body && item.body !== item.title ? (
+            <Text style={styles.notifBody} numberOfLines={2}>{item.body}</Text>
+          ) : null}
+          <View style={styles.notifDateRow}>
+            <Ionicons name="time-outline" size={11} color={colors.textMuted} />
+            <Text style={styles.notifDate}>
+              {item.created_at ? new Date(item.created_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : ''}
+            </Text>
+          </View>
+        </View>
+      </View>
+    );
   };
-
-  const renderItem = ({ item }) => (
-    <View style={styles.notifItem}>
-      <View style={styles.notifIcon}>
-        <Text style={{ fontSize: 22 }}>{getNotifIcon(item.notificationType)}</Text>
-      </View>
-      <View style={{ flex: 1 }}>
-<Text style={styles.notifTitle}>{item.title || item.message || t('notifications')}</Text>
-        {item.body && item.body !== item.title ? (
-          <Text style={styles.notifBody} numberOfLines={2}>{item.body}</Text>
-        ) : null}
-        <Text style={styles.notifDate}>
-          {item.created_at ? new Date(item.created_at).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' }) : ''}
-        </Text>
-      </View>
-    </View>
-  );
 
   return (
     <View style={styles.container}>
-      <ScreenHeader title={t('notifications')} onBack={onBack} />
+      <GoldHeader
+        title={t('notifications')}
+        subtitle={`${items.length} ${t('notifications').toLowerCase()}`}
+        onBack={onBack}
+      />
       {loading ? (
-        <ActivityIndicator color={colors.secondary} style={{ margin: 40 }} />
+        <ActivityIndicator color={colors.gold} style={{ margin: 40 }} />
       ) : (
         <FlatList
           data={items}
           keyExtractor={(item, i) => String(item.id ?? i)}
           renderItem={renderItem}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.secondary} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.gold} />}
           contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+          showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={styles.emptyIcon}>🔔</Text>
+              <Ionicons name="notifications-off-outline" size={48} color={colors.textLight} />
               <Text style={styles.emptyText}>{t('no_notifications')}</Text>
             </View>
           }
@@ -84,21 +94,22 @@ const NotificationsScreen = ({ onBack }) => {
 export default NotificationsScreen;
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.primary },
+  container: { flex: 1, backgroundColor: colors.secondary },
   notifItem: {
-    backgroundColor: colors.card, borderRadius: 16, padding: 14,
+    backgroundColor: colors.surface, borderRadius: 16, padding: 14,
     flexDirection: 'row', alignItems: 'flex-start', gap: 12,
-    marginBottom: 8, borderWidth: 1, borderColor: colors.border,
+    marginBottom: 10, borderWidth: 1, borderColor: colors.border,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03, shadowRadius: 4, elevation: 1,
   },
   notifIcon: {
-    width: 44, height: 44, borderRadius: 22,
-    backgroundColor: colors.secondary + '20',
+    width: 44, height: 44, borderRadius: 12,
     alignItems: 'center', justifyContent: 'center',
   },
-  notifTitle: { color: colors.text, fontSize: 13, fontWeight: '700', marginBottom: 3 },
-  notifBody:  { color: colors.textSub, fontSize: 12, lineHeight: 17, marginBottom: 3 },
+  notifTitle: { color: colors.text, fontSize: 14, fontWeight: '800', marginBottom: 3 },
+  notifBody:  { color: colors.textSecondary, fontSize: 12.5, lineHeight: 18, marginBottom: 5 },
+  notifDateRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   notifDate:  { color: colors.textMuted, fontSize: 11 },
-  empty:      { alignItems: 'center', paddingTop: 80 },
-  emptyIcon:  { fontSize: 40, marginBottom: 12 },
+  empty:      { alignItems: 'center', paddingTop: 90, gap: 12 },
   emptyText:  { color: colors.textMuted, fontSize: 14 },
 });

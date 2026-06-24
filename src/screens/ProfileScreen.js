@@ -10,6 +10,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar } from 'expo-status-bar';
 
 import { colors } from '../theme/colors';
 import { profileApi } from '../api/services';
@@ -160,15 +161,18 @@ const ProfileScreen = ({ onOpenSubScreen }) => {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.customHeader, { paddingTop: insets.top }]}>
+      <StatusBar style="dark" />
+      <View style={[styles.customHeader, { paddingTop: insets.top + 6 }]}>
         <Text style={styles.headerTitle}>{t('profile')}</Text>
       </View>
 
       {mode === 'view' ? (
         <ScrollView
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.gold} />}
-          contentContainerStyle={{ paddingBottom: 40 }}
+          contentContainerStyle={{ paddingBottom: 20 }}
           showsVerticalScrollIndicator={false}
+          overScrollMode="never"
+          alwaysBounceVertical={false}
         >
           {/* ── Profile Header Card ────────────────────────────────────────── */}
           <View style={styles.profileCard}>
@@ -184,8 +188,8 @@ const ProfileScreen = ({ onOpenSubScreen }) => {
               </View>
               <View style={styles.profileText}>
                 <Text style={styles.profileName}>{profile?.name || 'Astrologer'} ({profile?.id || '3921'})</Text>
-                <Text style={styles.profileEmail}>{profile?.email || 'user@email.com'}</Text>
-                <Text style={styles.profilePhone}>{profile?.contactNo || '+918529411977'}</Text>
+                <Text style={styles.profileEmail}>Email: {profile?.email || 'user@email.com'}</Text>
+                <Text style={styles.profilePhone}>Phone: {profile?.contactNo || '+918529411977'}</Text>
               </View>
               <TouchableOpacity style={styles.editIconBtn} onPress={() => setMode('edit')}>
                 <Ionicons name="create-outline" size={24} color={colors.textSecondary} />
@@ -195,7 +199,6 @@ const ProfileScreen = ({ onOpenSubScreen }) => {
 
           {/* ── Menu List ─────────────────────────────────────────────────── */}
           <View style={styles.menuList}>
-            <MenuRow icon="person-outline" iconColor="#ff4d4d" label={t('edit_profile')} onPress={() => setMode('edit')} />
             <MenuRow icon="wallet-outline" iconColor="#20b2aa" label={t('wallet')} onPress={() => onOpenSubScreen?.('Wallet')} />
             <MenuRow icon="chatbubbles-outline" iconColor="#6495ed" label={t('chat_history')} onPress={() => onOpenSubScreen?.('ChatHistory')} />
             <MenuRow icon="call-outline" iconColor="#ff4500" label={t('call_history')} onPress={() => onOpenSubScreen?.('CallHistory')} />
@@ -203,10 +206,6 @@ const ProfileScreen = ({ onOpenSubScreen }) => {
             <MenuRow icon="document-text-outline" iconColor="#1e90ff" label={t('my_reports')} onPress={() => onOpenSubScreen?.('Reports')} />
             <MenuRow icon="people-outline" iconColor="#32cd32" label={t('followers')} onPress={() => onOpenSubScreen?.('Followers')} />
             <MenuRow icon="notifications-outline" iconColor="#4682b4" label={t('notifications')} onPress={() => onOpenSubScreen?.('Notifications')} />
-          </View>
-
-          <View style={styles.versionFooter}>
-            <Text style={styles.versionText}>version 1.1.463</Text>
           </View>
 
           <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
@@ -219,6 +218,8 @@ const ProfileScreen = ({ onOpenSubScreen }) => {
         <ScrollView
           contentContainerStyle={{ paddingBottom: 40 }}
           showsVerticalScrollIndicator={false}
+          overScrollMode="never"
+          alwaysBounceVertical={false}
         >
           <View style={styles.editForm}>
             {[
@@ -326,11 +327,17 @@ const MenuRow = ({ icon, iconColor, label, badge, badgeColor, badgeTextColor, on
 export default ProfileScreen;
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fdf2f2' },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fdf2f2' },
+  container: { flex: 1, backgroundColor: colors.secondary },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.secondary },
 
-  customHeader: { backgroundColor: '#fb9494', paddingHorizontal: 16, paddingBottom: 16 },
-  headerTitle: { color: colors.white, fontSize: 22, fontWeight: '500' },
+  customHeader: {
+    backgroundColor: colors.gold,
+    paddingHorizontal: 16, paddingBottom: 18,
+    borderBottomLeftRadius: 22, borderBottomRightRadius: 22,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12, shadowRadius: 8, elevation: 5,
+  },
+  headerTitle: { color: colors.text, fontSize: 22, fontWeight: '800', letterSpacing: 0.3 },
 
   profileCard: {
     backgroundColor: colors.white, borderRadius: 12, margin: 12, padding: 16,
@@ -349,7 +356,7 @@ const styles = StyleSheet.create({
 
   menuList: { backgroundColor: colors.white, marginTop: 8 },
   menuRow: {
-    flexDirection: 'row', alignItems: 'center', padding: 16,
+    flexDirection: 'row', alignItems: 'center', padding: 14,
     borderBottomWidth: 1, borderBottomColor: '#f5f5f5',
   },
   menuIconWrap: { width: 40, height: 40, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
@@ -361,7 +368,7 @@ const styles = StyleSheet.create({
   versionText: { fontSize: 13, color: colors.textLight },
 
   logoutBtn: {
-    margin: 16, paddingVertical: 16, borderRadius: 12,
+    margin: 16, marginTop: 14, paddingVertical: 14, borderRadius: 12,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     backgroundColor: colors.white, borderWidth: 1, borderColor: 'rgba(255,59,48,0.2)',
   },
@@ -381,12 +388,12 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: colors.border,
     backgroundColor: colors.white, alignItems: 'center',
   },
-  radioBtnActive: { borderColor: '#fb9494', backgroundColor: '#fdf2f2' },
+  radioBtnActive: { borderColor: colors.gold, backgroundColor: colors.goldBg },
   radioText: { color: colors.textSecondary, fontSize: 14, fontWeight: '600' },
-  radioTextActive: { color: '#fb9494' },
+  radioTextActive: { color: colors.goldDark },
   saveBtn: {
-    backgroundColor: '#fb9494', borderRadius: 12,
+    backgroundColor: colors.gold, borderRadius: 12,
     paddingVertical: 16, alignItems: 'center', marginTop: 12,
   },
-  saveBtnText: { color: colors.white, fontSize: 16, fontWeight: '700' },
+  saveBtnText: { color: colors.text, fontSize: 16, fontWeight: '800' },
 });
