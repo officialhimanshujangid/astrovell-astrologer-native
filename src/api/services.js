@@ -60,6 +60,7 @@ export const callApi = {
 export const walletApi = {
   getBalance: () => API.post('/customer/getWalletBalance'),
   getTransactions: (data) => API.post('/customer/getWalletTransactions', data),
+  getEarningSummary: (data) => API.post('/astro/earnings/summary', data),
   sendWithdrawRequest: (data) => API.post('/astro/withdrawlrequest/add', data),
   getWithdrawRequests: (data) => API.post('/astro/withdrawlrequest/get', data),
   updateWithdrawRequest: (data) => API.post('/astro/withdrawlrequest/update', data),

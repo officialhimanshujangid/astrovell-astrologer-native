@@ -5,6 +5,9 @@ export const BASE_URI = 'https://backend.astrovell.com/'
 const BASE_URL = `${BASE_URI}api`;
 const SOCKET_BASE = 'https://backend.astrovell.com';
 
+// Uploaded media (profile images etc.) stay on production storage.
+export const BASE_IMG = 'https://backend.astrovell.com/';
+
 export { SOCKET_BASE };
 const API = axios.create({
   baseURL: BASE_URL,

@@ -53,7 +53,7 @@ const HistoryItem = ({ item, isOpen, onToggle, t, onViewChat, openKundali, onSug
           <Image source={{ uri: avatarUri }} style={styles.avatar} resizeMode="cover" />
         ) : (
           <View style={[styles.avatar, styles.avatarFallback]}>
-            <Ionicons name="person" size={26} color={colors.gold} />
+            <Image source={require('../../assets/splash.png')} style={{ width: 50, height: 50, borderRadius: 50  }} resizeMode="cover" />
           </View>
         )}
         <View style={styles.cardInfo}>
@@ -77,7 +77,7 @@ const HistoryItem = ({ item, isOpen, onToggle, t, onViewChat, openKundali, onSug
             ]}
           >
             <Text style={[styles.statusText, { color: statusColor }]}>
-              {isFree ? t('free_session').toUpperCase() : (isCompleted ? t('success') : item.chatStatus)}
+              {isFree ? t('free_session').toUpperCase() : (isCompleted ? t(item?.chatStatus) : item.chatStatus)}
             </Text>
           </View>
           <Ionicons
@@ -111,7 +111,7 @@ const HistoryItem = ({ item, isOpen, onToggle, t, onViewChat, openKundali, onSug
                 <Text style={styles.detailVal}>{t('dob')}: {item.intakeBirthDate || 'N/A'}</Text>
                 <Text style={styles.detailVal}>{t('tob')}: {item.intakeBirthTime || 'N/A'}</Text>
                 <Text style={styles.detailVal}>{t('pob')}: {item.intakeBirthPlace || 'N/A'}</Text>
-                <Text style={styles.detailVal} numberOfLines={2}>{t('topic_concern')}: {item.intakeTopicOfConcern || 'General'}</Text>
+                {/* <Text style={styles.detailVal} numberOfLines={2}>{t('topic_concern')}: {item.intakeTopicOfConcern || 'General'}</Text> */}
               </View>
             ) : null}
           </View>
@@ -124,8 +124,8 @@ const HistoryItem = ({ item, isOpen, onToggle, t, onViewChat, openKundali, onSug
                 <Text style={styles.actionBtnOutlineText}>{t('open_kundli') || 'Open Kundali'}</Text>
               </TouchableOpacity>
             ) : null}
-            <TouchableOpacity style={styles.actionBtnOutline} onPress={() => onSuggestRemedy(item)}>
-              <Text style={styles.actionBtnOutlineText}>{t('suggest_remedy') || 'Suggest Remedy'}</Text>
+            <TouchableOpacity style={styles.actionBtnOutline1} onPress={() => onSuggestRemedy(item)}>
+              <Text style={styles.actionBtnText}>{t('suggest_remedy') || 'Suggest Remedy'}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -404,9 +404,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   actionBtnText: {
-    color: colors.white,
+    color: colors.black,
     fontWeight: '700',
     fontSize: 13,
+  },
+    actionBtnOutline1: {
+    flex: 1,
+    minWidth: '30%',
+    backgroundColor: colors.success,
+    borderWidth: 1,
+    borderColor: colors.successBg,
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: 'center',
   },
   actionBtnOutline: {
     flex: 1,

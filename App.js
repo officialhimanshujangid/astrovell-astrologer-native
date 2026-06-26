@@ -123,7 +123,7 @@ export default function App() {
               {/* Global bottom safe-area inset so no screen's content sits behind
                   the Android system navigation bar (edge-to-edge is mandatory on
                   Expo SDK 54). Top inset stays per-screen. */}
-              <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: colors.primary }}>
+              <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: colors.text }}>
                 <NavigationContainer ref={navigationRef}>
                   <AppNavigator />
                 </NavigationContainer>

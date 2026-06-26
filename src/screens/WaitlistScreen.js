@@ -110,6 +110,13 @@ const WaitlistScreen = ({ onBack }) => {
         });
       }
     });
+    // Customer cancelled the pending call → stop ringing + drop it from the list.
+    socket.on('call-cancelled', (data) => {
+      if (data.astrologerId === astrologer?.id) {
+        stopRingtone();
+        fetchRequests();
+      }
+    });
 
     socketRef.current = socket;
   }, [token, astrologer?.id, fetchRequests]);

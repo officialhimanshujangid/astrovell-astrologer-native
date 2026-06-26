@@ -4,55 +4,80 @@ import {
   RefreshControl, ActivityIndicator, Modal, FlatList,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 
-import { colors, gradients } from '../theme/colors';
+import { colors } from '../theme/colors';
 import { walletApi } from '../api/services';
 import { fetchWalletData } from '../store/slices/walletSlice';
-import ScreenHeader from '../components/ScreenHeader';
+import GoldHeader from '../components/GoldHeader';
 import WithdrawModal from '../components/WithdrawModal';
 import useTranslation from '../hooks/useTranslation';
 
+const money = (n) => '₹' + parseFloat(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+const MON = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
 const WalletScreen = ({ onBack }) => {
   const dispatch   = useDispatch();
-  const insets     = useSafeAreaInsets();
   const { astrologer } = useSelector(s => s.auth);
-  const { balance, totalEarning, totalPending, totalWithdrawn, transactions, withdrawals, loading } = useSelector(s => s.wallet);
+  const { balance, withdrawals, loading } = useSelector(s => s.wallet);
   const { t } = useTranslation();
 
   const [refreshing,    setRefreshing]    = useState(false);
   const [showWithdraw,  setShowWithdraw]  = useState(false);
   const [showAllWithdrawals, setShowAllWithdrawals] = useState(false);
-  const [selectedTx, setSelectedTx] = useState(null);
   const [selectedWithdrawal, setSelectedWithdrawal] = useState(null);
+
+  // ── Earnings (new /astro/earnings/summary endpoint) ──────────────────
+  const [earning,       setEarning]       = useState(null);
+  const [earningLoading, setEarningLoading] = useState(false);
+  const [selectedPeriod, setSelectedPeriod] = useState('today');
+  const [showPeriodPicker, setShowPeriodPicker] = useState(false);
+  const [showBreakup,   setShowBreakup]   = useState(false);
+
+  // Period options: Today, Yesterday, then the last 8 months (YYYY-M).
+  const periodOptions = React.useMemo(() => {
+    const opts = [{ key: 'today', label: 'Today' }, { key: 'yesterday', label: 'Yesterday' }];
+    const now = new Date();
+    for (let i = 0; i < 8; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      opts.push({ key: `${d.getFullYear()}-${d.getMonth() + 1}`, label: `${MON[d.getMonth()]}-${d.getFullYear()}` });
+    }
+    return opts;
+  }, []);
+  const selectedLabel = periodOptions.find(o => o.key === selectedPeriod)?.label || 'Today';
 
   const load = () => dispatch(fetchWalletData(astrologer?.id));
 
-  useEffect(() => { load(); }, []);
+  const loadEarnings = async (period) => {
+    setEarningLoading(true);
+    try {
+      const res = await walletApi.getEarningSummary({ period });
+      setEarning(res?.data || null);
+    } catch (e) {
+      setEarning(null);
+    }
+    setEarningLoading(false);
+  };
+
+  useEffect(() => { load(); loadEarnings(selectedPeriod); }, []);
+
+  const onSelectPeriod = (key) => {
+    setSelectedPeriod(key);
+    setShowPeriodPicker(false);
+    loadEarnings(key);
+  };
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await load();
+    await Promise.all([load(), loadEarnings(selectedPeriod)]);
     setRefreshing(false);
   };
 
-  // ── Stats Calculation ──────────────────────────────────────────────
-  const todayEarnings = transactions
-    .filter(tx => tx.isCredit == 1 && tx.created_at && new Date(tx.created_at).toDateString() === new Date().toDateString())
-    .reduce((acc, tx) => acc + parseFloat(tx.amount || 0), 0);
+  const summary = earning?.summary || {};
+  const period  = earning?.period  || {};
+  const history = earning?.history || [];
 
-  const weeklyEarnings = transactions
-    .filter(tx => {
-      if (tx.isCredit != 1 || !tx.created_at) return false;
-      const txDate = new Date(tx.created_at);
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-      return txDate >= sevenDaysAgo;
-    })
-    .reduce((acc, tx) => acc + parseFloat(tx.amount || 0), 0);
-
+  // ── Withdrawal helpers (unchanged) ─────────────────────────────────────
   const getStatusColor = (status) => {
     switch ((status || '').toLowerCase()) {
       case 'approved': case 'completed': case 'released': return colors.success;
@@ -62,16 +87,12 @@ const WalletScreen = ({ onBack }) => {
   };
 
   const renderWithdrawItem = ({ item }) => (
-    <TouchableOpacity 
-      style={styles.withdrawItem} 
-      onPress={() => setSelectedWithdrawal(item)}
-      activeOpacity={0.7}
-    >
+    <TouchableOpacity style={styles.withdrawItem} onPress={() => setSelectedWithdrawal(item)} activeOpacity={0.7}>
       <View style={styles.itemIconWrap}>
         <Ionicons name="cash-outline" size={20} color={colors.goldDark} />
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={styles.withdrawAmount}>₹{parseFloat(item.withdrawAmount || item.amount || 0).toFixed(2)}</Text>
+        <Text style={styles.withdrawAmount}>{money(item.withdrawAmount || item.amount || 0)}</Text>
         <Text style={styles.withdrawMethod}>
           {item.paymentMethod === 'upi' ? '📱 UPI' : `🏦 ${t('bank_transfer')}`}
         </Text>
@@ -87,9 +108,23 @@ const WalletScreen = ({ onBack }) => {
     </TouchableOpacity>
   );
 
+  // ── Stat card ──────────────────────────────────────────────────────────
+  const StatCard = ({ label, value, icon, iconColor, iconBg, onPress, hint }) => {
+    const Wrap = onPress ? TouchableOpacity : View;
+    return (
+      <Wrap style={styles.statBox} onPress={onPress} activeOpacity={0.8}>
+        <View style={[styles.statIconBg, { backgroundColor: iconBg }]}>
+          <Ionicons name={icon} size={20} color={iconColor} />
+        </View>
+        <Text style={styles.statLabel}>{label}{hint ? ` ${hint}` : ''}</Text>
+        <Text style={styles.statValue}>{money(value)}</Text>
+      </Wrap>
+    );
+  };
+
   return (
     <View style={styles.container}>
-      <ScreenHeader title={t('wallet')} subtitle={t('wallet_subtitle')} onBack={onBack} />
+      <GoldHeader title={t('wallet')} subtitle={t('wallet_subtitle')} onBack={onBack} />
 
       {loading && !refreshing ? (
         <View style={styles.centered}>
@@ -98,135 +133,189 @@ const WalletScreen = ({ onBack }) => {
         </View>
       ) : (
         <ScrollView
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.gold} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FF6B6B" />}
           contentContainerStyle={{ padding: 16, paddingBottom: 60 }}
           showsVerticalScrollIndicator={false}
         >
-          {/* ── Balance Card ────────────────────────────────────────────── */}
-          <LinearGradient colors={['#FF8A8A', '#FF6B6B']} style={styles.mainBalanceCard}>
-            <View style={styles.balanceInfo}>
-               <View>
-                 <Text style={styles.balanceLabel}>{t('available_balance')}</Text>
-                 <Text style={styles.balanceValue}>₹{parseFloat(balance || 0).toLocaleString('en-IN')}</Text>
-               </View>
-               <TouchableOpacity style={styles.withdrawActionBtn} onPress={() => setShowWithdraw(true)}>
-                 <Text style={styles.withdrawActionText}>{t('withdrawal_request')}</Text>
-                 <Ionicons name="arrow-forward" size={16} color="#FF6B6B" />
-               </TouchableOpacity>
-            </View>
-            <View style={styles.balanceFooter}>
-               <View style={styles.balanceStat}>
-                  <Text style={styles.balanceStatLabel}>{t('payable_amount')}</Text>
-                  <Text style={styles.balanceStatValue}>₹{parseFloat(balance * 0.8 || 0).toLocaleString('en-IN')}</Text>
-               </View>
-               <View style={styles.statDivider} />
-               <View style={styles.balanceStat}>
-                  <Text style={styles.balanceStatLabel}>{t('rank')}</Text>
-                  <Text style={styles.balanceStatValue}>#3523</Text>
-               </View>
-            </View>
-          </LinearGradient>
-
-          {/* ── Stats Grid ─────────────────────────────────────────────── */}
+          {/* ── Earnings stat cards ── */}
           <View style={styles.statsGrid}>
-             <View style={styles.statBox}>
-                <View style={[styles.statIconBg, { backgroundColor: '#FFF5F5' }]}>
-                   <Ionicons name="stats-chart" size={20} color="#E53E3E" />
-                </View>
-                <Text style={styles.statLabel}>{t('last_3_months')}</Text>
-                <Text style={styles.statValue}>₹{parseFloat(totalEarning || 0).toLocaleString('en-IN')}</Text>
-             </View>
-             <View style={styles.statBox}>
-                <View style={[styles.statIconBg, { backgroundColor: '#F0FFF4' }]}>
-                   <Ionicons name="calendar" size={20} color="#38A169" />
-                </View>
-                <Text style={styles.statLabel}>{t('monthly_earnings')}</Text>
-                <Text style={styles.statValue}>₹{parseFloat(totalEarning * 0.3 || 0).toLocaleString('en-IN')}</Text>
-             </View>
+            <StatCard label="Last 3 Months Earnings" value={summary.last3Months} icon="stats-chart" iconColor="#E53E3E" iconBg="#FFF5F5" />
+            <StatCard label="Monthly Earnings" value={summary.thisMonth} icon="calendar" iconColor="#38A169" iconBg="#F0FFF4" />
+          </View>
+          <View style={styles.statsGrid}>
+            <StatCard label="Weekly Earnings" value={summary.thisWeek} icon="time" iconColor="#3182CE" iconBg="#EBF8FF" />
+            {/* onPress={() => setShowWithdraw(true)} */}
+            <StatCard label="Balance · Withdraw ›" value={balance} icon="wallet" iconColor="#FF6B6B" iconBg="#FFF0E9"  />
           </View>
 
-          <View style={styles.statsGrid}>
-             <View style={styles.statBox}>
-                <View style={[styles.statIconBg, { backgroundColor: '#EBF8FF' }]}>
-                   <Ionicons name="time" size={20} color="#3182CE" />
-                </View>
-                <Text style={styles.statLabel}>{t('weekly_earnings')}</Text>
-                <Text style={styles.statValue}>₹{weeklyEarnings.toLocaleString('en-IN')}</Text>
-             </View>
-             <TouchableOpacity style={styles.statBox} onPress={() => onRefresh()}>
-                <View style={[styles.statIconBg, { backgroundColor: '#FAF5FF' }]}>
-                   <Ionicons name="basket" size={20} color="#805AD5" />
-                </View>
-                <Text style={styles.statLabel}>{t('today')}</Text>
-                <Text style={styles.statValue}>₹{todayEarnings.toLocaleString('en-IN')}</Text>
-             </TouchableOpacity>
-          </View>
+          {/* ── Date filter ── */}
+          <TouchableOpacity style={styles.periodDropdown} onPress={() => setShowPeriodPicker(true)} activeOpacity={0.8}>
+            <Text style={styles.periodText}>{selectedLabel}</Text>
+            <Ionicons name="chevron-down" size={18} color={colors.textSecondary} />
+          </TouchableOpacity>
 
-          {/* ── Withdrawal Requests ────────────────────────────────────────── */}
+          {/* ── Available + Payable (→ breakup) ── */}
+          <TouchableOpacity style={styles.availPayCard} onPress={() => setShowBreakup(true)} activeOpacity={0.85}>
+            <View style={styles.availPayCol}>
+              <Text style={styles.availPayLabel}>Available Balance</Text>
+              <Text style={styles.availPayValue}>{money(period.available)}</Text>
+            </View>
+            <View style={styles.availPayDivider} />
+            <View style={styles.availPayCol}>
+              <Text style={styles.availPayLabel}>Payable Amount</Text>
+              <Text style={styles.availPayValue}>{money(period.payable)}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+          </TouchableOpacity>
+
+          {/* ── Earnings history (period call/chat) ── */}
           <View style={styles.sectionHeader}>
-             <Text style={styles.sectionTitle}>Withdrawal Requests</Text>
-             <TouchableOpacity onPress={() => setShowAllWithdrawals(true)}>
-                <Text style={styles.viewAllText}>{t('withdrawal_history')}</Text>
-             </TouchableOpacity>
+            <Text style={styles.sectionTitle}>Earnings History</Text>
           </View>
 
-          {withdrawals.length === 0 ? (
+          {earningLoading ? (
+            <View style={styles.emptyContainer}><ActivityIndicator color="#FF6B6B" /></View>
+          ) : history.length === 0 ? (
             <View style={styles.emptyContainer}>
-               <Ionicons name="cash-outline" size={48} color={colors.textMuted} style={{ marginBottom: 12 }} />
-               <Text style={styles.emptyText}>No withdrawal requests found</Text>
+              <Ionicons name="receipt-outline" size={44} color={colors.textMuted} />
+              <Text style={styles.emptyText}>No Transactions Available</Text>
+            </View>
+          ) : (
+            history.map((h, i) => (
+              <View key={`${h.type}-${h.refId}-${i}`} style={styles.premiumTxCard}>
+                <View style={[styles.txIconBox, { backgroundColor: h.type === 'Call' ? '#FFF0E9' : '#EBF8FF' }]}>
+                  <Ionicons name={h.type === 'Call' ? 'call' : 'chatbubble'} size={20} color={h.type === 'Call' ? '#FF6B6B' : '#3182CE'} />
+                </View>
+                <View style={styles.txContent}>
+                  <View style={styles.txTop}>
+                    <Text style={styles.txTitle}>{h.type === 'Call' ? t('call') : t('chat')}</Text>
+                    <Text style={[styles.txAmount, { color: '#166534' }]}>+{money(h.earning)}</Text>
+                  </View>
+                  <Text style={styles.histDesc} numberOfLines={1}>
+                    {h.type} with {h.userName} for {h.minutes} {h.minutes === 1 ? 'minute' : 'minutes'}
+                  </Text>
+                  <View style={styles.txBottom}>
+                    <Text style={styles.txId}>#{h.refId}</Text>
+                    <Text style={styles.txDate}>
+                      {h.created_at ? new Date(h.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) + ', ' + new Date(h.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : ''}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            ))
+          )}
+
+          {/* ── Withdrawal Requests (unchanged) ── */}
+          {/* <View style={[styles.sectionHeader, { marginTop: 20 }]}>
+            <Text style={styles.sectionTitle}>Withdrawal Requests</Text>
+            <TouchableOpacity onPress={() => setShowAllWithdrawals(true)}>
+              <Text style={styles.viewAllText}>{t('withdrawal_history')}</Text>
+            </TouchableOpacity>
+          </View> */}
+
+          {/* {(!withdrawals || withdrawals.length === 0) ? (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="cash-outline" size={44} color={colors.textMuted} style={{ marginBottom: 10 }} />
+              <Text style={styles.emptyText}>No withdrawal requests found</Text>
             </View>
           ) : (
             withdrawals.slice(0, 3).map((item, i) => (
-              <React.Fragment key={item.id || i}>
-                {renderWithdrawItem({ item })}
-              </React.Fragment>
+              <React.Fragment key={item.id || i}>{renderWithdrawItem({ item })}</React.Fragment>
             ))
-          )}
-
-          {/* ── Recent Transactions ─────────────────────────────────────── */}
-          <View style={[styles.sectionHeader, { marginTop: 20 }]}>
-             <Text style={styles.sectionTitle}>Recent Transactions</Text>
-          </View>
-
-          {/* ── Transaction List ────────────────────────────────────────── */}
-          {transactions.length === 0 ? (
-            <View style={styles.emptyContainer}>
-               <Ionicons name="receipt-outline" size={48} color={colors.textMuted} />
-               <Text style={styles.emptyText}>No transactions found</Text>
-            </View>
-          ) : (
-            transactions.map((tx, i) => (
-              <TouchableOpacity key={i} style={styles.premiumTxCard} onPress={() => setSelectedTx(tx)} activeOpacity={0.7}>
-                 <View style={[styles.txIconBox, { backgroundColor: tx.isCredit == 1 ? '#F0FFF4' : '#FFF5F5' }]}>
-                    <Ionicons 
-                      name={tx.transactionType === 'Call' ? 'call' : tx.transactionType === 'Chat' ? 'chatbubble' : 'wallet'} 
-                      size={20} 
-                      color={tx.isCredit == 1 ? '#38A169' : '#E53E3E'} 
-                    />
-                 </View>
-                 <View style={styles.txContent}>
-                    <View style={styles.txTop}>
-                       <Text style={styles.txTitle}>
-                         {tx.transactionType === 'Call' ? t('call') : tx.transactionType === 'Chat' ? t('chat') : t('wallet')}
-                       </Text>
-                       <Text style={[styles.txAmount, { color: tx.isCredit == 1 ? '#166534' : '#DC2626' }]}>
-                          {tx.isCredit == 1 ? '+' : '-'}₹{parseFloat(tx.amount || 0).toFixed(2)}
-                       </Text>
-                    </View>
-                    <View style={styles.txBottom}>
-                       <Text style={styles.txDate}>
-                         {tx.created_at ? new Date(tx.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) + ', ' + new Date(tx.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : ''}
-                       </Text>
-                       <Text style={styles.txId}>ID: #{tx.id || 'N/A'}</Text>
-                    </View>
-                 </View>
-              </TouchableOpacity>
-            ))
-          )}
+          )} */}
         </ScrollView>
       )}
 
-      {/* View All Withdrawals Modal */}
+      {/* ── Period picker modal ── */}
+      <Modal visible={showPeriodPicker} transparent animationType="fade" onRequestClose={() => setShowPeriodPicker(false)}>
+        <TouchableOpacity style={styles.pickerOverlay} activeOpacity={1} onPress={() => setShowPeriodPicker(false)}>
+          <View style={styles.pickerBox}>
+            {periodOptions.map((o) => (
+              <TouchableOpacity
+                key={o.key}
+                style={[styles.pickerRow, o.key === selectedPeriod && styles.pickerRowActive]}
+                onPress={() => onSelectPeriod(o.key)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.pickerText, o.key === selectedPeriod && styles.pickerTextActive]}>{o.label}</Text>
+                {o.key === selectedPeriod && <Ionicons name="checkmark" size={18} color="#FF6B6B" />}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* ── Period Earning Breakup modal ── */}
+      <Modal visible={showBreakup} transparent animationType="slide" onRequestClose={() => setShowBreakup(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.breakupModalBox}>
+            <View style={styles.breakupHeader}>
+              <Text style={styles.breakupTitle}>Earning Breakup</Text>
+              <TouchableOpacity onPress={() => setShowBreakup(false)} style={styles.breakupCloseBtn}>
+                <Ionicons name="close" size={20} color={colors.white} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
+              <View style={styles.breakupRow}>
+                <Text style={[styles.breakupLabel, styles.boldLabel]}>Available Balance</Text>
+                <Text style={[styles.breakupValue, styles.boldValue]}>{money(period.available)}</Text>
+              </View>
+
+              <View style={styles.breakupRowWithSub}>
+                <View style={styles.breakupRowHeader}>
+                  <Text style={styles.breakupLabel}>PG Charge:</Text>
+                  <Text style={styles.breakupValue}>- {money(period.pgCharge)}</Text>
+                </View>
+                <Text style={styles.breakupSubtitle}>
+                  {period.pgPercent || 2.5}% charge deducted by Payment Gateways for accepting online payments
+                </Text>
+              </View>
+
+              <View style={styles.breakupDivider} />
+
+              <View style={styles.breakupRow}>
+                <Text style={styles.breakupLabel}>Sub Total :</Text>
+                <Text style={styles.breakupValue}>{money(period.subTotal)}</Text>
+              </View>
+
+              <View style={styles.breakupRowWithSub}>
+                <View style={styles.breakupRowHeader}>
+                  <Text style={styles.breakupLabel}>TDS:</Text>
+                  <Text style={styles.breakupValue}>- {money(period.tdsAmount)}</Text>
+                </View>
+                <Text style={styles.breakupSubtitle}>
+                  {period.tdsPercent || 0}% deducted. Tax deducted as per government regulations
+                </Text>
+              </View>
+
+              <View style={styles.breakupRowWithSub}>
+                <View style={styles.breakupRowHeader}>
+                  <Text style={styles.breakupLabel}>GST:</Text>
+                  <Text style={styles.breakupValue}>{money(period.gst)}</Text>
+                </View>
+                <Text style={styles.breakupSubtitle}>
+                  GST certificate mandatory for astrologers who earn more than INR 20 lacs per year
+                </Text>
+              </View>
+
+              <View style={styles.breakupDivider} />
+
+              <View style={[styles.breakupRowWithSub, { marginTop: 8 }]}>
+                <View style={styles.breakupRowHeader}>
+                  <Text style={[styles.breakupLabel, styles.boldLabel]}>Payable Amount</Text>
+                  <Text style={[styles.breakupValue, styles.boldValue]}>{money(period.payable)}</Text>
+                </View>
+                <Text style={[styles.breakupSubtitle, { fontWeight: '500', marginTop: 4 }]}>
+                  Final Amount that gets transferred to your bank account on payout date
+                </Text>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── View All Withdrawals modal (unchanged) ── */}
       <Modal visible={showAllWithdrawals} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContentBox}>
@@ -247,54 +336,12 @@ const WalletScreen = ({ onBack }) => {
         </View>
       </Modal>
 
-      {/* Transaction Details Modal */}
-      <Modal visible={!!selectedTx} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.txDetailBox}>
-             <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>{t('transaction_detail')}</Text>
-                <TouchableOpacity onPress={() => setSelectedTx(null)}>
-                  <Ionicons name="close-circle" size={30} color={colors.textLight} />
-                </TouchableOpacity>
-              </View>
-              {selectedTx && (
-                <View>
-                  <View style={styles.txDetailHeader}>
-                     <View style={[styles.txBigIconWrap, { backgroundColor: selectedTx.isCredit == 1 ? colors.successBg : colors.errorBg }]}>
-                        <Ionicons 
-                          name={selectedTx.isCredit == 1 ? "add-circle" : "remove-circle"} 
-                          size={40} 
-                          color={selectedTx.isCredit == 1 ? colors.success : colors.error} 
-                        />
-                     </View>
-                     <Text style={[styles.txBigAmount, { color: selectedTx.isCredit == 1 ? colors.success : colors.error }]}>
-                        {selectedTx.isCredit == 1 ? '+' : '-'}₹{parseFloat(selectedTx.amount || 0).toFixed(2)}
-                     </Text>
-                     <Text style={styles.txBigType}>{selectedTx.transactionType || t('wallet')}</Text>
-                  </View>
-
-                  <View style={styles.detailSection}>
-                     <TxDetailRow label={t('transaction_id')} value={`#${selectedTx.id || 'N/A'}`} icon="finger-print-outline" />
-                     <TxDetailRow label={t('dob')} value={selectedTx.created_at ? new Date(selectedTx.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }) : 'N/A'} icon="calendar-outline" />
-                     <TxDetailRow label={t('tob')} value={selectedTx.created_at ? new Date(selectedTx.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : 'N/A'} icon="time-outline" />
-                     <TxDetailRow label={t('status')} value={t('successful')} icon="checkmark-circle-outline" color={colors.success} />
-                  </View>
-
-                  <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setSelectedTx(null)}>
-                     <Text style={styles.modalCloseBtnText}>{t('done')}</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-          </View>
-        </View>
-      </Modal>
-
-      {/* Earning Breakup Modal */}
+      {/* ── Withdrawal detail / breakup modal (unchanged) ── */}
       <Modal visible={!!selectedWithdrawal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.breakupModalBox}>
             <View style={styles.breakupHeader}>
-              <Text style={styles.breakupTitle}>Earning Breakup</Text>
+              <Text style={styles.breakupTitle}>Withdrawal Detail</Text>
               <TouchableOpacity onPress={() => setSelectedWithdrawal(null)} style={styles.breakupCloseBtn}>
                 <Ionicons name="close" size={20} color={colors.white} />
               </TouchableOpacity>
@@ -306,64 +353,37 @@ const WalletScreen = ({ onBack }) => {
               const tdsAmount = parseFloat(selectedWithdrawal.tds_pay_amount || 0);
               const pgCharge = Math.max(0, withdrawAmount - payAmount - tdsAmount);
               const subTotal = withdrawAmount - pgCharge;
-
               return (
                 <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
                   <View style={styles.breakupRow}>
-                    <Text style={styles.breakupLabel}>Available Balance</Text>
-                    <Text style={styles.breakupValue}>₹{withdrawAmount.toLocaleString('en-IN')}</Text>
+                    <Text style={styles.breakupLabel}>Withdraw Amount</Text>
+                    <Text style={styles.breakupValue}>{money(withdrawAmount)}</Text>
                   </View>
-
                   <View style={styles.breakupRowWithSub}>
                     <View style={styles.breakupRowHeader}>
                       <Text style={styles.breakupLabel}>PG Charge:</Text>
-                      <Text style={styles.breakupValue}>- ₹{pgCharge.toLocaleString('en-IN')}</Text>
+                      <Text style={styles.breakupValue}>- {money(pgCharge)}</Text>
                     </View>
-                    <Text style={styles.breakupSubtitle}>
-                      2.5% charge deducted by Payment Gateways for accepting online payments
-                    </Text>
                   </View>
-
                   <View style={styles.breakupDivider} />
-
                   <View style={styles.breakupRow}>
                     <Text style={styles.breakupLabel}>Sub Total :</Text>
-                    <Text style={styles.breakupValue}>₹{subTotal.toLocaleString('en-IN')}</Text>
+                    <Text style={styles.breakupValue}>{money(subTotal)}</Text>
                   </View>
-
                   <View style={styles.breakupRowWithSub}>
                     <View style={styles.breakupRowHeader}>
                       <Text style={styles.breakupLabel}>TDS:</Text>
-                      <Text style={styles.breakupValue}>- ₹{tdsAmount.toLocaleString('en-IN')}</Text>
+                      <Text style={styles.breakupValue}>- {money(tdsAmount)}</Text>
                     </View>
-                    <Text style={styles.breakupSubtitle}>
-                      10% of subtotal. Tax deducted as per government regulations
-                    </Text>
                   </View>
-
-                  <View style={styles.breakupRowWithSub}>
-                    <View style={styles.breakupRowHeader}>
-                      <Text style={styles.breakupLabel}>GST:</Text>
-                      <Text style={styles.breakupValue}>₹0</Text>
-                    </View>
-                    <Text style={styles.breakupSubtitle}>
-                      GST certificate mandatory for astrologers who earn more than INR 20 lacs per year
-                    </Text>
-                  </View>
-
                   <View style={styles.breakupDivider} />
-
                   <View style={[styles.breakupRowWithSub, { marginTop: 8 }]}>
                     <View style={styles.breakupRowHeader}>
                       <Text style={[styles.breakupLabel, styles.boldLabel]}>Payable Amount</Text>
-                      <Text style={[styles.breakupValue, styles.boldValue]}>₹{payAmount.toLocaleString('en-IN')}</Text>
+                      <Text style={[styles.breakupValue, styles.boldValue]}>{money(payAmount)}</Text>
                     </View>
-                    <Text style={[styles.breakupSubtitle, { fontWeight: '500', marginTop: 4 }]}>
-                      Final Amount that gets transferred to your bank account on payout date
-                    </Text>
                   </View>
 
-                  {/* Additional info section: Payment Details & Status */}
                   <View style={styles.paymentInfoSection}>
                     <Text style={styles.paymentInfoTitle}>Payment Information</Text>
                     <View style={styles.paymentInfoRow}>
@@ -422,16 +442,6 @@ const WalletScreen = ({ onBack }) => {
   );
 };
 
-const TxDetailRow = ({ label, value, icon, color }) => (
-  <View style={styles.txDetailRow}>
-    <View style={styles.txDetailRowLeft}>
-      <Ionicons name={icon} size={20} color={colors.goldDark} style={{ marginRight: 12 }} />
-      <Text style={styles.txDetailLabel}>{label}</Text>
-    </View>
-    <Text style={[styles.txDetailValue, color && { color }]}>{value}</Text>
-  </View>
-);
-
 export default WalletScreen;
 
 const styles = StyleSheet.create({
@@ -439,28 +449,32 @@ const styles = StyleSheet.create({
   centered:  { flex: 1, justifyContent: 'center', alignItems: 'center' },
   loadingText: { marginTop: 12, color: colors.textSecondary, fontSize: 14, fontWeight: '600' },
 
-  mainBalanceCard: {
-    borderRadius: 24, padding: 24, marginBottom: 20,
-    shadowColor: '#FF6B6B', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20, elevation: 8,
-  },
-  balanceInfo: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
-  balanceLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 14, fontWeight: '600' },
-  balanceValue: { color: colors.white, fontSize: 32, fontWeight: '800', marginTop: 4 },
-  withdrawActionBtn: { backgroundColor: colors.white, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 6 },
-  withdrawActionText: { color: '#FF6B6B', fontSize: 14, fontWeight: '700' },
-  balanceFooter: { flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.2)', paddingTop: 16 },
-  balanceStat: { flex: 1 },
-  balanceStatLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: '600', textTransform: 'uppercase' },
-  balanceStatValue: { color: colors.white, fontSize: 16, fontWeight: '700', marginTop: 2 },
-  statDivider: { width: 1, height: 30, backgroundColor: 'rgba(255,255,255,0.2)', marginHorizontal: 16 },
-
   statsGrid: { flexDirection: 'row', gap: 12, marginBottom: 12 },
   statBox: { flex: 1, backgroundColor: colors.white, borderRadius: 20, padding: 16, borderWidth: 1, borderColor: colors.border },
   statIconBg: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
   statLabel: { fontSize: 12, color: colors.textSecondary, fontWeight: '600' },
   statValue: { fontSize: 18, fontWeight: '800', color: colors.text, marginTop: 4 },
 
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, marginBottom: 16 },
+  // Date filter
+  periodDropdown: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: colors.white, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14,
+    borderWidth: 1, borderColor: colors.border, marginTop: 4, marginBottom: 12,
+  },
+  periodText: { fontSize: 15, fontWeight: '700', color: colors.text },
+
+  // Available + Payable
+  availPayCard: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: colors.white,
+    borderRadius: 16, padding: 18, borderWidth: 1, borderColor: colors.border, marginBottom: 8,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 5, elevation: 2,
+  },
+  availPayCol: { flex: 1 },
+  availPayLabel: { fontSize: 12, color: colors.textSecondary, fontWeight: '600' },
+  availPayValue: { fontSize: 19, fontWeight: '800', color: colors.text, marginTop: 4 },
+  availPayDivider: { width: 1, height: 36, backgroundColor: colors.border, marginHorizontal: 12 },
+
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 16, marginBottom: 14 },
   sectionTitle: { fontSize: 18, fontWeight: '800', color: colors.text },
   viewAllText: { fontSize: 14, color: '#FF6B6B', fontWeight: '700' },
 
@@ -473,35 +487,26 @@ const styles = StyleSheet.create({
   txTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   txTitle: { fontSize: 15, fontWeight: '700', color: colors.text },
   txAmount: { fontSize: 16, fontWeight: '800' },
+  histDesc: { fontSize: 12.5, color: colors.textSecondary, marginTop: 3 },
   txBottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 },
   txDate: { fontSize: 12, color: colors.textSecondary },
   txId: { fontSize: 11, color: colors.textMuted },
 
-  emptyContainer: { alignItems: 'center', paddingVertical: 40 },
-  emptyText: { color: colors.textMuted, marginTop: 12, fontSize: 14 },
+  emptyContainer: { alignItems: 'center', paddingVertical: 36 },
+  emptyText: { color: colors.textMuted, marginTop: 10, fontSize: 14 },
+
+  // Period picker
+  pickerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'center', padding: 30 },
+  pickerBox: { backgroundColor: colors.white, borderRadius: 18, paddingVertical: 6, maxHeight: '70%' },
+  pickerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#F2F2F2' },
+  pickerRowActive: { backgroundColor: '#FFF5F5' },
+  pickerText: { fontSize: 15, color: colors.text, fontWeight: '600' },
+  pickerTextActive: { color: '#FF6B6B', fontWeight: '800' },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  modalContentBox: {
-    backgroundColor: colors.white, borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, height: '75%',
-  },
+  modalContentBox: { backgroundColor: colors.white, borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, height: '75%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: colors.border },
   modalTitle: { color: colors.text, fontSize: 20, fontWeight: '900' },
-
-  txDetailBox: {
-    backgroundColor: colors.white, borderRadius: 32, padding: 24, margin: 20,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 10,
-  },
-  txDetailHeader: { alignItems: 'center', marginBottom: 24 },
-  txBigIconWrap: { width: 72, height: 72, borderRadius: 24, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  txBigAmount: { fontSize: 32, fontWeight: '900', marginBottom: 4 },
-  txBigType: { color: colors.textSecondary, fontSize: 16, fontWeight: '700' },
-  detailSection: { backgroundColor: colors.surface, borderRadius: 24, padding: 16, borderWidth: 1, borderColor: colors.border },
-  txDetailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
-  txDetailRowLeft: { flexDirection: 'row', alignItems: 'center' },
-  txDetailLabel: { color: colors.textSecondary, fontSize: 14, fontWeight: '600' },
-  txDetailValue: { color: colors.text, fontSize: 15, fontWeight: '800' },
-  modalCloseBtn: { marginTop: 24, backgroundColor: '#FF6B6B', borderRadius: 16, paddingVertical: 16, alignItems: 'center' },
-  modalCloseBtnText: { color: colors.white, fontSize: 16, fontWeight: '800' },
 
   withdrawItem: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: colors.white, borderRadius: 16, padding: 12, marginBottom: 12,
@@ -514,117 +519,24 @@ const styles = StyleSheet.create({
   statusBadgeText: { fontSize: 11, fontWeight: '700' },
   itemDate: { fontSize: 10, color: colors.textMuted, textAlign: 'right', marginTop: 4 },
 
-  // Earning Breakup Modal Styles
-  breakupModalBox: {
-    backgroundColor: colors.white,
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    padding: 24,
-    maxHeight: '90%',
-  },
-  breakupHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  breakupTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: colors.text,
-  },
-  breakupCloseBtn: {
-    backgroundColor: colors.text,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  breakupRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 10,
-  },
-  breakupRowWithSub: {
-    paddingVertical: 10,
-  },
-  breakupRowHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  breakupLabel: {
-    fontSize: 15,
-    color: colors.text,
-    fontWeight: '600',
-  },
-  breakupValue: {
-    fontSize: 15,
-    color: colors.text,
-    fontWeight: '700',
-  },
-  breakupSubtitle: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 4,
-    lineHeight: 16,
-  },
-  breakupDivider: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginVertical: 12,
-  },
-  boldLabel: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: colors.text,
-  },
-  boldValue: {
-    fontSize: 19,
-    fontWeight: '800',
-    color: colors.text,
-  },
-  paymentInfoSection: {
-    marginTop: 20,
-    backgroundColor: '#F7FAFC',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  paymentInfoTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 12,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  paymentInfoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 6,
-  },
-  paymentInfoLabel: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    fontWeight: '500',
-  },
-  paymentInfoValue: {
-    fontSize: 13,
-    color: colors.text,
-    fontWeight: '600',
-  },
-  noteText: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    fontStyle: 'italic',
-    marginTop: 2,
-  },
+  // Earning Breakup modal
+  breakupModalBox: { backgroundColor: colors.white, borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, maxHeight: '90%' },
+  breakupHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: colors.border },
+  breakupTitle: { fontSize: 20, fontWeight: '800', color: colors.text },
+  breakupCloseBtn: { backgroundColor: colors.text, width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  breakupRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10 },
+  breakupRowWithSub: { paddingVertical: 10 },
+  breakupRowHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  breakupLabel: { fontSize: 15, color: colors.text, fontWeight: '600' },
+  breakupValue: { fontSize: 15, color: colors.text, fontWeight: '700' },
+  breakupSubtitle: { fontSize: 12, color: colors.textMuted, marginTop: 4, lineHeight: 16 },
+  breakupDivider: { height: 1, backgroundColor: colors.border, marginVertical: 12 },
+  boldLabel: { fontSize: 18, fontWeight: '800', color: colors.text },
+  boldValue: { fontSize: 19, fontWeight: '800', color: colors.text },
+  paymentInfoSection: { marginTop: 20, backgroundColor: '#F7FAFC', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: colors.border },
+  paymentInfoTitle: { fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 },
+  paymentInfoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6 },
+  paymentInfoLabel: { fontSize: 13, color: colors.textSecondary, fontWeight: '500' },
+  paymentInfoValue: { fontSize: 13, color: colors.text, fontWeight: '600' },
+  noteText: { fontSize: 12, color: colors.textSecondary, fontStyle: 'italic', marginTop: 2 },
 });

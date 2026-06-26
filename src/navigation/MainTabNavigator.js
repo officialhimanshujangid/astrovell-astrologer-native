@@ -3,6 +3,7 @@ import { View, StyleSheet, BackHandler } from 'react-native';
 
 import DashboardScreen    from '../screens/DashboardScreen';
 import WalletScreen       from '../screens/WalletScreen';
+import InvoiceScreen      from '../screens/InvoiceScreen';
 import ProfileScreen      from '../screens/ProfileScreen';
 import MoreScreen         from '../screens/MoreScreen';
 import ChatHistoryScreen  from '../screens/ChatHistoryScreen';
@@ -117,6 +118,7 @@ const MainTabNavigator = () => {
   if (activeSubScreen === 'Horoscope')      return <HoroscopeScreen onBack={closeSubScreen} />;
   if (activeSubScreen === 'Panchang')       return <PanchangScreen onBack={closeSubScreen} />;
   if (activeSubScreen === 'Wallet')         return <WalletScreen onBack={closeSubScreen} />;
+  if (activeSubScreen === 'Invoices')       return <InvoiceScreen onBack={closeSubScreen} />;
   if (activeSubScreen === 'Waitlist')       return <WaitlistScreen onBack={closeSubScreen} />;
   if (activeSubScreen === 'AssistantChat')  return <AssistantChatScreen onBack={closeSubScreen} />;
   if (activeSubScreen === 'Settings' || (activeSubScreen && activeSubScreen.startsWith('Settings_'))) {

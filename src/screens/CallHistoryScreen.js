@@ -59,7 +59,7 @@ const CallItem = ({ item, isOpen, onToggle, t, openKundali, onSuggestRemedy }) =
           <Image source={{ uri: avatarUri }} style={styles.avatar} resizeMode="cover" />
         ) : (
           <View style={[styles.avatar, styles.avatarFallback]}>
-            <Ionicons name="call" size={22} color={colors.gold} />
+                        <Image source={require('../../assets/splash.png')} style={{ width: 50, height: 50, borderRadius: 50  }} resizeMode="cover" />
           </View>
         )}
         <View style={styles.cardInfo}>
@@ -123,8 +123,8 @@ const CallItem = ({ item, isOpen, onToggle, t, openKundali, onSuggestRemedy }) =
                 <Text style={styles.actionBtnOutlineText}>{t('open_kundli') || 'Open Kundali'}</Text>
               </TouchableOpacity>
             ) : null}
-            <TouchableOpacity style={styles.actionBtnOutline} onPress={() => onSuggestRemedy(item)}>
-              <Text style={styles.actionBtnOutlineText}>{t('suggest_remedy') || 'Suggest Remedy'}</Text>
+            <TouchableOpacity style={styles.actionBtnOutline1} onPress={() => onSuggestRemedy(item)}>
+              <Text style={styles.actionBtnOutlineText1}>{t('suggest_remedy') || 'Suggest Remedy'}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -350,6 +350,16 @@ const styles = StyleSheet.create({
     marginTop: 12,
     flexWrap: 'wrap',
   },
+      actionBtnOutline1: {
+    flex: 1,
+    minWidth: '30%',
+    backgroundColor: colors.success,
+    borderWidth: 1,
+    borderColor: colors.successBg,
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
   actionBtnOutline: {
     flex: 1,
     minWidth: '40%',
@@ -362,6 +372,12 @@ const styles = StyleSheet.create({
   },
   actionBtnOutlineText: {
     color: colors.goldDark,
+    fontWeight: '700',
+    fontSize: 13,
+  },
+
+  actionBtnOutlineText1: {
+    color: colors.text,
     fontWeight: '700',
     fontSize: 13,
   },

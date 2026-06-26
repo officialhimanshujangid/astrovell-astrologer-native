@@ -1,14 +1,15 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity,
   KeyboardAvoidingView, Platform, ActivityIndicator,
-  Image, ScrollView, Modal,
+  Image, ImageBackground, ScrollView, Modal,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { useAlert } from '../context/AlertContext';
 import { useSelector } from 'react-redux';
 import { io } from 'socket.io-client';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 
 import { colors } from '../theme/colors';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,6 +17,83 @@ import { chatApi, pujaApi, kundaliApi, horoscopeApi } from '../api/services';
 import { SOCKET_BASE, BASE_IMG } from '../api/apiClient';
 import usePermissions from '../hooks/usePermissions';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Date separators: build a DISPLAY array (does NOT mutate the messages state).
+// Inserts a { __dateSep } item before the first message of each new day.
+const dateSepLabel = (d) =>
+  d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+
+const buildDisplayMessages = (msgs) => {
+  if (!Array.isArray(msgs)) return [];
+  const out = [];
+  let lastKey = null;
+  for (const m of msgs) {
+    const ts = m?.created_at || m?.createdAt;
+    const d = ts ? new Date(ts) : null;
+    const valid = d && !isNaN(d.getTime());
+    const key = valid ? d.toDateString() : null;
+    if (key && key !== lastKey) {
+      out.push({ __dateSep: true, id: `__sep_${key}`, label: dateSepLabel(d) });
+      lastKey = key;
+    }
+    out.push(m);
+  }
+  return out;
+};
+
+// Synthetic system messages (client-side only, NOT persisted) shown once at chat start.
+const SYSTEM_MESSAGES = [
+  { __sysMsg: true, id: '__sys_confirm', variant: 'confirm', text: 'This is an automated message to confirm that chat has started.' },
+  { __sysMsg: true, id: '__sys_welcome', variant: 'welcome', text: 'Welcome to Astrovell. Consultant will take a minute to analyse your details. You may ask your question in the meanwhile.' },
+];
+
+const fmtIntakeDate = (v) => {
+  if (!v) return '';
+  const d = new Date(String(v));
+  return !isNaN(d.getTime())
+    ? d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+    : String(v).slice(0, 10);
+};
+const fmtIntakeTime = (t) => {
+  if (!t) return '';
+  const m = String(t).match(/^(\d{1,2}):(\d{2})/);
+  if (!m) return String(t);
+  let h = parseInt(m[1], 10); const ap = h >= 12 ? 'PM' : 'AM';
+  h = h % 12; if (h === 0) h = 12;
+  return `${h}:${m[2]} ${ap}`;
+};
+
+// Build the customer's intake-details bubble (synthetic, client-side, NOT persisted).
+const buildIntakeMessage = (detail, astroName) => {
+  if (!detail) return null;
+  const name   = detail.intakeName || detail.name || detail.userName;
+  const gender = detail.intakeGender || detail.gender || detail.userGender;
+  const dob    = detail.intakeBirthDate || detail.birthDate;
+  const tob    = detail.intakeBirthTime || detail.birthTime;
+  const pob    = detail.intakeBirthPlace || detail.birthPlace;
+  const topic  = detail.intakeTopic || detail.topicOfConcern;
+  if (!name && !dob && !pob) return null;
+  const lines = [];
+  if (name)   lines.push(`Name: ${name}`);
+  if (gender) lines.push(`Gender: ${gender}`);
+  if (dob)    lines.push(`DOB: ${fmtIntakeDate(dob)}`);
+  if (tob)    lines.push(`TOB: ${fmtIntakeTime(tob)}`);
+  if (pob)    lines.push(`POB: ${pob}`);
+  if (topic)  lines.push(`Topic: ${topic}`);
+  if (!lines.length) return null;
+  const greet = astroName ? `Hi ${astroName},` : 'Hi,';
+  return { __intakeMsg: true, id: '__intake', text: `${greet}\nBelow are my details:\n${lines.join('\n')}` };
+};
+
+// Place intro items (intake + system) after a leading date separator (if any), else at the very top.
+const injectIntro = (displayArr, intro) => {
+  const items = (intro || []).filter(Boolean);
+  if (!items.length) return displayArr;
+  if (displayArr.length && displayArr[0].__dateSep) {
+    return [displayArr[0], ...items, ...displayArr.slice(1)];
+  }
+  return [...items, ...displayArr];
+};
 
 const ChatRoomScreen = ({ route, navigation }) => {
   const { chatId } = route?.params || {};
@@ -144,6 +222,11 @@ const ChatRoomScreen = ({ route, navigation }) => {
       setMessages(prev => prev.map(m => messageIds.includes(m.id) ? { ...m, status } : m));
     });
 
+    // ── Message deleted (by either side) ──────────────────────────────────────
+    socket.on('message-deleted', ({ messageId }) => {
+      setMessages(prev => prev.map(m => String(m.id) === String(messageId) ? { ...m, is_deleted: 1 } : m));
+    });
+
     // ── Chat ended ───────────────────────────────────────────────────────────
     socket.on('chat-ended', (data) => {
       clearInterval(timerRef.current);
@@ -246,6 +329,21 @@ const ChatRoomScreen = ({ route, navigation }) => {
         clearInterval(timerRef.current);
         AsyncStorage.removeItem(`chat_start_${chatId}`).catch(() => {});
         setChatDetail(prev => ({ ...prev, chatStatus: 'Completed' }));
+      }
+    });
+  };
+
+  // ── Delete message (own message, like WhatsApp) ───────────────────────────
+  const handleDeleteMessage = (msg) => {
+    if (!msg?.id) return;
+    showAlert({
+      title: 'Delete message?',
+      message: 'This message will be deleted for everyone.',
+      cancelText: 'Cancel',
+      confirmText: 'Delete',
+      onConfirmPressed: () => {
+        socketRef.current?.emit('delete-message', { chatRequestId: chatId, messageId: msg.id });
+        setMessages(prev => prev.map(m => String(m.id) === String(msg.id) ? { ...m, is_deleted: 1 } : m)); // optimistic
       }
     });
   };
@@ -377,6 +475,37 @@ const ChatRoomScreen = ({ route, navigation }) => {
 
   // ── Render Message ────────────────────────────────────────────────────────
   const renderMsg = ({ item }) => {
+    // ── Date separator chip ──────────────────────────────────────────────────
+    if (item.__dateSep) {
+      return (
+        <View style={styles.dateSepWrap}>
+          <View style={styles.dateSepChip}>
+            <Text style={styles.dateSepText}>{item.label}</Text>
+          </View>
+        </View>
+      );
+    }
+
+    // ── Intake details bubble (customer's birth details) ─────────────────────
+    if (item.__intakeMsg) {
+      return (
+        <View style={[styles.bubble, styles.bubbleReceived]}>
+          <Text style={[styles.bubbleText, styles.bubbleTextReceived]}>{item.text}</Text>
+        </View>
+      );
+    }
+
+    // ── System / automated message ───────────────────────────────────────────
+    if (item.__sysMsg) {
+      return (
+        <View style={[styles.sysMsgBox, item.variant === 'welcome' && styles.sysMsgWelcome]}>
+          <Text style={[styles.sysMsgText, item.variant === 'welcome' && styles.sysMsgWelcomeText]}>
+            {item.text}
+          </Text>
+        </View>
+      );
+    }
+
     // ── Puja sent card ───────────────────────────────────────────────────────
     if (item.message === '__PUJA_SENT__' && item.pujaData) {
       return (
@@ -391,6 +520,7 @@ const ChatRoomScreen = ({ route, navigation }) => {
 
     // ── Regular message ──────────────────────────────────────────────────────
     const isSent = item.senderType === 'astrologer';
+    const isDeleted = Number(item.is_deleted) === 1;
 
     // Tick indicator (only for astrologer's own messages)
     const renderTick = () => {
@@ -405,17 +535,41 @@ const ChatRoomScreen = ({ route, navigation }) => {
     };
 
     return (
-      <View style={[styles.bubble, isSent ? styles.bubbleSent : styles.bubbleReceived]}>
-        <Text style={[styles.bubbleText, !isSent && styles.bubbleTextReceived]}>{item.message}</Text>
-        <View style={styles.bubbleFooter}>
-          <Text style={styles.bubbleTime}>{formatTime(item.created_at)}</Text>
-          {renderTick()}
-        </View>
-      </View>
+      <TouchableOpacity
+        activeOpacity={isSent && !isDeleted ? 0.85 : 1}
+        onLongPress={() => isSent && !isDeleted && handleDeleteMessage(item)}
+        style={[styles.bubble, isSent ? styles.bubbleSent : styles.bubbleReceived]}
+      >
+        {isDeleted ? (
+          <View style={styles.deletedRow}>
+            <Ionicons name="ban-outline" size={13} color={isSent ? 'rgba(0,0,0,0.55)' : colors.textSecondary} />
+            <Text style={[styles.deletedText, { color: isSent ? 'rgba(0,0,0,0.6)' : colors.textSecondary }]}>
+              This message was deleted
+            </Text>
+          </View>
+        ) : (
+          <>
+            <Text style={[styles.bubbleText, !isSent && styles.bubbleTextReceived]}>{item.message}</Text>
+            <View style={styles.bubbleFooter}>
+              <Text style={styles.bubbleTime}>{formatTime(item.created_at)}</Text>
+              {renderTick()}
+            </View>
+          </>
+        )}
+      </TouchableOpacity>
     );
   };
 
   const status = chatDetail?.chatStatus || 'Accepted';
+
+  // Display list = messages + date separators + intake + system messages (derived; messages state untouched).
+  // No status gating: the astrologer is only ever on this screen for a live/accepted chat, and
+  // getChatDetail can briefly return a stale 'Pending' on first entry — so always show the intro.
+  const displayMessages = useMemo(() => {
+    const arr = buildDisplayMessages(messages);
+    const intake = buildIntakeMessage(chatDetail, astrologer?.name || chatDetail?.astrologerName);
+    return injectIntro(arr, [intake, ...SYSTEM_MESSAGES]);
+  }, [messages, chatDetail, astrologer]);
   const isDone = status === 'Completed' || status === 'Cancelled';
 
   // Live presence shown in the header. Driven by real-time signals (typing /
@@ -449,19 +603,23 @@ const ChatRoomScreen = ({ route, navigation }) => {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={styles.container}>
+      <StatusBar style="dark" />
+      <View style={{ height: insets.top, backgroundColor: colors.gold }} />
+
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation?.goBack?.()}>
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation?.goBack?.()} activeOpacity={0.7}>
+          <Ionicons name="arrow-back" size={22} color={colors.text} />
         </TouchableOpacity>
+
         <View style={styles.headerUser}>
           {chatDetail?.userProfile ? (
             <Image
               source={{
                 uri: chatDetail.userProfile.startsWith('http')
                   ? chatDetail.userProfile
-                  : `${BASE_IMG}${chatDetail.userProfile}`,
+                  : `${BASE_IMG}public/${chatDetail.userProfile}`,
               }}
               style={styles.headerAvatar}
             />
@@ -472,49 +630,34 @@ const ChatRoomScreen = ({ route, navigation }) => {
               </Text>
             </View>
           )}
-          <View>
-            <Text style={styles.headerName}>{chatDetail?.userName || 'User'}</Text>
-            <Text style={[styles.headerStatus, { color: presenceColor }]}>
-              {presenceText}
-            </Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.headerName} numberOfLines={1}>{chatDetail?.userName || 'User'}</Text>
+            <View style={styles.statusRow}>
+              <View style={[styles.statusDot, { backgroundColor: presenceColor }]} />
+              <Text style={[styles.headerStatus, { color: presenceColor }]} numberOfLines={1}>
+                {presenceText}
+              </Text>
+            </View>
           </View>
         </View>
 
         <View style={styles.headerRight}>
           {can('chat') && !isDone && (
-            <View style={[styles.timerWrap, timeElapsed > 1800 && { borderColor: colors.danger }]}>
-              <Text style={[styles.timerText, timeElapsed > 1800 && { color: colors.danger }]}>
+            <View style={[styles.timerPill, timeElapsed > 1800 && styles.timerPillDanger]}>
+              <Ionicons name="time-outline" size={13} color={timeElapsed > 1800 ? colors.error : colors.accentTeal} />
+              <Text style={[styles.timerText, timeElapsed > 1800 && { color: colors.error }]}>
                 {formatTimer(timeElapsed)}
               </Text>
             </View>
           )}
-          {/* {!isDone && (
-            <TouchableOpacity 
-              style={styles.astroToolBtn} 
-              onPress={() => {
-                setShowAstroTools(true);
-                if (!kundaliData) fetchQuickKundali();
-              }}
-            >
-              <Text style={{ fontSize: 20 }}>🔮</Text>
-            </TouchableOpacity>
-          )}
-          {can('chat_recommend_puja') && !isDone && (
-            <TouchableOpacity style={styles.pujaBtn} onPress={loadPujas} activeOpacity={0.8}>
-              <Text style={styles.pujaBtnText}>🙏</Text>
-            </TouchableOpacity>
-          )} */}
           {!isDone && (
-            <TouchableOpacity
-              style={styles.kundaliHeaderBtn}
-              onPress={handleOpenKundali}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.kundaliHeaderIcon}>🔮</Text>
+            <TouchableOpacity style={styles.kundaliBtn} onPress={handleOpenKundali} activeOpacity={0.8}>
+              <Ionicons name="planet-outline" size={18} color={colors.card} />
             </TouchableOpacity>
           )}
           {can('chat') && !isDone && (
-            <TouchableOpacity style={styles.endBtn} onPress={handleEndChat} activeOpacity={0.8}>
+            <TouchableOpacity style={styles.endBtn} onPress={handleEndChat} activeOpacity={0.85}>
+              <Ionicons name="power" size={13} color="#FFFFFF" />
               <Text style={styles.endBtnText}>End</Text>
             </TouchableOpacity>
           )}
@@ -531,11 +674,18 @@ const ChatRoomScreen = ({ route, navigation }) => {
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           keyboardVerticalOffset={0}
         >
+          <ImageBackground
+            source={require('../../assets/chat_background.jpg')}
+            style={{ flex: 1 }}
+            resizeMode="cover"
+            imageStyle={{ opacity: 0.2 }}
+          >
           <FlatList
             ref={flatListRef}
-            data={messages}
+            data={displayMessages}
             keyExtractor={(item, i) => String(item.id ?? i)}
             renderItem={renderMsg}
+            style={{ flex: 1, backgroundColor: 'transparent' }}
             contentContainerStyle={styles.messagesList}
             onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
             ListEmptyComponent={
@@ -556,6 +706,7 @@ const ChatRoomScreen = ({ route, navigation }) => {
               </>
             }
           />
+          </ImageBackground>
 
           {/* ── Astro Workspace (Inline) ──────────────────────────────────── */}
           {showAstroTools && !isDone && (
@@ -813,60 +964,78 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     backgroundColor: colors.surface,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+    gap: 4,
   },
-  backBtn: { marginRight: 12, padding: 4 },
+  backBtn: {
+    width: 38, height: 38, borderRadius: 19,
+    backgroundColor: colors.secondary, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: colors.border, marginRight: 4,
+  },
   headerUser: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  headerAvatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.border },
+  headerAvatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.border },
   headerAvatarPlaceholder: {
-    width: 42, height: 42, borderRadius: 21,
-    backgroundColor: colors.secondary + '25',
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: colors.goldBg,
     alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: colors.borderGold,
   },
-  headerAvatarLetter: { color: colors.secondary, fontSize: 18, fontWeight: '800' },
-  headerName: { color: colors.text, fontSize: 15, fontWeight: '700' },
+  headerAvatarLetter: { color: colors.goldDark, fontSize: 16, fontWeight: '800' },
+  headerName: { color: colors.text, fontSize: 15, fontWeight: '800' },
+  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 },
+  statusDot: { width: 7, height: 7, borderRadius: 4 },
   headerStatus: { fontSize: 11, fontWeight: '600' },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 7 },
 
-  timerWrap: {
-    borderRadius: 8, borderWidth: 1, borderColor: colors.border,
-    paddingHorizontal: 8, paddingVertical: 4,
+  timerPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: colors.goldBg, borderRadius: 9,
+    paddingHorizontal: 9, paddingVertical: 5,
+    borderWidth: 1, borderColor: colors.error,
   },
-  timerText: { color: colors.accent, fontSize: 14, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  timerPillDanger: { backgroundColor: '#FEECEC', borderColor: '#FCA5A5' },
+  timerText: { color: colors.error, fontSize: 13, fontWeight: '800', fontVariant: ['tabular-nums'] },
 
-  pujaBtn: {
-    width: 34, height: 34, borderRadius: 17,
-    backgroundColor: colors.warning + '30',
-    alignItems: 'center', justifyContent: 'center',
+  kundaliBtn: {
+    width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.accentTeal, borderWidth: 1, borderColor: colors.info,
   },
-  pujaBtnText: { fontSize: 18 },
 
   endBtn: {
-    backgroundColor: colors.danger + '20',
-    borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6,
-    borderWidth: 1, borderColor: colors.danger + '50',
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: colors.error, borderRadius: 9,
+    paddingHorizontal: 11, paddingVertical: 7,
   },
-  endBtnText: { color: colors.danger, fontSize: 12, fontWeight: '800' },
-  kundaliHeaderBtn: {
-    width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: (colors.gold || colors.secondary || '#FFCC00') + '22',
-    borderWidth: 1, borderColor: (colors.gold || colors.secondary || '#FFCC00') + '55',
-  },
-  kundaliHeaderIcon: { fontSize: 17 },
+  endBtnText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
 
   loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   messagesList: { padding: 14, paddingBottom: 8 },
+  dateSepWrap: { alignItems: 'center', marginVertical: 10 },
+  dateSepChip: {
+    backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 12,
+    paddingHorizontal: 12, paddingVertical: 5,
+    borderWidth: 1, borderColor: colors.border,
+  },
+  dateSepText: { fontSize: 11, fontWeight: '700', color: colors.textSecondary },
+  sysMsgBox: {
+    alignSelf: 'center', maxWidth: '90%', marginVertical: 6,
+    paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.92)', borderWidth: 1, borderColor: colors.border,
+  },
+  sysMsgText: { fontSize: 12.5, color: colors.textSecondary, textAlign: 'center', lineHeight: 18 },
+  sysMsgWelcome: { backgroundColor: colors.goldBg, borderColor: colors.borderGold },
+  sysMsgWelcomeText: { color: '#1A1A1A' },
 
   bubble: {
     maxWidth: '80%', borderRadius: 16, padding: 12, marginBottom: 8,
   },
   bubbleSent: {
-    backgroundColor: colors.gold,
+    backgroundColor: '#FFD95C',
     alignSelf: 'flex-end',
     borderBottomRightRadius: 4,
     shadowColor: '#000',
@@ -881,11 +1050,13 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 4,
     borderWidth: 1, borderColor: colors.border,
   },
-  bubbleText: { color: colors.text, fontSize: 14 },
+  bubbleText: { color: colors.text, fontSize: 15, fontWeight: '500' },
   bubbleTextReceived: { color: colors.text },
   bubbleFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 4, gap: 3 },
   bubbleTime: { color: colors.textSecondary, fontSize: 10, opacity: 0.7 },
   tickText: { fontSize: 11, fontWeight: '700', letterSpacing: -1 },
+  deletedRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  deletedText: { fontSize: 13.5, fontStyle: 'italic' },
 
   pujaCard: {
     backgroundColor: colors.success + '15',

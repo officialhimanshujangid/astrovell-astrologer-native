@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  RefreshControl, ScrollView, Switch,
-  Image, ActivityIndicator, Modal,
+  RefreshControl, ScrollView,
+  Image, ActivityIndicator, Modal, Linking,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import Toast from 'react-native-toast-message';
@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { WebView } from 'react-native-webview';
 import { playRingtone, stopRingtone } from '../utils/audioPlayer';
+import DayNightSwitch from '../components/DayNightSwitch';
 
 import { colors } from '../theme/colors';
 import { chatApi, callApi, boostApi, profileApi } from '../api/services';
@@ -178,6 +179,13 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
           confirmText: 'OK',
           onConfirmPressed: stopRingtone
         });
+      }
+    });
+    // Customer cancelled the pending call → stop ringing + drop it from the list.
+    socket.on('call-cancelled', (data) => {
+      if (data.astrologerId === astrologer?.id) {
+        stopRingtone();
+        fetchRequests();
       }
     });
     socketRef.current = socket;
@@ -496,14 +504,7 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
         {/* ── Availability Switches ───────────────────────────────────────── */}
         {can('dashboard_status_toggles') && (
           <View style={styles.availPlain}>
-            {/* Live ticking clock + date */}
-            {/* <View style={styles.availTopRow}>
-              <Text style={styles.availDate}>
-                {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' })}
-              </Text>
-              <LiveClock />
-            </View> */}
-
+           
             {/* Chat */}
             {can('chat') && (
               <View style={styles.availRow}>
@@ -519,12 +520,9 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
                     </Text>
                   </View>
                 </View>
-                <Switch
-                  style={styles.availSwitch}
+                <DayNightSwitch
                   value={chatStatus === 'Online'}
                   onValueChange={toggleChatStatus}
-                  trackColor={{ false: colors.border, true: colors.success + '80' }}
-                  thumbColor={chatStatus === 'Online' ? colors.success : '#f4f3f4'}
                 />
               </View>
             )}
@@ -546,12 +544,9 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
                     </Text>
                   </View>
                 </View>
-                <Switch
-                  style={styles.availSwitch}
+                <DayNightSwitch
                   value={callStatus === 'Online'}
                   onValueChange={toggleCallStatus}
-                  trackColor={{ false: colors.border, true: colors.success + '80' }}
-                  thumbColor={callStatus === 'Online' ? colors.success : '#f4f3f4'}
                 />
               </View>
             )}
@@ -652,9 +647,11 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
               {can('followers') && <ServiceItem label={t('my_followers')} icon="people-outline" color={colors.iconGreen} onPress={() => onOpenSubScreen?.('Followers')} />}
               {can('reviews') && <ServiceItem label={t('my_reviews')} icon="star-outline" color={colors.iconYellow} onPress={() => onOpenSubScreen?.('Reviews')} />}
               {can('wallet') && <ServiceItem label={t('wallet')} icon="wallet-outline" color={colors.iconTeal} onPress={() => onOpenSubScreen?.('Wallet')} />}
+              {/* {can('wallet') && <ServiceItem label="Invoices" icon="document-text-outline" color={colors.iconYellow} onPress={() => onOpenSubScreen?.('Invoices')} />} */}
               {can('settings') && <ServiceItem label={t('settings')} icon="settings-outline" color={colors.iconPink} onPress={() => onOpenSubScreen?.('Settings')} />}
-              {can('support') && <ServiceItem label={t('support')} icon="help-buoy-outline" color={colors.iconBlue} onPress={() => onOpenSubScreen?.('Support')} />}
               {can('profile') && <ServiceItem label={t('my_profile')} icon="person-outline" color={colors.iconOrange} onPress={() => onOpenSubScreen?.('Profile')} />}
+              {can('support') && <ServiceItem label={t('support')} icon="help-buoy-outline" color={colors.iconBlue} onPress={() => onOpenSubScreen?.('Support')} />}
+              <ServiceItem label="Support" icon="logo-whatsapp" color={colors.iconGreen} onPress={() => Linking.openURL('https://wa.me/918529411977?text=' + encodeURIComponent('Hi Astrovell team, I need help with the astrologer app.')).catch(() => { })} />
             </View>
           </>
         )}
@@ -1062,7 +1059,22 @@ const styles = StyleSheet.create({
   },
   boostModalConfirmText: { color: colors.text, fontSize: 15, fontWeight: '800' },
 
-  availPlain: { marginHorizontal: 16, marginTop: 4, marginBottom: 2 },
+  availPlain: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 10,
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    // very light card — just a hint of a shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 5,
+    elevation: 1,
+  },
   availTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 },
   clockText: { fontSize: 14, fontWeight: '800', color: colors.text, fontVariant: ['tabular-nums'], letterSpacing: 0.5, textTransform: "uppercase" },
   availDate: { fontSize: 12, color: colors.textMuted, fontWeight: '600' },
@@ -1129,24 +1141,34 @@ const styles = StyleSheet.create({
   serviceGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingHorizontal: 8,
+    paddingHorizontal: 12,
     marginBottom: 20,
   },
+  // Each service is its own small white card (Astrotalk-style).
   serviceItem: {
-    width: '33.33%',
-    padding: 8,
-    alignItems: 'center',
-  },
-  serviceIconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: '31%',
+    marginHorizontal: '1.16%',
+    marginBottom: 12,
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: 16,
+    paddingHorizontal: 6,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2,
+    minHeight: 116,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 5, elevation: 2,
   },
-  serviceLabel: { fontSize: 11, fontWeight: '600', color: colors.textSecondary, textAlign: 'center' },
+  serviceIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  serviceLabel: { fontSize: 12, fontWeight: '600', color: colors.text, textAlign: 'center' },
 
   progressCard: {
     margin: 16,

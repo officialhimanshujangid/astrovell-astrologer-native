@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
   StyleSheet, StatusBar, ActivityIndicator, Dimensions,
-  Platform, Image, Modal, KeyboardAvoidingView
+  Platform, Image, ImageBackground, Modal, KeyboardAvoidingView
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { useDispatch, useSelector } from 'react-redux';
@@ -1045,9 +1045,9 @@ const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
               <LuckyCard icon="🔤" label={l.letters} value={dpick(basicReport, 'lucky_letters')} color="#ec4899" />
             </View>
             {basicReport?.lucky_name_start && (
-              <View style={{ marginTop: 12, padding: 12, backgroundColor: '#fdf2f8', borderRadius: 12, borderWidth: 1, borderColor: '#fbcfe8' }}>
-                <Text style={{ fontSize: 11, fontWeight: '700', color: '#9d174d', textTransform: 'uppercase', marginBottom: 4 }}>{l.recommendedName}</Text>
-                <Text style={{ fontSize: 14, color: '#be185d', fontWeight: '800' }}>{Array.isArray(basicReport.lucky_name_start) ? basicReport.lucky_name_start.join(', ') : basicReport.lucky_name_start}</Text>
+              <View style={{ marginTop: 12, marginBottom: 8, padding: 12, backgroundColor: '#FFFBE6', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,204,0,0.40)' }}>
+                <Text style={{ fontSize: 11, fontWeight: '700', color: '#E6A800', textTransform: 'uppercase', marginBottom: 4 }}>{l.recommendedName}</Text>
+                <Text style={{ fontSize: 14, color: '#1A1A1A', fontWeight: '800' }}>{Array.isArray(basicReport.lucky_name_start) ? basicReport.lucky_name_start.join(', ') : basicReport.lucky_name_start}</Text>
               </View>
             )}
           </View>
@@ -1536,14 +1536,20 @@ const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
 
     return (
       <View style={styles.tabScrollContent}>
-        <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
-          <TouchableOpacity
-            style={[styles.textInput, { flex: 1, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
-            onPress={() => setShowPicker({ visible: true, mode: 'date', target: 'transitDate' })}
-          >
-            <Text style={{ fontSize: 14, color: '#374151', fontWeight: '600' }}>📅 {transitDate}</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          style={styles.transitDateBtn}
+          onPress={() => setShowPicker({ visible: true, mode: 'date', target: 'transitDate' })}
+          activeOpacity={0.85}
+        >
+          <View style={styles.transitDateIcon}>
+            <Ionicons name="calendar-outline" size={18} color={colors.goldDark} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.transitDateLabel}>{l.date}</Text>
+            <Text style={styles.transitDateValue}>{transitDate}</Text>
+          </View>
+          <Ionicons name="chevron-down" size={18} color={colors.textMuted} />
+        </TouchableOpacity>
         <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 10, marginBottom: 16 }}>
           {['north', 'south', 'east'].map(s => (
             <TouchableOpacity
@@ -1813,11 +1819,15 @@ const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
     return (
       <View style={styles.tabScrollContent}>
         {canShow('sadesati', 'status') && (
-          <View style={[styles.sectionCard, { backgroundColor: statusBg, borderColor: statusColor }]}>
+          <View style={[styles.statusBannerCard, { backgroundColor: statusBg, borderColor: statusColor }]}>
+            <View style={styles.statusIconCircle}>
+              <Ionicons
+                name={!isInSadeSati ? 'checkmark-circle' : (/peak/i.test(String(periodType)) ? 'flame' : 'alert-circle')}
+                size={34}
+                color={statusColor}
+              />
+            </View>
             <View style={{ alignItems: 'center' }}>
-              <Text style={{ fontSize: 40, marginBottom: 10 }}>
-                {!isInSadeSati ? '✅' : (/peak/i.test(String(periodType)) ? '🔥' : '⚠️')}
-              </Text>
               <Text style={{ fontSize: 20, fontWeight: 'bold', color: statusColor, marginBottom: 6 }}>
                 {!isInSadeSati ? 'Not in Sade Sati' : 'Currently in Sade Sati'}
               </Text>
@@ -2309,9 +2319,11 @@ const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
     return (
       <View style={styles.tabScrollContent}>
         {canShow('manglik', 'analysis') && (
-          <View style={[styles.sectionCard, { backgroundColor: statusBg, borderColor: statusColor }]}>
+          <View style={[styles.statusBannerCard, { backgroundColor: statusBg, borderColor: statusColor }]}>
+            <View style={styles.statusIconCircle}>
+              <Ionicons name={isManglik ? 'flame' : 'checkmark-circle'} size={34} color={statusColor} />
+            </View>
             <View style={{ alignItems: 'center' }}>
-              <Text style={{ fontSize: 40, marginBottom: 10 }}>{isManglik ? '🔥' : '✅'}</Text>
               <Text style={{ fontSize: 20, fontWeight: 'bold', color: statusColor, marginBottom: 6 }}>
                 {isManglik ? l.youAreManglik : l.youAreNotManglik}
               </Text>
@@ -2336,9 +2348,9 @@ const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>{l.factorsCausing}</Text>
             {presentRules.map((rule, idx) => (
-              <View key={idx} style={{ flexDirection: 'row', marginBottom: 8 }}>
-                <Text style={{ color: '#dc2626', marginRight: 8 }}>•</Text>
-                <Text style={{ flex: 1, fontSize: 14, color: '#374151', lineHeight: 20 }}>{rule}</Text>
+              <View key={idx} style={styles.bulletRow}>
+                <Ionicons name="alert-circle" size={16} color="#dc2626" style={{ marginTop: 1 }} />
+                <Text style={styles.bulletText}>{rule}</Text>
               </View>
             ))}
           </View>
@@ -2348,9 +2360,9 @@ const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>{l.cancellationRules}</Text>
             {cancelRules.map((rule, idx) => (
-              <View key={idx} style={{ flexDirection: 'row', marginBottom: 8 }}>
-                <Text style={{ color: '#10b981', marginRight: 8 }}>•</Text>
-                <Text style={{ flex: 1, fontSize: 14, color: '#374151', lineHeight: 20 }}>{rule}</Text>
+              <View key={idx} style={styles.bulletRow}>
+                <Ionicons name="checkmark-circle" size={16} color="#16A34A" style={{ marginTop: 1 }} />
+                <Text style={styles.bulletText}>{rule}</Text>
               </View>
             ))}
           </View>
@@ -2360,43 +2372,47 @@ const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>{l.suggestedRemedies}</Text>
             {remediesArr.map((rule, idx) => (
-              <View key={idx} style={{ flexDirection: 'row', marginBottom: 8 }}>
-                <Text style={{ color: '#f59e0b', marginRight: 8 }}>★</Text>
-                <Text style={{ flex: 1, fontSize: 14, color: '#374151', lineHeight: 20 }}>{rule}</Text>
+              <View key={idx} style={styles.bulletRow}>
+                <Ionicons name="sparkles" size={15} color="#D97706" style={{ marginTop: 1 }} />
+                <Text style={styles.bulletText}>{rule}</Text>
               </View>
             ))}
           </View>
         )}
 
         {conclusion && (
-          <View style={[styles.sectionCard, { backgroundColor: '#fdf2f8', borderColor: '#fbcfe8' }]}>
-            <Text style={[styles.sectionTitle, { color: '#9d174d' }]}>{l.finalVerdict}</Text>
-            <Text style={{ fontSize: 14, color: '#831843', lineHeight: 22 }}>{conclusion}</Text>
+          <View style={[styles.sectionCard, { backgroundColor: '#FFFBE6', borderColor: 'rgba(255,204,0,0.40)' }]}>
+            <Text style={[styles.sectionTitle, { color: '#E6A800' }]}>{l.finalVerdict}</Text>
+            <Text style={{ fontSize: 14, color: '#1A1A1A', lineHeight: 22 }}>{conclusion}</Text>
           </View>
         )}
       </View>
     );
   };
 
-  const InfoItem = ({ label, value, fullWidth, color }) => (
-    <View style={[styles.infoItem, fullWidth && { width: '100%' }]}>
-      <Text style={[styles.infoLabel, color && { color }]}>{label}</Text>
-      <Text style={[styles.infoValue, color && { color }]} numberOfLines={1}>{value}</Text>
+  const InfoItem = ({ label, value, color }) => (
+    <View style={styles.infoItem}>
+      <Text style={styles.infoLabel}>{label}</Text>
+      <Text style={[styles.infoValue, color && { color }]} numberOfLines={2}>{value}</Text>
     </View>
   );
 
-  const LuckyCard = ({ icon, label, value, color }) => (
-    <View style={[styles.luckyCard, { borderColor: color + '40', backgroundColor: color + '10' }]}>
-      <Text style={styles.luckyCardIcon}>{icon}</Text>
-      <Text style={styles.luckyCardLabel}>{label}</Text>
-      <Text style={[styles.luckyCardValue, { color }]}>{value}</Text>
+  const LuckyCard = ({ label, value, color }) => (
+    <View style={styles.infoItem}>
+      <Text style={styles.infoLabel}>{label}</Text>
+      <Text style={[styles.infoValue, color && { color }]} numberOfLines={2}>{value}</Text>
     </View>
   );
 
   return (
     <View style={styles.container}>
       {/* Header */}
-      <GoldHeader title={l.title} onBack={goBack} />
+      <GoldHeader
+        title={kundaliRecord ? kundaliRecord.name : l.title}
+        subtitle={kundaliRecord ? `${kundaliRecord.birthDate} • ${kundaliRecord.birthTime} • ${kundaliRecord.birthPlace}` : undefined}
+        onBack={goBack}
+        rightAction={kundaliRecord ? { icon: 'language', onPress: () => setShowLangModal(true) } : undefined}
+      />
 
       {!kundaliRecord ? (
         <KeyboardAvoidingView
@@ -2410,23 +2426,6 @@ const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={{ paddingBottom: 40 }}
           >
-            {/* Hero Banner */}
-            <LinearGradient
-              colors={['#1A1A1A', '#3D1A00']}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-              style={styles.heroGradient}
-            >
-              <View style={styles.heroIconRow}>
-              </View>
-              <Text style={styles.heroTitle}>{l.heroTitle}</Text>
-              <Text style={styles.heroSubtitle}>{l.heroSubtitle}</Text>
-              <View style={styles.heroBadgeRow}>
-                <View style={styles.heroBadge}><Text style={styles.heroBadgeText}>{l.hundredPercentFree}</Text></View>
-                <View style={styles.heroBadge}><Text style={styles.heroBadgeText}>{l.instantResults}</Text></View>
-                <View style={styles.heroBadge}><Text style={styles.heroBadgeText}>{l.vedicSystem}</Text></View>
-              </View>
-            </LinearGradient>
-
             {/* Form Card */}
             <View style={styles.formWrapper}>
               <View style={styles.formCard}>
@@ -2438,9 +2437,10 @@ const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
 
                 {/* Name */}
                 <Text style={styles.inputLabel}>{l.fullName}</Text>
-                <View style={styles.inputWrapper}>
+                <View style={styles.inputBox}>
+                  <Ionicons name="person-outline" size={18} color="#888888" />
                   <TextInput
-                    style={styles.textInput}
+                    style={styles.inputField}
                     placeholder={l.enterName}
                     placeholderTextColor="#BBBBBB"
                     value={form.name}
@@ -2500,18 +2500,21 @@ const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
                 {/* Place of Birth */}
                 <Text style={styles.inputLabel}>{l.placeOfBirth}</Text>
                 <View style={styles.placeWrapper}>
-                  <View style={styles.inputWrapper}>
+                  <View style={[styles.inputBox, form.latitude && styles.inputBoxVerified]}>
+                    <Ionicons name="location-outline" size={18} color={form.latitude ? '#16A34A' : '#888888'} />
                     <TextInput
-                      style={styles.textInput}
+                      style={styles.inputField}
                       placeholder={l.searchCity}
                       placeholderTextColor="#BBBBBB"
                       value={form.birthPlace}
                       onChangeText={handlePlaceChange}
                       returnKeyType="search"
                     />
-                    {placeLoading && (
-                      <ActivityIndicator style={styles.placeLoader} size="small" color="#FFCC00" />
-                    )}
+                    {placeLoading ? (
+                      <ActivityIndicator size="small" color="#FFCC00" />
+                    ) : form.latitude ? (
+                      <Ionicons name="checkmark-circle" size={18} color="#16A34A" />
+                    ) : null}
                   </View>
 
                   {showSuggestions && suggestions.length > 0 && (
@@ -2565,19 +2568,6 @@ const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
         </KeyboardAvoidingView>
       ) : (
         <View style={{ flex: 1 }}>
-          {/* Result Header */}
-          <LinearGradient colors={['#1A1A1A', '#2D1500']} style={styles.resultHeader}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.resultName}>{kundaliRecord.name}</Text>
-              <Text style={styles.resultMeta}>
-                {kundaliRecord.birthDate} • {kundaliRecord.birthTime} • {kundaliRecord.birthPlace}
-              </Text>
-            </View>
-            <TouchableOpacity onPress={() => setShowLangModal(true)} style={styles.langBtn}>
-              <Text style={styles.langBtnText}>{LANGUAGES.find(l => l.code === lang)?.label || 'En'}</Text>
-            </TouchableOpacity>
-          </LinearGradient>
-
           {/* Horizontal Tabs */}
           <View style={{ backgroundColor: '#FFF', borderBottomWidth: 1, borderBottomColor: '#F0F0F0' }}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsWrapper} contentContainerStyle={{ paddingHorizontal: 8 }}>
@@ -2595,7 +2585,12 @@ const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
             </ScrollView>
           </View>
 
-          <ScrollView style={{ flex: 1, backgroundColor: '#F7F7F7' }}>
+          <ImageBackground
+            source={require('../../assets/chat_background.jpg')}
+            style={{ flex: 1 }}
+            resizeMode="cover"
+          >
+          <ScrollView style={{ flex: 1, backgroundColor: 'transparent' }}>
             {activeTab === 'basic' && renderBasicTab()}
             {activeTab === 'lagna' && renderLagnaTab()}
             {activeTab === 'planets' && renderPlanetsTab()}
@@ -2621,6 +2616,7 @@ const KundaliScreen = ({ onBack, initialParams, route, navigation }) => {
             </TouchableOpacity>
             <View style={{ height: 40 }} />
           </ScrollView>
+          </ImageBackground>
         </View>
       )}
 
@@ -2696,7 +2692,7 @@ const styles = StyleSheet.create({
   heroBadgeText: { color: '#FFCC00', fontSize: 11, fontWeight: '700' },
 
   /* ── Form card ── */
-  formWrapper: { marginTop: -28, paddingHorizontal: 16 },
+  formWrapper: { marginTop: 16, paddingHorizontal: 16 },
   formCard: {
     backgroundColor: '#FFF', borderRadius: 20, padding: 20,
     shadowColor: '#000', shadowOffset: { width: 0, height: 6 },
@@ -2713,6 +2709,13 @@ const styles = StyleSheet.create({
     borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13,
     fontSize: 15, color: '#1A1A1A', fontWeight: '500',
   },
+  inputBox: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: '#F7F7F7', borderWidth: 1.5, borderColor: '#EEEEEE',
+    borderRadius: 12, paddingHorizontal: 13, paddingVertical: Platform.OS === 'ios' ? 13 : 11,
+  },
+  inputField: { flex: 1, fontSize: 15, color: '#1A1A1A', fontWeight: '500', paddingVertical: 1 },
+  inputBoxVerified: { borderColor: '#16A34A', backgroundColor: '#F0FFF4' },
   row: { flexDirection: 'row', gap: 10 },
 
   /* Gender pills */
@@ -2795,10 +2798,13 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 16, fontWeight: '800', color: '#1A1A1A', marginBottom: 16 },
   sectionDesc: { fontSize: 14, fontWeight: '600', color: '#666', marginBottom: 12 },
 
-  infoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  infoItem: { width: '48%', backgroundColor: '#F7F7F7', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#EEEEEE' },
-  infoLabel: { fontSize: 10, color: '#E6A800', textTransform: 'uppercase', marginBottom: 4, fontWeight: '700', letterSpacing: 0.5 },
-  infoValue: { fontSize: 14, fontWeight: '700', color: '#1A1A1A' },
+  infoGrid: {},
+  infoItem: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: '#F2F2F2', gap: 12,
+  },
+  infoLabel: { fontSize: 13, color: '#888888', fontWeight: '500' },
+  infoValue: { flex: 1, fontSize: 13, fontWeight: '700', color: '#1A1A1A', textAlign: 'right' },
 
   planetCard: {
     backgroundColor: '#fff', borderRadius: 16, padding: 16, marginBottom: 16,
@@ -2871,7 +2877,7 @@ const styles = StyleSheet.create({
   muhurtaAuspicious: { borderColor: '#bbf7d0', backgroundColor: '#f0fdf4' },
   muhurtaInauspicious: { borderColor: '#fecaca', backgroundColor: '#fef2f2' },
 
-  luckyCardGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  luckyCardGrid: {},
   luckyCard: { width: '48%', padding: 12, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   luckyCardIcon: { fontSize: 24, marginBottom: 6 },
   luckyCardLabel: { fontSize: 10, fontWeight: '700', color: '#666', textTransform: 'uppercase', textAlign: 'center' },
@@ -2882,10 +2888,32 @@ const styles = StyleSheet.create({
   descLabel: { fontSize: 13, fontWeight: '800', color: '#1A1A1A', marginBottom: 4 },
   descText: { fontSize: 12, color: '#4b5563', lineHeight: 18 },
 
-  ghatkaGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  ghatkaItem: { width: '31%', padding: 10, borderRadius: 10, backgroundColor: '#F7F7F7', borderWidth: 1, borderColor: '#EEEEEE' },
-  ghatkaLabel: { fontSize: 9, color: '#E6A800', textTransform: 'uppercase', fontWeight: '700', marginBottom: 2 },
-  ghatkaValue: { fontSize: 12, fontWeight: '700', color: '#1A1A1A' },
+  ghatkaGrid: {},
+  ghatkaItem: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: '#F2F2F2', gap: 12,
+  },
+  ghatkaLabel: { fontSize: 13, color: '#888888', fontWeight: '500' },
+  ghatkaValue: { flex: 1, fontSize: 13, fontWeight: '700', color: '#1A1A1A', textAlign: 'right' },
+
+  // Transit date selector card
+  transitDateBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: '#FFF', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,204,0,0.40)',
+    paddingVertical: 12, paddingHorizontal: 14, marginBottom: 16,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 2,
+  },
+  transitDateIcon: { width: 38, height: 38, borderRadius: 11, backgroundColor: '#FFFBE6', alignItems: 'center', justifyContent: 'center' },
+  transitDateLabel: { fontSize: 11, color: '#888888', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 2 },
+  transitDateValue: { fontSize: 15, fontWeight: '800', color: '#1A1A1A' },
+
+  // Status banner (SadeSati / Manglik)
+  statusBannerCard: { padding: 20, borderRadius: 16, borderWidth: 1, alignItems: 'center', marginBottom: 14 },
+  statusIconCircle: { width: 60, height: 60, borderRadius: 30, backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
+
+  // Bullet rows (Manglik factors/cancel/remedies)
+  bulletRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 10 },
+  bulletText: { flex: 1, fontSize: 14, color: '#374151', lineHeight: 20 },
 
   pill: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, fontSize: 10, fontWeight: '800' },
   pillRetro: { backgroundColor: '#fee2e2', color: '#ef4444' },
