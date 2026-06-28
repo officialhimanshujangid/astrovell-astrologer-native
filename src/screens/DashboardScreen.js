@@ -504,7 +504,7 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
         {/* ── Availability Switches ───────────────────────────────────────── */}
         {can('dashboard_status_toggles') && (
           <View style={styles.availPlain}>
-           
+
             {/* Chat */}
             {can('chat') && (
               <View style={styles.availRow}>
@@ -647,7 +647,7 @@ const DashboardScreen = ({ onOpenSubScreen }) => {
               {can('followers') && <ServiceItem label={t('my_followers')} icon="people-outline" color={colors.iconGreen} onPress={() => onOpenSubScreen?.('Followers')} />}
               {can('reviews') && <ServiceItem label={t('my_reviews')} icon="star-outline" color={colors.iconYellow} onPress={() => onOpenSubScreen?.('Reviews')} />}
               {can('wallet') && <ServiceItem label={t('wallet')} icon="wallet-outline" color={colors.iconTeal} onPress={() => onOpenSubScreen?.('Wallet')} />}
-              {/* {can('wallet') && <ServiceItem label="Invoices" icon="document-text-outline" color={colors.iconYellow} onPress={() => onOpenSubScreen?.('Invoices')} />} */}
+              {can('wallet') && <ServiceItem label="Invoices" icon="document-text-outline" color={colors.iconYellow} onPress={() => onOpenSubScreen?.('Invoices')} />}
               {can('settings') && <ServiceItem label={t('settings')} icon="settings-outline" color={colors.iconPink} onPress={() => onOpenSubScreen?.('Settings')} />}
               {can('profile') && <ServiceItem label={t('my_profile')} icon="person-outline" color={colors.iconOrange} onPress={() => onOpenSubScreen?.('Profile')} />}
               {can('support') && <ServiceItem label={t('support')} icon="help-buoy-outline" color={colors.iconBlue} onPress={() => onOpenSubScreen?.('Support')} />}
